@@ -331,15 +331,15 @@ class FcmBotApp:
         self.clear_btn = ctk.CTkButton(actions, text="Clear Log", command=self.clear_log, width=140)
         self.clear_btn.pack(side="left", padx=8, pady=12)
 
-        # note = ctk.CTkFrame(outer)
-        # note.pack(fill="x", padx=8, pady=(0, 10))
-        # self.note_label = ctk.CTkLabel(
-        #     note,
-        #     text="Allowed users only. Launcher uses one shared CMS login session from this UI.",
-        #     wraplength=980,
-        #     justify="left"
-        # )
-        # self.note_label.pack(anchor="w", padx=14, pady=12)
+        note = ctk.CTkFrame(outer)
+        note.pack(fill="x", padx=8, pady=(0, 10))
+        self.note_label = ctk.CTkLabel(
+            note,
+            text="Allowed users only. Launcher uses one shared CMS login session from this UI.",
+            wraplength=980,
+            justify="left"
+        )
+        self.note_label.pack(anchor="w", padx=14, pady=12)
 
         log_frame = ctk.CTkFrame(outer)
         log_frame.pack(fill="both", expand=True, padx=8, pady=(0, 8))
