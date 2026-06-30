@@ -1,0 +1,26 @@
+[project]
+name = "fcm-intake"
+version = "3.0.0"
+description = "Structured Windows desktop automation app for FCM Intake workflows."
+requires-python = ">=3.10"
+dependencies = [
+  "customtkinter",
+  "selenium",
+  "pywinauto",
+  "pywin32",
+  "pyodbc",
+  "openpyxl",
+  "pandas",
+  "python-dateutil",
+  "webdriver-manager",
+]
+
+[project.optional-dependencies]
+dev = ["pytest"]
+
+[project.scripts]
+fcm-intake = "fcm_intake.__main__:main"
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]

@@ -1,0 +1,59 @@
+name: senior-agent-pack
+version: 0.1.0
+supported_tools:
+  - codex
+  - claude-code
+  - copilot
+profiles:
+  - base
+  - python-automation
+  - healthcare-automation
+  - terminal-automation
+  - web-dashboard
+  - backend-api
+agents:
+  - project-manager
+  - python-automation-engineer
+  - web-ui-engineer
+  - backend-data-engineer
+  - qa-reviewer
+  - healthcare-ops-sme-us
+  - terminal-automation-engineer
+  - agentic-ai-architect
+  - security-compliance-reviewer
+  - devops-release-engineer
+skills:
+  - pm-plan
+  - qa-acceptance-review
+  - python-browser-automation
+  - python-desktop-automation
+  - terminal-screen-mapping
+  - healthcare-eligibility-workflow
+  - healthcare-claims-workflow
+  - postgres-schema-review
+  - react-dashboard-ui
+  - security-phi-secrets-review
+  - release-readiness
+commands:
+  - pm/plan
+  - pm/roadmap
+  - dev/inspect
+  - dev/implement
+  - py/automate
+  - web/dashboard
+  - db/review
+  - qa/review
+  - sec/review
+  - healthcare/workflow
+  - terminal/map-screen
+  - release/check
+install_paths:
+  codex:
+    root: AGENTS.md
+    skills: .agents/skills
+  claude:
+    root: CLAUDE.md
+    agents: .claude/agents
+    commands: .claude/commands
+    skills: .claude/skills
+
