@@ -1,3 +1,4 @@
+[ERROR] Message: Unable to obtain driver for internet explorer; For documentation on this error, please visit: https://www.selenium.dev/documentation/webdriver/troubleshooting/errors/driver_location
 # FCM Intake V3
 
 FCM Intake V3 is a structured, behavior-preserving migration of the V2 Windows automation app.
