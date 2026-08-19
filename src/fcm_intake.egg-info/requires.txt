@@ -1,0 +1,12 @@
+customtkinter
+selenium
+pywinauto
+pywin32
+pyodbc
+openpyxl
+pandas
+python-dateutil
+webdriver-manager
+
+[dev]
+pytest

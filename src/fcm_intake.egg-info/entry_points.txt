@@ -1,0 +1,2 @@
+[console_scripts]
+fcm-intake = fcm_intake.__main__:main

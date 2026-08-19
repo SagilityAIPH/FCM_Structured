@@ -10,12 +10,13 @@ from fcm_intake.config import FCM_SCRIPT
 from fcm_intake.automation.legacy_loader import load_module_from_path
 
 def run_fcm(ui, context):
-    cms_session.set_credentials(context.cms_username, context.cms_password)
-    cms_session.init_shared_cms_session()
+    # TEST RRS
+    # cms_session.set_credentials(context.cms_username, context.cms_password)
+    # cms_session.init_shared_cms_session()
 
-    sys.modules["ReOpenCheck"] = ReOpenCheck_shared
-    sys.modules["CustomerCheckerV2"] = CustomerCheckerV2_shared
-
+    # sys.modules["ReOpenCheck"] = ReOpenCheck_shared
+    # sys.modules["CustomerCheckerV2"] = CustomerCheckerV2_shared
+    #END RRS Remove when ready
     module = load_module_from_path("legacy_fcm_shared_runtime", FCM_SCRIPT)
 
     def ui_notify(title: str, text: str):

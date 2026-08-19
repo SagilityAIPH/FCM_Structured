@@ -17,3 +17,20 @@ def test_load_module_from_path_loads_temp_module(tmp_path: Path):
 def test_load_module_from_path_missing_file_raises(tmp_path: Path):
     with pytest.raises(FileNotFoundError):
         load_module_from_path("missing_module_for_test", tmp_path / "missing.py")
+
+
+def test_load_module_from_path_supports_legacy_absolute_imports(tmp_path: Path, monkeypatch):
+    legacy_dir = tmp_path / "legacy"
+    legacy_dir.mkdir()
+    (legacy_dir / "__init__.py").write_text("", encoding="utf-8")
+    (legacy_dir / "helper.py").write_text("VALUE = 7\n", encoding="utf-8")
+    (legacy_dir / "consumer.py").write_text(
+        "from legacy.helper import VALUE\nRESULT = VALUE\n",
+        encoding="utf-8",
+    )
+
+    monkeypatch.syspath_prepend(str(tmp_path))
+
+    module = load_module_from_path("legacy_consumer_runtime", legacy_dir / "consumer.py")
+
+    assert module.RESULT == 7

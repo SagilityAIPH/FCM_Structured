@@ -232,8 +232,7 @@ THEME_PATH = Path(__file__).resolve().parent / "fcm_ctk_theme.json"
 ctk.set_default_color_theme(str(THEME_PATH))
 ctk.set_appearance_mode("dark")
 
-ALLOWED_USERS = {"MC133061", "KC133062", "BOSLE_S", "MCCLU_M"}
-
+ALLOWED_USERS = {"MC133061", "KC133062", "BOSLE_S", "MCCLU_M", "CC900000027"}
 
 def resolve_current_user() -> str:
     candidates = [

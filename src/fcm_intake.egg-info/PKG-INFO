@@ -1,0 +1,16 @@
+Metadata-Version: 2.4
+Name: fcm-intake
+Version: 3.0.0
+Summary: Structured Windows desktop automation app for FCM Intake workflows.
+Requires-Python: >=3.10
+Requires-Dist: customtkinter
+Requires-Dist: selenium
+Requires-Dist: pywinauto
+Requires-Dist: pywin32
+Requires-Dist: pyodbc
+Requires-Dist: openpyxl
+Requires-Dist: pandas
+Requires-Dist: python-dateutil
+Requires-Dist: webdriver-manager
+Provides-Extra: dev
+Requires-Dist: pytest; extra == "dev"
