@@ -9,7 +9,9 @@ import pandas as pd
 import streamlit as st
 from docx import Document
 from openai import OpenAI
+from dotenv import load_dotenv
 
+load_dotenv()
 
 # ============================================================
 # STREAMLIT CONFIG - 70% WIDTH ONLY
