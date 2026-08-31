@@ -6,4 +6,8 @@ __pycache__/
 *.log
 config/local_settings.ini
 /skills/
+.tokensave/
+.claude/.headroom_wrap_marker.json
+graphify-out/.graphify_python
+graphify-out/.graphify_root
 
