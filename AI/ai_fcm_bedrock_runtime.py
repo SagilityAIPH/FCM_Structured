@@ -943,7 +943,7 @@ def normalize_doctor_or_facility(value: str, provider_name: str) -> str:
         "group", "company", "office", "associates", "services", "urgent care",
         "rehab", "therapy", "institute", "concentra", "rothman", "umc",
         "health", "medical", "imaging", "radiology", "doctors on duty",
-        "orthopedic", "ortho", "practice", "cmc"
+        "orthopedic", "ortho", "practice", "cmc", "neurology"
     ]
 
     practitioner_markers = [
@@ -951,12 +951,18 @@ def normalize_doctor_or_facility(value: str, provider_name: str) -> str:
         " pt", " dpt", " aprn", " rn", " specialist", "doctor", "dr."
     ]
 
+    if any(marker in f" {name_low} " for marker in practitioner_markers):
+        return "Doctor"
+
+    # Facility keywords take precedence over the broad two-word person pattern.
+    # Otherwise names such as "Michigan Neurology" and "Example Clinic" are
+    # incorrectly classified as doctors.
+    if any(word in name_low for word in facility_words):
+        return "Facility"
+
     if "doctor" in value_low:
         return "Doctor"
 
-    if any(marker in f" {name_low} " for marker in practitioner_markers):
-        return "Doctor"
-    
     if re.match(r"^[A-Z]{3,6}(?:\s+[A-Z][A-Za-z.'-]+){1,4}$", name):
         return "Facility"
 
@@ -966,9 +972,6 @@ def normalize_doctor_or_facility(value: str, provider_name: str) -> str:
 
     if len(name.split()) == 1 and not any(word in name_low for word in facility_words):
         return "Doctor"
-
-    if any(word in name_low for word in facility_words):
-        return "Facility"
 
     if "&" in name or " - " in name or "/" in name:
         return "Facility"

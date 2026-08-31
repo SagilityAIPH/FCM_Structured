@@ -28,6 +28,33 @@ Current V2 defaults are preserved. These environment variables can override loca
 
 Do not commit real credentials, PHI, screenshots, or production claim data.
 
+## AI sample regression workflow
+
+The PDFs in `Samples for AI/` can be scanned and batch-tested without importing
+the Streamlit UI. Sample inputs and derived results are gitignored because they
+can contain PHI.
+
+```powershell
+# Install the optional AI runtime once
+python -m pip install -e ".[ai]"
+
+# Local text-readability check; does not call Bedrock
+python AI/batch_samples.py scan
+
+# Run all samples with the normal AWS credential chain, or with
+# AWS_BEARER_TOKEN_BEDROCK set in the environment
+python AI/batch_samples.py run
+
+# Export predictions for correction, then mark reviewed=yes in the CSV
+python AI/batch_samples.py export-review
+python AI/batch_samples.py score
+```
+
+Runs are resumable: successful document IDs already present in
+`AI/.sample_runs/results.jsonl` are skipped. The score report provides overall
+and per-field exact-match accuracy so prompt and validation changes can be
+measured against reviewed examples.
+
 
 ## Local Path Settings
 

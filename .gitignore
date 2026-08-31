@@ -11,3 +11,7 @@ config/local_settings.ini
 graphify-out/.graphify_python
 graphify-out/.graphify_root
 
+# Local AI samples and derived outputs may contain PHI/claim data.
+/Samples for AI/
+/AI/.sample_runs/
+
