@@ -5,4 +5,5 @@ __pycache__/
 .env
 *.log
 config/local_settings.ini
+/skills/
 
