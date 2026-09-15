@@ -2,8 +2,8 @@ import requests
 import getpass
 # python -m pip install requests
 # python bedrock_direct_test.py
-REGION = "us-east-1"
-MODEL_ID = "openai.gpt-oss-120b-1:0"
+REGION = "us-east-2"
+MODEL_ID = "openai.gpt-5.6-sol"
 
 API_KEY = getpass.getpass("Paste NEW Bedrock API key (hidden): ").strip()
 

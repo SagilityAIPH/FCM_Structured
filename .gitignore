@@ -10,6 +10,7 @@ config/local_settings.ini
 .claude/.headroom_wrap_marker.json
 graphify-out/.graphify_python
 graphify-out/.graphify_root
+node_modules/
 
 # Local AI samples and derived outputs may contain PHI/claim data.
 /Samples for AI/
