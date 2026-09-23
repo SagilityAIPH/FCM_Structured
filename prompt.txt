@@ -1,0 +1,663 @@
+You are working with an EXISTING Python desktop automation solution.
+
+The application uses:
+
+* Python
+* Tkinter for the desktop UI
+* Selenium WebDriver for browser automation
+* CMS as one of the browser-based systems being automated
+* RRS (Referral Routing System), which is a Windows desktop application
+* Windows-based automation/integration for interacting with RRS
+* Potential supporting modules for file handling, configuration, logging, data extraction, validation, and workflow control
+
+Your task is to analyze the EXISTING solution and create a detailed implementation plan BEFORE changing any code.
+
+## Requested Change
+
+[PASTE THE NEW FEATURE / CHANGE / BUG FIX HERE]
+
+---
+
+# CRITICAL RULES
+
+This is PLAN MODE ONLY.
+
+DO NOT:
+
+* Modify any source code
+* Create or delete files
+* Refactor the application
+* Install packages
+* Change dependencies
+* Change Selenium selectors
+* Change CMS navigation
+* Change RRS automation
+* Change Tkinter UI behavior
+* Run destructive commands
+* Commit anything
+
+You may inspect/read the repository and run safe diagnostic/read-only commands when necessary to understand the application.
+
+Do not assume how the application works.
+
+Discover the actual implementation first.
+
+---
+
+# 1. ANALYZE THE ENTIRE SOLUTION
+
+Inspect the repository structure and identify:
+
+* Main application entry point
+* Tkinter UI files/classes
+* Selenium/browser automation modules
+* CMS-specific automation
+* RRS-specific automation
+* Windows desktop automation libraries being used
+* Workflow/controller/orchestration modules
+* Data models
+* Configuration files
+* Constants
+* Environment variables
+* Selenium selectors
+* Window selectors/titles/control identifiers
+* File handling
+* Input/output files
+* Logging
+* Exception handling
+* Retry logic
+* Wait logic
+* Threading/background workers
+* Queue usage
+* State management
+* Temporary files
+* Screenshots/debug artifacts
+* requirements.txt / pyproject.toml
+* Tests, if any
+
+Do not infer filenames. Discover the actual files.
+
+---
+
+# 2. IDENTIFY THE APPLICATION ARCHITECTURE
+
+Determine how the application is currently structured.
+
+Specifically determine how these layers interact:
+
+Tkinter UI
+↓
+Workflow / Controller
+↓
+CMS Selenium Automation
+↓
+Data Extraction / Processing
+↓
+RRS Windows Automation
+↓
+Result / Status
+↓
+Tkinter UI
+
+This diagram is only a conceptual example.
+
+Replace it with the ACTUAL flow discovered in the repository.
+
+Determine whether CMS and RRS automation are:
+
+* Sequential
+* Independent
+* Conditional
+* Interdependent
+
+Identify where information collected from CMS is passed into RRS and vice versa.
+
+---
+
+# 3. TRACE THE COMPLETE CURRENT WORKFLOW
+
+Trace what happens when the user launches the application.
+
+Start with:
+
+python entry point
+→ Tkinter initialization
+→ UI initialization
+→ user action/button
+→ workflow start
+→ browser initialization
+→ CMS login/navigation
+→ CMS processing
+→ data extraction
+→ RRS interaction
+→ completion/error handling
+→ UI status update
+
+Use the actual function/class/module names found in the repository.
+
+Do not use hypothetical names.
+
+If multiple workflows exist, identify them separately.
+
+---
+
+# 4. ANALYZE TKINTER UI
+
+Identify:
+
+* Main Tkinter window
+* Frames/pages/tabs
+* Buttons
+* Input fields
+* Status fields
+* Progress indicators
+* Logs displayed in UI
+* Start/Stop/Pause controls
+* Background threads
+* Worker functions
+* How UI state is updated during automation
+
+Pay special attention to threading.
+
+Selenium and Windows automation can block the Tkinter main loop if executed directly from UI callbacks.
+
+Determine whether the existing solution already handles this correctly.
+
+Do NOT propose a threading redesign unless required for the requested feature.
+
+---
+
+# 5. ANALYZE CMS SELENIUM AUTOMATION
+
+Identify:
+
+* WebDriver initialization
+* Chrome/Edge configuration
+* Browser profile usage
+* Authentication/login handling
+* CMS URLs/navigation
+* Page transitions
+* Window/tab switching
+* iframe handling
+* Selenium selectors
+* Explicit waits
+* Implicit waits
+* Hard-coded sleeps
+* Retry logic
+* Download handling
+* File uploads
+* Data extraction
+* Form submission
+* Error recovery
+* Browser cleanup
+
+Identify fragile areas such as:
+
+* Absolute XPath
+* Dynamic element IDs
+* Hard-coded sleep()
+* Fixed window handles
+* Timing assumptions
+* Elements loaded asynchronously
+* Stale element references
+
+Do not change these during Plan Mode.
+
+Only identify them if relevant.
+
+---
+
+# 6. ANALYZE RRS WINDOWS APPLICATION AUTOMATION
+
+RRS means:
+
+Referral Routing System
+
+It is a Windows desktop application.
+
+Determine exactly how the current Python solution interacts with RRS.
+
+For example, inspect whether it uses:
+
+* pywinauto
+* pyautogui
+* win32gui
+* win32api
+* win32com
+* keyboard/mouse automation
+* image recognition
+* clipboard
+* subprocess
+* executable launching
+* Windows UI Automation
+* another library
+
+Do not assume which method is being used.
+
+Identify:
+
+* How RRS is launched or detected
+* How the RRS window is identified
+* How focus is controlled
+* How fields/buttons are identified
+* How data is entered
+* How screens are navigated
+* How dialogs/popups are handled
+* How success is detected
+* How failures are detected
+* How the application returns to a known state
+
+Pay special attention to synchronization between Python and RRS.
+
+Determine whether the automation waits for:
+
+* Windows to appear
+* Controls to become available
+* Screens to finish loading
+* Dialogs to close
+* Data to save
+
+Identify any timing assumptions.
+
+---
+
+# 7. ANALYZE CMS → RRS DATA FLOW
+
+This is especially important.
+
+Determine what information is collected from CMS and what information is entered or used in RRS.
+
+Document the actual data flow:
+
+CMS
+↓
+Extracted values
+↓
+Python variables / objects
+↓
+Validation / transformation
+↓
+RRS
+↓
+RRS fields/actions
+
+Create a mapping such as:
+
+CMS Source
+→ Python Variable
+→ Transformation/Validation
+→ RRS Destination
+
+Only include mappings confirmed by the code.
+
+Identify where this information is stored while the automation is running.
+
+---
+
+# 8. WORKFLOW STATE AND RECOVERY
+
+Analyze how the application determines where it currently is in the automation.
+
+Identify states such as:
+
+NOT_STARTED
+CMS_OPEN
+CMS_LOGGED_IN
+CMS_RECORD_FOUND
+CMS_DATA_EXTRACTED
+RRS_OPEN
+RRS_RECORD_FOUND
+RRS_UPDATED
+COMPLETED
+FAILED
+
+These are examples only.
+
+Use the actual states if the application already defines them.
+
+Determine what happens if automation fails halfway through.
+
+For example:
+
+CMS succeeds
+→ RRS fails
+
+Determine whether restarting could cause:
+
+* Duplicate updates
+* Duplicate submissions
+* Incorrect routing
+* Reprocessing
+* Lost data
+
+Recommend safeguards only where relevant to the requested change.
+
+---
+
+# 9. ERROR HANDLING
+
+Identify existing handling for:
+
+* Browser not available
+* WebDriver failure
+* CMS unavailable
+* CMS login failure
+* CMS timeout
+* Element not found
+* Stale element
+* Browser crash
+* Unexpected CMS popup
+* RRS not running
+* RRS window not found
+* RRS popup/dialog
+* RRS field/control not found
+* RRS timeout
+* Windows focus problems
+* Missing input data
+* Invalid data
+* File errors
+* User stopping automation
+
+Determine what the user sees in Tkinter when these occur.
+
+Do not hide errors with broad exception handlers unless the existing architecture intentionally handles them.
+
+---
+
+# 10. REQUESTED FEATURE GAP ANALYSIS
+
+After understanding the existing solution, analyze:
+
+[PASTE REQUESTED FEATURE HERE]
+
+Determine:
+
+### Already Exists
+
+What functionality can be reused?
+
+### Missing
+
+What functionality needs to be added?
+
+### Must Change
+
+Which existing functions/classes/modules must change?
+
+### Must NOT Change
+
+Identify working components that should remain untouched.
+
+### Dependencies
+
+Determine whether any new Python packages are actually required.
+
+Prefer existing dependencies whenever possible.
+
+---
+
+# 11. MINIMIZE REGRESSION RISK
+
+This automation interacts with external applications.
+
+Small changes can break existing workflows.
+
+Therefore:
+
+Prefer the smallest possible implementation.
+
+Do not rewrite working Selenium automation unless necessary.
+
+Do not rewrite working RRS automation unless necessary.
+
+Do not change selectors unrelated to the requested feature.
+
+Do not change Tkinter layouts unrelated to the feature.
+
+Do not rename public functions/classes without a strong reason.
+
+Do not reorganize the repository simply for cleanliness.
+
+Do not introduce unnecessary abstraction.
+
+Do not convert working synchronous logic to async unless specifically required.
+
+Do not replace existing automation libraries unless there is a demonstrated requirement.
+
+---
+
+# 12. PROPOSE THE IMPLEMENTATION
+
+For every proposed modification provide:
+
+## File
+
+Exact file path.
+
+## Component
+
+Exact function/class/method.
+
+## Current Behavior
+
+Explain what it currently does.
+
+## Proposed Change
+
+Explain exactly what should change.
+
+## Reason
+
+Explain why it is necessary.
+
+## Impact
+
+Identify what other parts of the automation could be affected.
+
+## Risk
+
+LOW / MEDIUM / HIGH
+
+Explain MEDIUM or HIGH risks.
+
+---
+
+# 13. IMPLEMENTATION ORDER
+
+Provide an ordered implementation sequence.
+
+For example:
+
+Phase 1 — Data/configuration changes
+
+Phase 2 — Core Python logic
+
+Phase 3 — CMS Selenium changes
+
+Phase 4 — RRS automation changes
+
+Phase 5 — Tkinter integration
+
+Phase 6 — Error handling/recovery
+
+Phase 7 — Testing
+
+Only include phases that are actually required.
+
+For every phase, identify the exact files/functions involved.
+
+---
+
+# 14. TESTING STRATEGY
+
+Because this application automates production-like external systems, separate testing into:
+
+### Unit / Offline Testing
+
+Test logic that does not require CMS or RRS.
+
+### CMS Testing
+
+Test:
+
+* Browser startup
+* Login
+* Navigation
+* Record search
+* Data extraction
+* Form interaction
+* Timeouts
+* Unexpected page states
+
+### RRS Testing
+
+Test:
+
+* Application detection
+* Window activation
+* Navigation
+* Field entry
+* Dialog handling
+* Save/update
+* Recovery from unexpected screens
+
+### End-to-End Testing
+
+Test:
+
+Tkinter
+→ CMS
+→ Data extraction
+→ Processing
+→ RRS
+→ Completion
+→ Tkinter status
+
+Also test partial failures.
+
+CMS success → RRS failure
+
+CMS failure → RRS not executed
+
+User stops automation mid-process
+
+RRS already open
+
+Browser already open
+
+Unexpected popup
+
+Slow CMS response
+
+Slow RRS response
+
+Missing CMS data
+
+---
+
+# 15. OBSERVABILITY
+
+Determine whether the current application provides enough logging to troubleshoot automation failures.
+
+Useful events may include:
+
+* Workflow started
+* CMS opened
+* CMS page reached
+* CMS record found
+* CMS data extracted
+* RRS detected
+* RRS screen reached
+* RRS action completed
+* Workflow completed
+* Workflow failed
+
+Do not log:
+
+* Passwords
+* Authentication tokens
+* Sensitive information unnecessarily
+
+Recommend additional logging only if required for reliable troubleshooting.
+
+---
+
+# 16. FINAL PLAN FORMAT
+
+Return:
+
+# Implementation Plan
+
+## Application Architecture
+
+Explain the actual architecture discovered.
+
+## Repository Structure
+
+Show only relevant files/folders.
+
+## Current Workflow
+
+Show the actual execution flow.
+
+## CMS Automation
+
+Explain the relevant Selenium implementation.
+
+## RRS Automation
+
+Explain the relevant Windows automation implementation.
+
+## CMS → RRS Data Flow
+
+Explain what data moves between the systems.
+
+## Requested Change
+
+Restate the requested feature.
+
+## Gap Analysis
+
+Explain what exists and what is missing.
+
+## Files to Modify
+
+Identify exact files/functions.
+
+## Files NOT to Modify
+
+Identify important working components that should remain untouched.
+
+## Implementation Steps
+
+Provide detailed ordered steps.
+
+## Risks
+
+Identify regression and automation risks.
+
+## Error Handling
+
+Explain required failure/recovery behavior.
+
+## Testing Plan
+
+Provide offline, CMS, RRS, and end-to-end testing.
+
+## Validation Checklist
+
+Provide a final checklist for verifying the implementation.
+
+## Questions / Unconfirmed Assumptions
+
+Only include questions that cannot be answered by inspecting the repository.
+
+Do NOT implement the changes.
+
+Do NOT generate replacement code yet.
+
+First understand the existing system and produce the plan.
+
+End your response with:
+
+"Plan complete. No files were modified. Ready for implementation after approval."
