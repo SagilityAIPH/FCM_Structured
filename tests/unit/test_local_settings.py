@@ -3,8 +3,14 @@ import importlib
 from fcm_intake import config
 
 
-def test_local_settings_file_exists():
-    assert config.LOCAL_SETTINGS_PATH.exists()
+def test_local_settings_example_exists():
+    assert config.LOCAL_SETTINGS_PATH.with_name("local_settings.example.ini").exists()
+
+
+def test_missing_local_settings_uses_defaults(tmp_path, monkeypatch):
+    monkeypatch.setattr(config, "LOCAL_SETTINGS_PATH", tmp_path / "missing.ini")
+    monkeypatch.setattr(config, "_LOCAL_SETTINGS", config._load_local_settings())
+    assert config.get_local_setting("cms", "login_url") == config._DEFAULTS[("cms", "login_url")]
 
 
 def test_local_settings_values_are_exposed():

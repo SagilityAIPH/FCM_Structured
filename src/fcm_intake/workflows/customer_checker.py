@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from fcm_intake.config import CUSTOMERCHECKER_SCRIPT
-from fcm_intake.automation.legacy_loader import load_module_from_path
+from fcm_intake.legacy_loader import load_module_from_path
 from fcm_intake.cms import session as cms_session
 
 _orig = load_module_from_path("legacy_customerchecker_shared_runtime", CUSTOMERCHECKER_SCRIPT)

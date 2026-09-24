@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from fcm_intake.automation.legacy_loader import load_module_from_path
+from fcm_intake.legacy_loader import load_module_from_path
 
 
 def test_load_module_from_path_loads_temp_module(tmp_path: Path):

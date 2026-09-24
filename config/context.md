@@ -9,7 +9,7 @@ Clean and structure `FCM-Intake-V3` as a behavior-preserving migration of `FCM-I
 - Added `main.py`, `pyproject.toml`, `README.md`, `.gitignore`, and starter smoke/unit tests.
 - Isolated agent-pack files under `tools/agent-pack/`.
 - Added Notepad-editable local path config at `config/local_settings.ini`.
-- Updated V3 path-sensitive modules to read file paths from `src/fcm_intake/config/__init__.py` instead of requiring Python code edits.
+- Updated V3 path-sensitive modules to read file paths from `src/fcm_intake/config.py` instead of requiring Python code edits.
 
 ## Editable Local Settings
 Developers should edit this file in Notepad for machine-specific paths:

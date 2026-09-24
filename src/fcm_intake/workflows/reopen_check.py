@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from fcm_intake.config import REOPENCHECK_SCRIPT
-from fcm_intake.automation.legacy_loader import load_module_from_path
+from fcm_intake.legacy_loader import load_module_from_path
 from fcm_intake.cms import session as cms_session
 
 _orig = load_module_from_path("legacy_reopen_shared_runtime", REOPENCHECK_SCRIPT)

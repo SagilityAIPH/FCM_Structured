@@ -7,7 +7,7 @@ from fcm_intake.cms import session as cms_session
 from fcm_intake.workflows import customer_checker as CustomerCheckerV2_shared
 from fcm_intake.workflows import reopen_check as ReOpenCheck_shared
 from fcm_intake.config import FCM_SCRIPT
-from fcm_intake.automation.legacy_loader import load_module_from_path
+from fcm_intake.legacy_loader import load_module_from_path
 
 def run_fcm(ui, context):
     # TEST RRS

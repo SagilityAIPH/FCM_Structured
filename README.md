@@ -13,11 +13,19 @@ For direct local execution without installing the package:`r`n`r`n```powershell`
 ## Layout
 
 - `src/fcm_intake/app.py`: CustomTkinter desktop UI.
+- `src/fcm_intake/config.py`: configuration defaults and local settings loader.
+- `src/fcm_intake/legacy_loader.py`: dynamic loader for legacy scripts.
 - `src/fcm_intake/runners/`: thin orchestration layer between UI and workflows.
 - `src/fcm_intake/cms/`: shared CMS browser/session helpers.
 - `src/fcm_intake/workflows/`: compatibility wrappers around legacy workflow scripts.
 - `src/fcm_intake/legacy/`: V2 automation scripts preserved for behavior compatibility.
 - `tools/agent-pack/`: agent tooling isolated from the FCM app code.
+
+The four modules directly under `src/` (`CMS.py`, `edge_auto.py`,
+`CustomerCheckerV2_shared.py`, and `ReOpenCheck_shared.py`) support imports
+still used by the legacy scripts. Keep these until those imports are migrated.
+Python installation metadata (`*.egg-info/`) is generated locally and is not
+source code.
 
 ## Configuration
 
@@ -29,6 +37,9 @@ Current V2 defaults are preserved. These environment variables can override loca
 Do not commit real credentials, PHI, screenshots, or production claim data.
 
 ## AI sample regression workflow
+
+For a native Windows app without Streamlit, use `dist/AI-FCM-Bedrock.exe`.
+See [desktop EXE instructions](AI/README-exe.md) for building, testing, and use.
 
 The PDFs in `Samples for AI/` can be scanned and batch-tested without importing
 the Streamlit UI. Sample inputs and derived results are gitignored because they

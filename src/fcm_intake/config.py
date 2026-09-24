@@ -4,8 +4,8 @@ import configparser
 import os
 from pathlib import Path
 
-PROJECT_ROOT = Path(__file__).resolve().parents[3]
-BASE_DIR = Path(__file__).resolve().parents[1]
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+BASE_DIR = Path(__file__).resolve().parent
 LEGACY_DIR = BASE_DIR / "legacy"
 LOCAL_SETTINGS_PATH = PROJECT_ROOT / "config" / "local_settings.ini"
 
