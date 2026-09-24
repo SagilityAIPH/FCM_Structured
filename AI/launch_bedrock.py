@@ -11,13 +11,13 @@ from tkinter import filedialog, messagebox, ttk
 from tkinter.scrolledtext import ScrolledText
 
 from dotenv import load_dotenv
-import bedrock_core as core
+import bedrock_runtime as core
 
 
 class BedrockApp:
     def __init__(self, root):
         self.root = root
-        root.title("AI-FCM Bedrock Extraction")
+        root.title("AI-FCM Bedrock Runtime")
         root.geometry("1050x760")
         root.minsize(800, 580)
         self.events = queue.Queue()
@@ -28,7 +28,7 @@ class BedrockApp:
         self.controls = []
         body = ttk.Frame(root, padding=16)
         body.pack(fill="both", expand=True)
-        ttk.Label(body, text="AI-FCM Bedrock Extraction", font=("Segoe UI", 19, "bold")).pack(anchor="w")
+        ttk.Label(body, text="AI-FCM Bedrock Runtime", font=("Segoe UI", 19, "bold")).pack(anchor="w")
         ttk.Label(body, text="Read a PDF, Word document, or text file, then extract fields with Amazon Bedrock.").pack(anchor="w", pady=(4, 12))
         settings = ttk.LabelFrame(body, text="Bedrock settings", padding=10)
         settings.pack(fill="x")
@@ -294,7 +294,7 @@ def main():
         if args.self_test_report:
             args.self_test_report.write_text(details, encoding="utf-8")
         else:
-            messagebox.showerror("AI-FCM startup failed", details)
+            messagebox.showerror("AI-FCM Runtime startup failed", details)
         raise
 
 

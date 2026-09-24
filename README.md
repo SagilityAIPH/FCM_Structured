@@ -38,7 +38,7 @@ Do not commit real credentials, PHI, screenshots, or production claim data.
 
 ## AI sample regression workflow
 
-For a native Windows app without Streamlit, use `dist/AI-FCM-Bedrock.exe`.
+For a native Windows app without Streamlit, use `dist/AI-FCM-Bedrock-Runtime.exe`.
 See [desktop EXE instructions](AI/README-exe.md) for building, testing, and use.
 
 The PDFs in `Samples for AI/` can be scanned and batch-tested without importing

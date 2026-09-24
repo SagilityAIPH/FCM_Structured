@@ -6,9 +6,9 @@ import tempfile
 
 
 def main():
-    executable = Path(__file__).resolve().parents[1] / "dist" / "AI-FCM-Bedrock.exe"
+    executable = Path(__file__).resolve().parents[1] / "dist" / "AI-FCM-Bedrock-Runtime.exe"
     environment = os.environ.copy()
-    for name in ("OPENAI_API_KEY", "PYTHONPATH", "PYTHONHOME"):
+    for name in ("AWS_BEARER_TOKEN_BEDROCK", "OPENAI_API_KEY", "PYTHONPATH", "PYTHONHOME"):
         environment.pop(name, None)
     with tempfile.TemporaryDirectory(prefix="bedrock-smoke-") as folder:
         report = Path(folder) / "report.txt"

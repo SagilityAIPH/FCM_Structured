@@ -10,7 +10,7 @@ try {
     if ($LASTEXITCODE -ne 0) { throw 'Failed to install build dependencies' }
     rtk proxy .venv-bedrock/Scripts/python.exe -m PyInstaller --noconfirm AI/bedrock.spec
     if ($LASTEXITCODE -ne 0) { throw 'EXE build failed' }
-    Write-Host 'Created dist/AI-FCM-Bedrock.exe'
+    Write-Host 'Created dist/AI-FCM-Bedrock-Runtime.exe'
 } finally {
     Pop-Location
 }
