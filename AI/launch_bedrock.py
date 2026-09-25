@@ -240,8 +240,11 @@ def self_test(root, app):
             root.update()
             time.sleep(0.02)
         assert not app.busy and "212-555-1234" in app.full_text
-    response = "\n".join(f"{field}: Not found" for field in core.REQUIRED_FIELDS)
-    response = response.replace("Provider Phone: Not found", "Provider Phone: 212-555-1234")
+    payload = {field: "Not found" for field in core.REQUIRED_FIELDS if field not in core.PROVIDER_FIELDS}
+    provider = {field: "Not found" for field in core.PROVIDER_FIELDS}
+    provider["Provider Phone"] = "212-555-1234"
+    payload["Provider Information"] = [provider]
+    response = json.dumps(payload)
     class MockClient:
         def __enter__(self):
             return self

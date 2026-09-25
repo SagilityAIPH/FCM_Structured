@@ -42,3 +42,36 @@ with a mock model, and checks CSV/JSON/TXT exports without contacting Bedrock.
 launcher and the original `ai_fcm_bedrock.py` Streamlit interface.
 `bedrock_runtime.py` adapts the native app's requests to Runtime Converse;
 the original Streamlit app retains its existing Mantle transport.
+
+## Referral fields
+
+All three interfaces and the batch runner share `referral_schema.py`: 51 unique
+export fields (the original 14 plus 37 additions). Existing names are reused:
+
+| Requested label | Export field |
+| --- | --- |
+| Customer Name | Employer Name |
+| Customer Contact Name | Employer Contact Name |
+| Customer Contact Phone Number | Employer Contact Mobile |
+| Provider / Facility Name | Provider Name (First Name / Last Name) |
+| Provider Phone Number | Provider Phone |
+| Attorney Address-line-1 | Attorney Address |
+| Attorney Phone Number | Attorney Phone Number |
+
+Unprefixed address, city/state/zip and phone fields belong to the claimant.
+Attorney and provider address fields use their respective prefixes. Attorney
+Address now holds street line 1, with line 2, city, state and ZIP separately.
+NCM remains the nurse name; the nurse email is a separate new field.
+
+Bedrock returns provider records as an internal JSON array. Exports retain the
+flat field/value format: multiple provider values are joined with ` & ` in the
+same order across all provider fields, including missing-value placeholders.
+The most complete record appears first; distinct appointments are retained.
+Exact duplicate records are removed. The prompt asks the model to consolidate
+complementary details only for the same provider, location and appointment.
+
+Attorney fields and referral instructions/type/priority are optional. Missing
+facts use `Not found`; they do not block processing or trigger a retry. Commercial
+and Case Manager are extraction examples, not invented defaults. Invalid or
+incomplete model JSON retries once and then reports an error. Output defaults to
+4096 tokens for the expanded schema.

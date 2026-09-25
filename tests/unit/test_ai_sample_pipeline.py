@@ -10,13 +10,16 @@ from AI.batch_samples import (
     load_extraction_core,
     scan_samples,
     score_review,
+    _existing_successes,
 )
 
 
 def test_load_core_without_streamlit_or_boto3_imports():
     core = load_extraction_core()
 
-    assert len(core["REQUIRED_FIELDS"]) == 14
+    assert len(core["REQUIRED_FIELDS"]) == 51
+    assert len(set(core["REQUIRED_FIELDS"])) == 51
+    assert "Customer Name" not in core["REQUIRED_FIELDS"]
     assert "{DOCUMENT_TEXT}" in core["FIELD_ONLY_PROMPT"]
     assert callable(core["run_reasoning"])
 
@@ -24,11 +27,13 @@ def test_load_core_without_streamlit_or_boto3_imports():
 def test_loaded_core_runs_production_post_processing_with_stubbed_model():
     core = load_extraction_core()
     fields = core["REQUIRED_FIELDS"]
-    values = {field: "Not found" for field in fields}
-    values["Provider Phone"] = "555-555-0100"
-    values["Provider Name (First Name / Last Name)"] = "Example Clinic"
-    values["Determining if Doctor or Provider Name"] = "Facility"
-    model_output = "\n".join(f"{field}: {values[field]}" for field in fields)
+    values = {field: "Not found" for field in fields if field not in core["PROVIDER_FIELDS"]}
+    provider = {field: "Not found" for field in core["PROVIDER_FIELDS"]}
+    provider["Provider Phone"] = "555-555-0100"
+    provider["Provider Name (First Name / Last Name)"] = "Example Clinic"
+    provider["Determining if Doctor or Provider Name"] = "Facility"
+    values["Provider Information"] = [provider]
+    model_output = json.dumps(values)
     core["call_llm_once"] = lambda **_kwargs: model_output
 
     _final_text, final_fields, _raw, _elapsed = core["run_reasoning"](
@@ -57,6 +62,17 @@ def test_scan_samples_reads_pdf_text(tmp_path):
     assert report["page_count"] == 1
     assert report["readable_count"] == 1
     assert len(report["documents"][0]["document_id"]) == 16
+
+
+def test_resume_reprocesses_old_schema(tmp_path):
+    fields = load_extraction_core()["REQUIRED_FIELDS"]
+    results = tmp_path / "results.jsonl"
+    records = [
+        {"status": "ok", "document_id": "old", "fields": {key: "Not found" for key in fields[:14]}},
+        {"status": "ok", "document_id": "new", "fields": {key: "Not found" for key in fields}},
+    ]
+    results.write_text("\n".join(json.dumps(record) for record in records), encoding="utf-8")
+    assert _existing_successes(results, fields) == {"new"}
 
 
 def test_review_export_and_score(tmp_path):
@@ -88,6 +104,6 @@ def test_review_export_and_score(tmp_path):
     score = score_review(review)
 
     assert score["reviewed_documents"] == 1
-    assert score["field_values_scored"] == 14
+    assert score["field_values_scored"] == 51
     assert score["per_field"][fields[0]]["accuracy"] == 1.0
     assert score["per_field"][fields[1]]["accuracy"] == 0.0

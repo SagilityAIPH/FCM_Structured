@@ -1,8 +1,7 @@
 """Batch regression workflow for the AI-FCM sample PDFs.
 
 The Streamlit application is intentionally not imported here.  Instead, this
-module loads its literal prompt/constants and pure post-processing functions
-from ``ai_fcm_bedrock_runtime.py``.  That keeps batch results aligned with the
+module loads the UI-free shared engine from ``bedrock_core.py``.  That keeps batch results aligned with the
 application without executing Streamlit UI code.
 
 All output defaults to ``AI/.sample_runs``.  Both that directory and the
@@ -12,7 +11,7 @@ sample source directory are gitignored because they can contain PHI.
 from __future__ import annotations
 
 import argparse
-import ast
+import importlib.util
 import csv
 import hashlib
 import json
@@ -40,7 +39,7 @@ except ImportError as exc:  # pragma: no cover - exercised by CLI installations
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_SAMPLES_DIR = PROJECT_ROOT / "Samples for AI"
 DEFAULT_OUTPUT_DIR = Path(__file__).resolve().parent / ".sample_runs"
-DEFAULT_CORE_PATH = Path(__file__).resolve().parent / "ai_fcm_bedrock_runtime.py"
+DEFAULT_CORE_PATH = Path(__file__).resolve().parent / "bedrock_core.py"
 DEFAULT_REGION = "us-east-2"
 DEFAULT_MODEL = "openai.gpt-oss-120b-1:0"
 EXPECTED_PREFIX = "expected__"
@@ -100,51 +99,15 @@ def scan_samples(samples_dir: Path) -> dict[str, Any]:
     }
 
 
-def _is_literal_assignment(node: ast.stmt) -> bool:
-    if not isinstance(node, (ast.Assign, ast.AnnAssign)):
-        return False
-    value = node.value
-    if value is None:
-        return False
-    try:
-        ast.literal_eval(value)
-    except (ValueError, TypeError):
-        return False
-    return True
-
-
 def load_extraction_core(core_path: Path = DEFAULT_CORE_PATH) -> dict[str, Any]:
-    """Load app prompt/validators without importing Streamlit or Boto3.
-
-    Only literal module assignments and function definitions are compiled.
-    UI calls and side effects are never included.
-    """
-    source = core_path.read_text(encoding="utf-8")
-    parsed = ast.parse(source, filename=str(core_path))
-    selected: list[ast.stmt] = [
-        ast.ImportFrom(module="__future__", names=[ast.alias("annotations")], level=0)
-    ]
-    for node in parsed.body:
-        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
-            selected.append(node)
-        elif _is_literal_assignment(node):
-            selected.append(node)
-
-    module = ast.fix_missing_locations(ast.Module(body=selected, type_ignores=[]))
-    namespace: dict[str, Any] = {
-        "__name__": "ai_fcm_batch_core",
-        "json": json,
-        "os": os,
-        "re": re,
-        "time": time,
-    }
-    exec(compile(module, str(core_path), "exec"), namespace)
-
-    required = {"FIELD_ONLY_PROMPT", "REQUIRED_FIELDS", "run_reasoning"}
-    missing = required.difference(namespace)
-    if missing:
-        raise RuntimeError(f"AI core is missing required definitions: {sorted(missing)}")
-    return namespace
+    """Load the shared UI-free engine with its own globals for stubbed calls."""
+    spec = importlib.util.spec_from_file_location("AI._batch_core", core_path)
+    module = importlib.util.module_from_spec(spec)
+    # Direct script execution needs the project root for package imports.
+    if str(PROJECT_ROOT) not in sys.path:
+        sys.path.insert(0, str(PROJECT_ROOT))
+    spec.loader.exec_module(module)
+    return module.__dict__
 
 
 class BedrockClient:
@@ -197,7 +160,7 @@ class BedrockClient:
         return response.json()
 
 
-def _existing_successes(results_path: Path) -> set[str]:
+def _existing_successes(results_path: Path, required_fields: list[str]) -> set[str]:
     successes: set[str] = set()
     if not results_path.exists():
         return successes
@@ -208,7 +171,7 @@ def _existing_successes(results_path: Path) -> set[str]:
             record = json.loads(line)
         except json.JSONDecodeError:
             continue
-        if record.get("status") == "ok":
+        if record.get("status") == "ok" and set(required_fields).issubset(record.get("fields", {})):
             successes.add(str(record.get("document_id", "")))
     return successes
 
@@ -242,7 +205,7 @@ def _make_llm_call():
                 {
                     "text": (
                         "You are a strict document field extraction engine. "
-                        "Return only the requested completed field list. "
+                        "Return only the requested JSON object. "
                         "Do not explain. Do not provide reasoning. "
                         "Do not copy blank templates."
                     )
@@ -267,7 +230,7 @@ def run_samples(
     model: str,
     limit: int | None = None,
     max_doc_chars: int = 100_000,
-    max_tokens: int = 768,
+    max_tokens: int = 4096,
     force: bool = False,
 ) -> dict[str, Any]:
     core = load_extraction_core()
@@ -278,7 +241,7 @@ def run_samples(
 
     output_dir.mkdir(parents=True, exist_ok=True)
     results_path = output_dir / "results.jsonl"
-    completed = set() if force else _existing_successes(results_path)
+    completed = set() if force else _existing_successes(results_path, required_fields)
     samples = discover_samples(samples_dir)
     if limit is not None:
         samples = samples[:limit]
@@ -460,7 +423,7 @@ def build_parser() -> argparse.ArgumentParser:
     run.add_argument("--model", default=os.getenv("BEDROCK_MODEL_ID", DEFAULT_MODEL))
     run.add_argument("--limit", type=int)
     run.add_argument("--max-doc-chars", type=int, default=100_000)
-    run.add_argument("--max-tokens", type=int, default=768)
+    run.add_argument("--max-tokens", type=int, default=4096)
     run.add_argument("--force", action="store_true")
 
     review = subparsers.add_parser("export-review", help="Create a human-review CSV.")
