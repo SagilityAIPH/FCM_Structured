@@ -28,7 +28,7 @@ def test_multiple_providers_keep_matching_slots_and_most_complete_first():
     assert fields["Appointment Time"] == "2:30 PM & Not found & Not found"
     assert fields["Provider Phone"] == "212-555-0123 & 212-555-0123 & Not found"
     assert fields["Provider Zip"] == "02110 & 02110 & Not found"
-    assert "Provider City: Boston & Boston & Not found" in text
+    assert "City: Boston & Boston & Not found" in text
     assert len(core.fields_to_table_df(fields)) == 51
 
 
@@ -66,3 +66,90 @@ def test_incomplete_provider_is_rejected():
     data["Provider Information"] = [{"Provider City": "Boston"}]
     with pytest.raises(ValueError, match="incomplete provider"):
         core.force_exact_field_output(json.dumps(data))
+
+
+def complete_payload():
+    data = payload()
+    for key in data:
+        if key != "Provider Information" and key not in core.OPTIONAL_FIELDS + core.SUPPLEMENTAL_FIELDS:
+            data[key] = "Documented value"
+    data["Provider Information"] = [provider(**{key: "Documented value" for key in core.PROVIDER_FIELDS
+                                               if key not in core.SUPPLEMENTAL_FIELDS})]
+    return data
+
+
+def test_section_priority_and_allowed_special_instruction_fallback():
+    data = payload()
+    data["Accident Description"] = "Primary section description"
+    data["Claims Case Manager Name"] = "Primary manager"
+    data["Special Instructions"] = {
+        "Accident Description": "Conflicting special instructions",
+        "Claims Case Manager Name": "Different manager",
+        "Diagnosis Code": "S00.01XA", "Claims Office Name": "Fallback office",
+        "Attorney Name": "Fallback Attorney", "First Name": "Forbidden fallback",
+        "Claim Number": "Forbidden number", "Claim ID": "Forbidden id", "Claim Type": "Forbidden type",
+        "Employer Name": "Forbidden employer",
+    }
+    _, fields = core.force_exact_field_output(json.dumps(data))
+    assert fields["Accident Description"] == "Primary section description"
+    assert fields["Claims Case Manager Name"] == "Primary manager"
+    assert fields["Diagnosis Code"] == "S00.01XA"
+    assert fields["Claims Office Name"] == "Fallback office"
+    assert fields["Attorney Name"] == "Fallback Attorney"
+    for key in ["First Name", "Employer Name", "Claim Number", "Claim ID", "Claim Type"]:
+        assert fields[key] == "Not found"
+
+
+def test_special_instruction_provider_fills_only_matching_record():
+    data = payload()
+    data["Provider Information"] = [provider(**{"Provider Name (First Name / Last Name)": "Example Clinic",
+                                                "Provider City": "Boston"})]
+    data["Special Instructions"] = {"Provider Information": [provider(**{
+        "Provider Name (First Name / Last Name)": "Example Clinic", "Provider City": "Boston",
+        "Appointment Date": "09/28/2026", "Appointment Time": "2:30 PM"})]}
+    _, fields = core.force_exact_field_output(json.dumps(data))
+    assert len(fields.providers) == 1
+    assert fields["Appointment Time"] == "2:30 PM"
+
+
+def test_optional_fields_and_legacy_extras_do_not_fail_next_step():
+    _, fields = core.force_exact_field_output(json.dumps(complete_payload()))
+    assert core.completeness(fields)["status"] == "Passed"
+    assert fields["Address-line-2"] == "Not found"
+    assert fields["Nurse Case Manager E-mail Address"] == "Not found"
+    fields["Claim ID"] = "Not found"
+    result = core.completeness(fields)
+    assert result["status"] == "Failed"
+    assert result["missing_fields"] == ["Claim Information / Claim ID"]
+
+
+def test_completeness_requires_one_whole_provider_not_combined_partial_records():
+    data = complete_payload()
+    one = data["Provider Information"][0]
+    one["Provider Name (First Name / Last Name)"] = "Clinic A & B"
+    one["Appointment Time"] = "Not found"
+    two = dict(one, **{"Provider Name (First Name / Last Name)": "Clinic C", "Appointment Time": "2 PM",
+                       "Provider Zip": "Not found"})
+    data["Provider Information"] = [one, two]
+    _, fields = core.force_exact_field_output(json.dumps(data))
+    assert core.completeness(fields)["status"] == "Failed"
+    one["Appointment Time"] = "3 PM"
+    _, fields = core.force_exact_field_output(json.dumps(data))
+    assert core.completeness(fields)["status"] == "Passed"
+    exported = core.export_payload(fields)
+    assert exported["Provider Information"][0]["Provider / Facility Name"] == "Clinic A & B"
+    assert exported["NEXT STEP"]["status"] == "Passed"
+    assert list(exported)[:5] == list(core.FIELD_GROUPS)
+
+
+def test_no_providers_fails_and_output_uses_requested_labels():
+    data = complete_payload()
+    data["Provider Information"] = []
+    text, fields = core.force_exact_field_output(json.dumps(data))
+    assert core.completeness(fields)["status"] == "Failed"
+    assert len(core.completeness(fields)["missing_fields"]) == 7
+    rows = core.fields_to_table_df(fields)
+    assert list(rows.columns) == ["Section", "Field", "Value", "Optional"]
+    assert rows.iloc[0]["Field"] == "First Name"
+    assert "Customer Name:" in text
+    assert "NEXT STEP: Failed" in text

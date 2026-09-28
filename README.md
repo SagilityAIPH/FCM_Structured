@@ -2,13 +2,62 @@
 
 FCM Intake V3 is a structured, behavior-preserving migration of the V2 Windows automation app.
 
+## Ongoing task: modularize the codebase
+
+Our ongoing development direction is to separate the intake workflow into
+independently runnable, testable processes. Each process should be debuggable
+from its own folder without starting the entire intake bot. Continue this work
+one process at a time, using Reopen-Check as the first implementation.
+
+Use this structure for each process:
+
+```text
+Processes/
+  <Process-Name>/
+    README.md
+    Deploy-Ready/        Shared process implementation used by the main app
+    Stand-Alone/         Independent runner, offline scenarios and process tests
+```
+
+`Deploy-Ready` and `Stand-Alone` must use the same process implementation.
+Keep application integration adapters thin, reuse shared browser sessions and
+configuration, and document dependencies that still live elsewhere in the
+repository. The folder name `Deploy-Ready` does not mean live validation or
+executable packaging has already been completed.
+
+For each process:
+
+1. Map the existing steps, inputs, outputs, decisions and dependencies.
+2. Extract the controller into its process folder, preserving existing business
+   rules unless a behavior change is explicitly agreed or documented as a fix.
+3. Connect the main app and standalone runner to that shared implementation.
+4. Provide offline scenarios and tests for completion, cancellation, handoffs
+   and failures. Support individual stages where useful.
+5. Document run/debug commands, live configuration, verification results and
+   remaining work. Update the progress table below with each completed change.
+
+### Progress
+
+| Process | Modularization status | Verification | Remaining work |
+| --- | --- | --- | --- |
+| [Reopen-Check and customer validation](Processes/Reopen-Check/README.md) | Shared controller extracted; main app integrated; standalone runner supports both stages or either individually | 12 process tests and 23 existing repository tests passed | Live CMS verification; browser search, database eligibility, customer matching and CEM still use shared legacy implementations |
+| Other intake processes | Not yet migrated to this folder structure | Not assessed for modularization | Identify and extract the next process |
+
+Keep this table current as processes are migrated; distinguish offline tests
+from live verification. The next task is to select and map the next intake
+process, following the same folder structure.
+
 ## Run
 
 ```powershell
 python -m fcm_intake
 ```
 
-For direct local execution without installing the package:`r`n`r`n```powershell`r`npython main.py`r`n```
+For direct local execution without installing the package:
+
+```powershell
+rtk proxy python main.py
+```
 
 ## Layout
 
@@ -19,6 +68,7 @@ For direct local execution without installing the package:`r`n`r`n```powershell`
 - `src/fcm_intake/cms/`: shared CMS browser/session helpers.
 - `src/fcm_intake/workflows/`: compatibility wrappers around legacy workflow scripts.
 - `src/fcm_intake/legacy/`: V2 automation scripts preserved for behavior compatibility.
+- `Processes/`: modular processes with `Deploy-Ready` and `Stand-Alone` folders.
 - `tools/agent-pack/`: agent tooling isolated from the FCM app code.
 
 The four modules directly under `src/` (`CMS.py`, `edge_auto.py`,
@@ -26,6 +76,21 @@ The four modules directly under `src/` (`CMS.py`, `edge_auto.py`,
 still used by the legacy scripts. Keep these until those imports are migrated.
 Python installation metadata (`*.egg-info/`) is generated locally and is not
 source code.
+
+## Modular process debugging
+
+The [re-open/customer process](Processes/Reopen-Check/README.md) has a shared
+`Deploy-Ready` controller and a `Stand-Alone` runner. Run it independently from
+the intake UI, with offline fixtures or a configured live CMS session:
+
+```powershell
+rtk proxy python Processes/Reopen-Check/Stand-Alone/run.py
+rtk proxy python Processes/Reopen-Check/Stand-Alone/run.py --stage reopen
+rtk proxy python -m unittest discover -s Processes/Reopen-Check/Stand-Alone -p "test_*.py" -v
+```
+
+See the [standalone instructions](Processes/Reopen-Check/Stand-Alone/README.md)
+for customer-only runs, debugging, live inputs and connection settings.
 
 ## Configuration
 
@@ -37,6 +102,12 @@ Current V2 defaults are preserved. These environment variables can override loca
 Do not commit real credentials, PHI, screenshots, or production claim data.
 
 ## AI sample regression workflow
+
+The Bedrock extractor follows the PDF table's section order and Special
+Instructions fallback rules. NEXT STEP shows Passed when all non-optional
+fields and at least one complete provider record are present; otherwise it
+shows Failed and lists missing fields. Optional gaps do not fail the referral.
+See [field priorities and output formats](AI/README-exe.md#section-priority-and-next-step).
 
 For a native Windows app without Streamlit, use `dist/AI-FCM-Bedrock-Runtime.exe`.
 See [desktop EXE instructions](AI/README-exe.md) for building, testing, and use.
@@ -62,7 +133,8 @@ python AI/batch_samples.py score
 ```
 
 Runs are resumable: successful document IDs already present in
-`AI/.sample_runs/results.jsonl` are skipped. The score report provides overall
+`AI/.sample_runs/results.jsonl` with the current fields and prompt fingerprint
+are skipped. Changed extraction rules cause old samples to run again. The score report provides overall
 and per-field exact-match accuracy so prompt and validation changes can be
 measured against reviewed examples.
 

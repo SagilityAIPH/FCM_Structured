@@ -25,8 +25,7 @@ import pyodbc
 import sys
 # import ReOpenCheck
 from legacy.legacy_providerresultchecker import *
-import ReOpenCheck_shared as reopen_mod
-import CustomerCheckerV2_shared as customer_mod
+from fcm_intake.workflows.reopen_flow import run_live as run_reopen_flow
 # from legacy.legacy_reopencheck import *
 from legacy.legacy_googlesearch import *
 # from legacy.legacy_customerchecker import *
@@ -4789,67 +4788,13 @@ def CreateSubjectLineBuilder(app = None):
         # pprint(allData)
         correctZipCode = allData['providerZip']
         ######
-        #Insert CMS Reopen Checker
-        print(f'Checking for Cases in CMS')
-        ReopenResults = reopen_mod.MainReopenCheck(allData['claimNumber'])
-        # pprint(ReopenResults)
-        closedCases = []
-        closedCases.clear()
-        GYCTCasesLM = []
-        GYCTCasesLM.clear()
-        for r in ReopenResults:
-            if r.get("case_status") == "C" or r.get("case_status") == "O":
-                cmsCase = r.get("cms_caseNum")
-                reopenMSG = r.get("message")
-                caseType = r.get("caseType")
-                closedCases.append((cmsCase,caseType,reopenMSG))
-            if r.get("caseType") == "TCM" and r.get("case_status") == "O":
-                cmsCase = r.get("cms_caseNum")
-                reopenMSG = r.get("message")
-                caseType = r.get("caseType")
-                GYCTCasesLM.append((cmsCase,caseType,reopenMSG))
-        # print(len(GYCTCasesLM))
-        if len(GYCTCasesLM) > 0:
-            if "goodyear tire" in allData['customer'].lower() or "cooper tire" in allData['customer'].lower():
-                if "full case management" in allData['referralType'].lower() or "one-time rn visit" in allData['referralType'].lower():
-                    notify("Goodyear/Cooper Tire Instruction For Open TCM","For Manual Process Bot Stop. Send an email to Jen.Herbert@enlyte.com and richard.castellini@enlyte.com\nRequest assistance to have the Full Med referral cancelled and resubmitted by Liberty as a One-Time RN Visit Provider")
-                    sys.exit()
-
-        if closedCases:
-            lines = []
-            for caseNum,caseTypes,Msg in closedCases:
-                lines.append(f"{caseNum}\n{caseTypes}\n{Msg}")
-            full_msg = "\n\n".join(lines)
-            notify("Open/Closed Cases",full_msg)
-            #--------------------ADD STOPPER!-------------------------
-            def askUserContinue():
-                import tkinter as tk
-                from tkinter import messagebox
-                root = tk.Tk()
-                root.withdraw()
-                root.attributes('-topmost',True)
-                answer = messagebox.askyesno("User Confirmation","Select Yes if bot would proceed. \nSelect No if bot to stop process.")
-                if answer:
-                    return False
-                else:
-                    return True
-                
-            botStop = askUserContinue()
-            if botStop:
-                sys.exit()
-            #--------------------------------------------------
-        else:
-            notify("Case Checker - CMS","No Open or Closed Cases Found in CMS")
-
-        
-        #Add Customer Checker
-        
-        # import CustomerCheckerV2
-        print(f'Searching for Valid Employer Name in CMS')
-        validCustomer = customer_mod.MainCustomerCheck(allData['customer'],allData['claimID'],allData['claimantFull'],app=app)
-        if validCustomer:
-            allData['customer'] = validCustomer
-            print(f'Valid Employer: {validCustomer}')
+        print('Checking CMS cases and validating customer')
+        process_result = run_reopen_flow(allData, app=app, notify=notify)
+        if process_result['status'] != 'completed':
+            botStop = True
+            sys.exit()
+        allData['customer'] = process_result['customer']
+        print(f"Valid Employer: {allData['customer']}")
             
 
 

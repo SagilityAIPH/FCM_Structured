@@ -1,0 +1,6 @@
+{
+  "input": {"claimNumber": "DEMO-001", "customer": "Example Company", "claimID": "DEMO-ID", "claimantFull": "Example Person", "referralType": "Full Case Management"},
+  "cases": [{"cms_caseNum": "DEMO01", "caseType": "FCM", "case_status": "C", "is_valid": true, "message": "Synthetic case: closed within 365 days"}],
+  "proceed": true,
+  "selected_customer": "Example Company LLC"
+}

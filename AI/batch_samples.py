@@ -160,7 +160,7 @@ class BedrockClient:
         return response.json()
 
 
-def _existing_successes(results_path: Path, required_fields: list[str]) -> set[str]:
+def _existing_successes(results_path: Path, required_fields: list[str], prompt_hash: str = "") -> set[str]:
     successes: set[str] = set()
     if not results_path.exists():
         return successes
@@ -171,7 +171,8 @@ def _existing_successes(results_path: Path, required_fields: list[str]) -> set[s
             record = json.loads(line)
         except json.JSONDecodeError:
             continue
-        if record.get("status") == "ok" and set(required_fields).issubset(record.get("fields", {})):
+        if (record.get("status") == "ok" and set(required_fields).issubset(record.get("fields", {}))
+                and (not prompt_hash or record.get("prompt_hash") == prompt_hash)):
             successes.add(str(record.get("document_id", "")))
     return successes
 
@@ -241,7 +242,8 @@ def run_samples(
 
     output_dir.mkdir(parents=True, exist_ok=True)
     results_path = output_dir / "results.jsonl"
-    completed = set() if force else _existing_successes(results_path, required_fields)
+    prompt_hash = hashlib.sha256(core["FIELD_ONLY_PROMPT"].encode("utf-8")).hexdigest()
+    completed = set() if force else _existing_successes(results_path, required_fields, prompt_hash)
     samples = discover_samples(samples_dir)
     if limit is not None:
         samples = samples[:limit]
@@ -275,6 +277,9 @@ def run_samples(
             missing_by_field.update(missing)
             record = {
                 "status": "ok",
+                "prompt_hash": prompt_hash,
+                "next_step": core["completeness"](fields),
+                "section_output": core["export_payload"](fields),
                 "document_id": document_id,
                 "source_file": path.name,
                 "pages": pages,

@@ -1,0 +1,6 @@
+{
+  "input": {"claimNumber": "DEMO-003", "customer": "Example Company", "claimID": "DEMO-ID", "claimantFull": "Example Person"},
+  "cases": [{"cms_caseNum": "DEMO03", "caseType": "FCM", "case_status": "O", "message": "Synthetic open case"}],
+  "proceed": false,
+  "selected_customer": "Example Company LLC"
+}

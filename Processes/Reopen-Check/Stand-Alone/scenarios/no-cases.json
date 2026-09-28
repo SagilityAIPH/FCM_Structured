@@ -1,0 +1,5 @@
+{
+  "input": {"claimNumber": "DEMO-002", "customer": "Example Company", "claimID": "DEMO-ID", "claimantFull": "Example Person"},
+  "cases": [],
+  "selected_customer": "Example Company LLC"
+}

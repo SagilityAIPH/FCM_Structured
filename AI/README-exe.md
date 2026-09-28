@@ -46,9 +46,11 @@ the original Streamlit app retains its existing Mantle transport.
 ## Referral fields
 
 All three interfaces and the batch runner share `referral_schema.py`: 51 unique
-export fields (the original 14 plus 37 additions). Existing names are reused:
+internal fields. Visible results follow the supplied PDF table's 47 fields and
+five sections, with four legacy extras in Additional extracted information.
+Existing internal names are reused; displayed names follow the table:
 
-| Requested label | Export field |
+| Requested/display label | Internal field |
 | --- | --- |
 | Customer Name | Employer Name |
 | Customer Contact Name | Employer Contact Name |
@@ -63,15 +65,39 @@ Attorney and provider address fields use their respective prefixes. Attorney
 Address now holds street line 1, with line 2, city, state and ZIP separately.
 NCM remains the nurse name; the nurse email is a separate new field.
 
-Bedrock returns provider records as an internal JSON array. Exports retain the
-flat field/value format: multiple provider values are joined with ` & ` in the
-same order across all provider fields, including missing-value placeholders.
+Bedrock returns provider records as an internal JSON array. JSON exports use
+the five named sections, a provider array, additional information and NEXT STEP.
+CSV exports use Section, Field, Value and Optional columns. TXT groups fields
+under their section headings and includes NEXT STEP. CSV/TXT provider values
+are joined with ` & ` in the same order, including missing-value placeholders.
 The most complete record appears first; distinct appointments are retained.
 Exact duplicate records are removed. The prompt asks the model to consolidate
 complementary details only for the same provider, location and appointment.
 
-Attorney fields and referral instructions/type/priority are optional. Missing
-facts use `Not found`; they do not block processing or trigger a retry. Commercial
-and Case Manager are extraction examples, not invented defaults. Invalid or
+Claimant address line 2, Office Phone Number, Nurse Case Manager E-mail Address,
+all attorney fields, and referral instructions/type/priority are optional.
+The four legacy extras (NCM name, employer email, provider street address and
+doctor/facility classification) do not affect completeness.
+
+## Section priority and NEXT STEP
+
+The model extracts primary-section values and Special Instructions values
+separately. Python applies Special Instructions only when an allowed primary
+field is missing. Claimant/customer fields, Claim Number, Claim ID and Claim
+Type never use this fallback. The remaining five claim fields, all case manager
+fields, provider fields, attorney fields and referral metadata allow it.
+Existing section values win conflicts. Compatible provider records can fill
+each other's gaps; conflicting or ambiguous records remain separate.
+
+NEXT STEP is Passed only when every non-optional scalar field and at least one
+complete seven-field provider record exist. Otherwise it is Failed, with the
+missing scalar fields and the gaps in the most complete provider listed.
+Other incomplete providers remain in the results and their missing fields are
+included in the JSON assessment. This is a completeness check, not a guarantee
+of extraction accuracy or an automatic launch of another process. New uploads
+and extraction attempts clear the previous result.
+
+Missing facts use `Not found`; optional gaps do not block processing or trigger
+a retry. Commercial and Case Manager are examples, not defaults. Invalid or
 incomplete model JSON retries once and then reports an error. Output defaults to
 4096 tokens for the expanded schema.

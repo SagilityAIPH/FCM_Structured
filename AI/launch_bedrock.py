@@ -62,7 +62,7 @@ class BedrockApp:
         tabs = ttk.Notebook(body)
         tabs.pack(fill="both", expand=True, pady=8)
         self.views = {}
-        for title in ("Document text", "Text sent to Bedrock", "Extracted fields", "JSON", "Raw output"):
+        for title in ("Document text", "Text sent to Bedrock", "Extracted fields", "NEXT STEP", "JSON", "Raw output"):
             widget = ScrolledText(tabs, wrap="word", font=("Consolas", 10), state="disabled")
             tabs.add(widget, text=title)
             self.views[title] = widget
@@ -72,6 +72,8 @@ class BedrockApp:
         for label, kind in (("Save CSV", "csv"), ("Save JSON", "json"), ("Save results TXT", "txt"), ("Save document text", "document")):
             ttk.Button(footer, text=label, command=lambda k=kind: self.save(k)).pack(side="left", padx=(0, 8))
         self.status = tk.StringVar(value="Ready. Document text is sent to Bedrock only when you choose Extract fields.")
+        self.next_step = tk.StringVar(value="NEXT STEP: Awaiting extraction")
+        ttk.Label(body, textvariable=self.next_step, font=("Segoe UI", 12, "bold")).pack(anchor="w", pady=(8, 0))
         ttk.Label(body, textvariable=self.status, wraplength=950).pack(anchor="w", pady=(10, 0))
         self.limit.trace_add("write", lambda *_: self.preview())
         root.after(100, self.poll)
@@ -123,7 +125,8 @@ class BedrockApp:
     def clear_results(self):
         self.fields = None
         self.result = ""
-        for name in ("Extracted fields", "JSON", "Raw output"):
+        self.next_step.set("NEXT STEP: Awaiting extraction")
+        for name in ("Extracted fields", "NEXT STEP", "JSON", "Raw output"):
             self.set_view(name, "")
 
     def load_document(self, path):
@@ -184,8 +187,11 @@ class BedrockApp:
                 return core.run_reasoning(client, model, full_text[:limit], full_text, tokens, temperature)
         def done(result):
             self.result, self.fields, raw, elapsed = result
+            readiness = core.completeness(self.fields)
+            self.next_step.set("NEXT STEP: " + readiness["status"])
+            self.set_view("NEXT STEP", core.next_step_text(self.fields))
             self.set_view("Extracted fields", self.result)
-            self.set_view("JSON", json.dumps(self.fields, indent=2, ensure_ascii=False))
+            self.set_view("JSON", json.dumps(core.export_payload(self.fields), indent=2, ensure_ascii=False))
             self.set_view("Raw output", raw)
             self.tabs.select(self.views["Extracted fields"])
             self.status.set(f"Completed in {elapsed}s using {model}. Sent {min(len(full_text), limit):,} of {len(full_text):,} characters.")
@@ -201,7 +207,7 @@ class BedrockApp:
         if kind == "csv":
             return core.table_df_to_csv_text(core.fields_to_table_df(self.fields))
         if kind == "json":
-            return json.dumps(self.fields, indent=2, ensure_ascii=False)
+            return json.dumps(core.export_payload(self.fields), indent=2, ensure_ascii=False)
         return self.result
 
     def save(self, kind):
@@ -262,9 +268,10 @@ def self_test(root, app):
             root.update()
             time.sleep(0.02)
         assert not app.busy and app.fields is not None
-        assert "212" in json.loads(app.export_content("json"))["Provider Phone"]
-        assert "Provider Phone" in app.export_content("csv")
-        assert "Provider Phone" in app.export_content("txt")
+        assert "212" in json.loads(app.export_content("json"))["Provider Information"][0]["Phone Number"]
+        assert "Provider Information" in app.export_content("csv")
+        assert "Provider Information" in app.export_content("txt")
+        assert app.next_step.get() == "NEXT STEP: Failed"
         assert "streamlit" not in sys.modules
     finally:
         core.create_bedrock_client = original

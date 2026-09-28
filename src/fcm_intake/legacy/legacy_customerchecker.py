@@ -822,6 +822,7 @@ def ValidateCustomer(CustomerName: str,ClaimID,ClaimantName,app=None):
             print(repr(name))
             if name and str(name).strip():
                 return str(name).strip()
+            return None
         except Exception as e:
             print(f"[ValidateCustomer] customer_prompt_and_cem failed: {type(e).__name__} : {e}")
             traceback.print_exc()

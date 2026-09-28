@@ -73,6 +73,7 @@ def test_resume_reprocesses_old_schema(tmp_path):
     ]
     results.write_text("\n".join(json.dumps(record) for record in records), encoding="utf-8")
     assert _existing_successes(results, fields) == {"new"}
+    assert _existing_successes(results, fields, "new-section-priority-prompt") == set()
 
 
 def test_review_export_and_score(tmp_path):

@@ -310,6 +310,13 @@ uploaded_file = st.file_uploader(
     type=["pdf", "docx", "txt"],
 )
 
+upload_signature = (uploaded_file.name, hash(uploaded_file.getvalue())) if uploaded_file else None
+if st.session_state.get("upload_signature") != upload_signature:
+    for state_key in ("full_text", "text_for_bedrock", "text_for_llm", "pages", "result_df",
+                      "result_fields", "result_json", "result_text", "raw_cleaned", "elapsed"):
+        st.session_state.pop(state_key, None)
+    st.session_state["upload_signature"] = upload_signature
+
 if uploaded_file:
     st.subheader("1. Extract Full Document Text")
 
@@ -393,6 +400,8 @@ if "full_text" in st.session_state:
     st.subheader("2. Run Amazon Bedrock Extraction")
 
     if st.button("Extract Required Fields"):
+        for state_key in ("result_df", "result_fields", "result_json", "result_text", "raw_cleaned", "elapsed"):
+            st.session_state.pop(state_key, None)
         if not bedrock_region:
             st.error("Please enter the AWS region.")
         elif not bedrock_model:
@@ -420,7 +429,7 @@ if "full_text" in st.session_state:
                 )
 
                 result_df = fields_to_table_df(final_fields)
-                result_json = json.dumps(final_fields, indent=2, ensure_ascii=False)
+                result_json = json.dumps(export_payload(final_fields), indent=2, ensure_ascii=False)
 
                 st.session_state["result_text"] = final_result
                 st.session_state["result_fields"] = final_fields
@@ -437,6 +446,15 @@ if "full_text" in st.session_state:
 
 if "result_df" in st.session_state:
     st.divider()
+    st.subheader("NEXT STEP")
+    readiness = completeness(st.session_state["result_fields"])
+    if readiness["status"] == "Passed":
+        st.success("Passed — required information is complete.")
+    else:
+        st.error("Failed — required information is missing.")
+        st.write("Missing required fields:")
+        for missing_field in readiness["missing_fields"]:
+            st.write("• " + missing_field)
     st.subheader("Required Fields Result")
 
     if "elapsed" in st.session_state:

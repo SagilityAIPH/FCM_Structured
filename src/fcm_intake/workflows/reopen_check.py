@@ -1,6 +1,8 @@
 # Compatibility workflow wrapper around the legacy ReOpenCheck script.
 from __future__ import annotations
 
+import os
+
 from fcm_intake.config import REOPENCHECK_SCRIPT
 from fcm_intake.legacy_loader import load_module_from_path
 from fcm_intake.cms import session as cms_session
@@ -33,7 +35,13 @@ def MainReopenCheck(claim_number):
     for item in getattr(_orig, "found_cases", []):
         cms_case = item["cms_caseNum"]
         case_type = item["caseType"]
-        case = _orig.validate_cms_case(cms_case, _orig.RRSconn_str, _orig.CMSconn_str)
+        case = _orig.validate_cms_case(
+            cms_case,
+            os.getenv("FCM_RRS_DB_CONNECTION") or _orig.RRSconn_str,
+            os.getenv("FCM_CMS_DB_CONNECTION") or _orig.CMSconn_str,
+        )
+        if case.get("message", "").startswith("Error validating case:"):
+            raise RuntimeError("CMS database validation failed; check database access and connection settings.")
         results.append({"cms_caseNum": cms_case, "caseType": case_type, **case})
     return results
 

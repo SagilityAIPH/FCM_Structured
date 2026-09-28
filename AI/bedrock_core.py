@@ -183,7 +183,7 @@ def call_llm_once(
 
 
 def fields_to_table_df(fields):
-    return pd.DataFrame(field_rows(fields), columns=["Field", "Value"])
+    return pd.DataFrame(field_rows(fields), columns=["Section", "Field", "Value", "Optional"])
 
 
 def table_df_to_csv_text(df):
