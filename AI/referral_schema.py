@@ -215,6 +215,8 @@ def field_rows(fields):
                          "Optional": "Yes" if key in OPTIONAL_FIELDS else "No"})
     rows.extend({"Section": "Additional extracted information", "Field": key,
                  "Value": fields[key], "Optional": "Yes"} for key in SUPPLEMENTAL_FIELDS)
+    rows.extend({"Section": "Address Review", "Field": item["target"], "Value": json.dumps(item), "Optional": "Yes"}
+                for item in getattr(fields, "address_review", []))
     return rows
 
 
@@ -274,6 +276,8 @@ def export_payload(fields):
             output[group] = {label: fields[output_key(group, label)] for label in labels}
     output["Additional extracted information"] = {key: fields[key] for key in SUPPLEMENTAL_FIELDS}
     output["NEXT STEP"] = completeness(fields)
+    if getattr(fields, "address_review", None):
+        output["Address Review"] = fields.address_review
     return output
 
 
@@ -291,7 +295,10 @@ def format_field_block(fields):
             section = row["Section"]
             lines.append(f"\n--{section}--")
         lines.append(f"{row['Field']}: {row['Value']}")
-    return "\n".join(lines).strip() + "\n\n" + next_step_text(fields)
+    text = "\n".join(lines).strip() + "\n\n" + next_step_text(fields)
+    if getattr(fields, "address_review", None):
+        text += "\n\n--Address Review--\n" + json.dumps(fields.address_review, indent=2)
+    return text
 
 
 def force_exact_field_output(text, source_text=""):

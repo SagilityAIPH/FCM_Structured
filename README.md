@@ -2,12 +2,39 @@
 
 FCM Intake V3 is a structured, behavior-preserving migration of the V2 Windows automation app.
 
-## Ongoing task: modularize the codebase
+## Project context for future sessions
 
-Our ongoing development direction is to separate the intake workflow into
-independently runnable, testable processes. Each process should be debuggable
-from its own folder without starting the entire intake bot. Continue this work
-one process at a time, using Reopen-Check as the first implementation.
+This is an existing, large Windows automation project. Running the entire
+workflow end to end for every bug fix or new feature takes too much time.
+The owner's ongoing goal is to break the workflow into business processes,
+test and debug each independently, then reconnect the tested processes into
+the main application.
+
+Future AI sessions and contributors should read this context and the progress
+table first, then inspect the relevant process README and current code before
+making changes. Continue the modularization incrementally, one process at a
+time. Avoid a wholesale rewrite or separate standalone copies of production
+logic. A process must use the same tested implementation when run alone and
+when called by the complete workflow.
+
+Define clear inputs and outputs so a process can be exercised without running
+every preceding step. The daily AI Excel workbook provides reusable extracted
+input for downstream processes: testing Reopen-Check should not require another
+PDF upload or Bedrock call. Its standalone runner already accepts a workbook
+and Record ID; future processes should reuse the shared workbook reader.
+
+Separate business decisions from browser automation, database access and UI
+prompts incrementally. For a bug or feature, test the affected process first,
+then its integration points. Retain targeted end-to-end checks to verify the
+combined workflow. Offline tests verify decisions and data handling; they do
+not establish that live CMS or Bedrock behavior has been validated.
+
+Reopen-Check is the first extracted controller and is connected to the main
+app. Its underlying CMS search, database eligibility, customer matching and
+CEM implementations still rely on shared legacy code. Treat this as a starting
+point for further separation, not completed modularization of those dependencies.
+
+## Ongoing task: modularize the codebase
 
 Use this structure for each process:
 
@@ -29,7 +56,8 @@ For each process:
 
 1. Map the existing steps, inputs, outputs, decisions and dependencies.
 2. Extract the controller into its process folder, preserving existing business
-   rules unless a behavior change is explicitly agreed or documented as a fix.
+   rules unless a change is explicitly requested. Document any intentional
+   behavior fixes separately from the structural refactor.
 3. Connect the main app and standalone runner to that shared implementation.
 4. Provide offline scenarios and tests for completion, cancellation, handoffs
    and failures. Support individual stages where useful.
@@ -40,12 +68,12 @@ For each process:
 
 | Process | Modularization status | Verification | Remaining work |
 | --- | --- | --- | --- |
-| [Reopen-Check and customer validation](Processes/Reopen-Check/README.md) | Shared controller extracted; main app integrated; standalone runner supports both stages or either individually | 12 process tests and 23 existing repository tests passed | Live CMS verification; browser search, database eligibility, customer matching and CEM still use shared legacy implementations |
+| [Reopen-Check and customer validation](Processes/Reopen-Check/README.md) | Shared controller extracted; main app integrated; CMSCustomerSearch desktop EXE and CLI support both stages or either individually, plus daily Excel input by Record ID | Last recorded checks: 12 process tests, 37 repository tests, and packaged desktop smoke test passed | Live CMS verification; browser search, database eligibility, customer matching and CEM still use shared legacy implementations |
 | Other intake processes | Not yet migrated to this folder structure | Not assessed for modularization | Identify and extract the next process |
 
 Keep this table current as processes are migrated; distinguish offline tests
-from live verification. The next task is to select and map the next intake
-process, following the same folder structure.
+from live verification. Continue with the process selected by the user, using
+the same folder structure and recording any remaining legacy dependencies.
 
 ## Run
 
@@ -92,6 +120,11 @@ rtk proxy python -m unittest discover -s Processes/Reopen-Check/Stand-Alone -p "
 See the [standalone instructions](Processes/Reopen-Check/Stand-Alone/README.md)
 for customer-only runs, debugging, live inputs and connection settings.
 
+For a desktop form, use `dist/CMSCustomerSearch.exe`. It is the standalone
+Reopen-Check/customer process with daily Excel selection, manual input and
+offline/live modes. Its shared source remains in `Processes/Reopen-Check`.
+See [desktop setup and build instructions](Processes/Reopen-Check/Stand-Alone/README.md#windows-desktop-application).
+
 ## Configuration
 
 Current V2 defaults are preserved. These environment variables can override local machine settings:
@@ -116,6 +149,12 @@ for packaged runs). Use `FCM_AI_OUTPUT_DIR` to choose a shared folder. Standalon
 Reopen-Check accepts a workbook and Record ID as input; future standalone
 processes should reuse the reader in `AI/daily_output.py`. See
 [daily workbook details](AI/README-exe.md#daily-excel-output-and-standalone-input).
+
+The reader also supports on-demand U.S. Census lookup of incomplete claimant,
+provider and attorney addresses. Suggestions require review before updating
+fields, NEXT STEP and the same daily Excel record. Existing values are preserved;
+unresolvable street/unit gaps remain missing. Accepted changes keep their source
+and original values in exports. See [address review](AI/README-exe.md#missing-address-lookup-and-review).
 
 For a native Windows app without Streamlit, use `dist/AI-FCM-Bedrock-Runtime.exe`.
 See [desktop EXE instructions](AI/README-exe.md) for building, testing, and use.

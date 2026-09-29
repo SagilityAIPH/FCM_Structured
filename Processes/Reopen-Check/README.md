@@ -1,5 +1,10 @@
 # Re-open check and customer validation
 
+The standalone desktop app is **CMSCustomerSearch** (`dist/CMSCustomerSearch.exe`).
+It offers daily Excel/Record ID selection, manual input, offline scenarios and
+live CMS execution. See [desktop setup](Stand-Alone/README.md#windows-desktop-application).
+The source folder stays `Reopen-Check` for existing integrations.
+
 This process now has one shared controller used by the intake application and
 the standalone runner. You can debug it without starting the full intake bot.
 

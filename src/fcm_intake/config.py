@@ -2,12 +2,13 @@ from __future__ import annotations
 
 import configparser
 import os
+import sys
 from pathlib import Path
 
-PROJECT_ROOT = Path(__file__).resolve().parents[2]
-BASE_DIR = Path(__file__).resolve().parent
+PROJECT_ROOT = Path(sys._MEIPASS) if getattr(sys, "frozen", False) else Path(__file__).resolve().parents[2]
+BASE_DIR = PROJECT_ROOT / "src" / "fcm_intake" if getattr(sys, "frozen", False) else Path(__file__).resolve().parent
 LEGACY_DIR = BASE_DIR / "legacy"
-LOCAL_SETTINGS_PATH = PROJECT_ROOT / "config" / "local_settings.ini"
+LOCAL_SETTINGS_PATH = (Path(sys.executable).parent if getattr(sys, "frozen", False) else PROJECT_ROOT) / "config" / "local_settings.ini"
 
 FCM_SCRIPT = LEGACY_DIR / "legacy_fcm.py"
 REOPENCHECK_SCRIPT = LEGACY_DIR / "legacy_reopencheck.py"

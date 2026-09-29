@@ -8,6 +8,39 @@ from streamlit.testing.v1 import AppTest
 from AI import bedrock_core as core
 
 
+def test_streamlit_review_applies_only_after_acceptance(tmp_path, monkeypatch):
+    import sys
+    from datetime import datetime
+    from AI.address_enrichment import suggest_addresses
+    from AI.daily_output import read_record, save_daily_output
+    monkeypatch.setenv("FCM_AI_OUTPUT_DIR", str(tmp_path))
+    data = {key: "Not found" for key in core.REQUIRED_FIELDS if key not in core.PROVIDER_FIELDS}
+    data.update({"Address-line-1": "123 Summer St", "City": "Worcester", "Provider Information": []})
+    text, fields = core.force_exact_field_output(json.dumps(data))
+    stamp = datetime.now().astimezone()
+    workbook, _ = save_daily_output(fields, "synthetic.pdf", record_id="ui-review", extracted_at=stamp)
+    path = Path(__file__).resolve().parents[2] / "AI" / "ai_fcm_bedrock.py"
+    app = AppTest.from_file(str(path)).run(timeout=20)
+    for key, value in {"result_fields": fields, "result_df": core.fields_to_table_df(fields),
+                       "result_text": text, "result_json": json.dumps(core.export_payload(fields)),
+                       "daily_record_id": "ui-review", "daily_extracted_at": stamp,
+                       "daily_source": "synthetic.pdf"}.items():
+        app.session_state[key] = value
+    match = {"matchedAddress": "123 SUMMER ST, WORCESTER, MA, 01608",
+             "addressComponents": {"city": "WORCESTER", "state": "MA", "zip": "01608"}}
+    monkeypatch.setattr(sys.modules["address_enrichment_ui"], "suggest_addresses",
+                        lambda f: suggest_addresses(f, lambda _: [match]))
+    app.run(timeout=20)
+    next(button for button in app.button if button.label == "Look up missing address fields").click().run(timeout=20)
+    assert not app.exception
+    assert app.session_state["result_fields"]["Zip"] == "Not found"
+    next(check for check in app.checkbox if check.label == "Accept suggestion for Claimant").check().run(timeout=20)
+    next(button for button in app.button if button.label == "Apply selected address suggestions").click().run(timeout=20)
+    assert not app.exception
+    assert app.session_state["result_fields"]["Zip"] == "01608"
+    assert read_record(workbook, "ui-review")[0]["Zip"] == "01608"
+
+
 @pytest.mark.parametrize("complete", [True, False])
 def test_streamlit_next_step_status(complete):
     data = {key: "Documented value" if complete else "Not found"

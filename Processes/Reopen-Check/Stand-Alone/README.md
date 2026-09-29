@@ -1,4 +1,54 @@
-# Run and debug this process only
+# CMSCustomerSearch — standalone desktop and CLI
+
+The desktop application is named **CMSCustomerSearch**. It runs the existing
+re-open/customer flow; the `Reopen-Check` folder name remains for compatibility
+with the main app and existing commands.
+
+## Windows desktop application
+
+Open `dist/CMSCustomerSearch.exe` from the repository build output, or run
+`CMSCustomerSearch.py` with the configured Python environment. Python is bundled
+in the EXE. No console window is required.
+
+1. Choose **Offline scenario** or **Live CMS**, and select both stages, re-open
+   only, or customer only. Offline mode uses the selected synthetic scenario
+   and ignores workbook/manual inputs; it does not connect to CMS.
+2. For live input, choose a daily Excel workbook and Record ID, or select
+   **Use manual input** and enter the required process fields. Excel fields are
+   read-only in this form. The app shows recalculated completeness and rechecks
+   the record immediately before a live run.
+3. Enter CMS username/password for live runs, then select **Run selected process**.
+   Live prompts open as dialogs. The application remains responsive while the
+   process runs in an isolated worker. Finish its prompts before closing the app.
+4. Review the result and optionally save it as JSON. The app does not modify the
+   source workbook or process every row automatically. Credentials are not saved
+   in result files or configuration.
+
+Live requirements: installed Microsoft Edge with IE mode, IEDriverServer,
+network access to CMS, and the SQL Server ODBC driver/database access for case
+validation. CEM uses its existing separate Edge workflow and may additionally
+require EdgeDriver. None of those external drivers or credentials are bundled.
+
+Put `config/local_settings.ini` beside the EXE (copy the repository's
+`config/local_settings.example.ini` and enter machine paths). Existing environment
+overrides still apply. Set `FCM_CMS_DB_CONNECTION` and `FCM_RRS_DB_CONNECTION` for
+database access, and optionally `FCM_CMS_USERNAME` / `FCM_CMS_PASSWORD` for login.
+Do not put passwords in the INI file.
+
+Build and offline packaged smoke test from the repository root:
+
+```powershell
+rtk proxy .venv-bedrock/Scripts/python.exe -m pip install -r Processes/Reopen-Check/Stand-Alone/requirements-build.txt
+rtk proxy .venv-bedrock/Scripts/python.exe -m PyInstaller --noconfirm Processes/Reopen-Check/Stand-Alone/CMSCustomerSearch.spec
+rtk proxy .venv-bedrock/Scripts/python.exe Processes/Reopen-Check/Stand-Alone/smoke_exe.py
+```
+
+The EXE bundles the shared controller, synthetic scenarios and required legacy
+sources. It resolves code from the bundle but reads machine settings beside
+the EXE. The smoke test launches from outside the repository, exercises Excel
+input and the worker, and checks both completion and stop outcomes. CEM source
+is checked without importing it because its legacy import opens a browser.
+Live CMS behavior requires separate verification on a configured machine.
 
 ## Input from the AI reader's daily workbook
 

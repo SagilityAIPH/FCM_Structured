@@ -15,6 +15,7 @@ from tkinter.scrolledtext import ScrolledText
 from dotenv import load_dotenv
 import bedrock_runtime as core
 from daily_output import save_daily_output, output_directory
+from address_enrichment import suggest_addresses, apply_suggestions
 
 
 class BedrockApp:
@@ -31,6 +32,8 @@ class BedrockApp:
         self.record_id = None
         self.extracted_at = None
         self.result = ""
+        self.address_report = []
+        self.daily_update = False
         self.controls = []
         body = ttk.Frame(root, padding=16)
         body.pack(fill="both", expand=True)
@@ -64,11 +67,18 @@ class BedrockApp:
             button.pack(side="left", padx=(0, 8))
             self.controls.append(button)
         self.filename = tk.StringVar(value="No document selected")
+        address_actions = ttk.Frame(body)
+        address_actions.pack(fill="x")
+        for label, command in (("3. Look up missing address fields", self.lookup_addresses), ("4. Review and apply address suggestions", self.review_addresses)):
+            button = ttk.Button(address_actions, text=label, command=command)
+            button.pack(side="left", padx=(0, 8))
+            self.controls.append(button)
+        ttk.Label(body, text="Address lookup sends only partial addresses to the U.S. Census service. Review suggestions before applying.").pack(anchor="w")
         ttk.Label(body, textvariable=self.filename).pack(anchor="w")
         tabs = ttk.Notebook(body)
         tabs.pack(fill="both", expand=True, pady=8)
         self.views = {}
-        for title in ("Document text", "Text sent to Bedrock", "Extracted fields", "NEXT STEP", "JSON", "Raw output"):
+        for title in ("Document text", "Text sent to Bedrock", "Extracted fields", "NEXT STEP", "Address Review", "JSON", "Raw output"):
             widget = ScrolledText(tabs, wrap="word", font=("Consolas", 10), state="disabled")
             tabs.add(widget, text=title)
             self.views[title] = widget
@@ -134,8 +144,10 @@ class BedrockApp:
         self.record_id = None
         self.extracted_at = None
         self.result = ""
+        self.address_report = []
+        self.daily_update = False
         self.next_step.set("NEXT STEP: Awaiting extraction")
-        for name in ("Extracted fields", "NEXT STEP", "JSON", "Raw output"):
+        for name in ("Extracted fields", "NEXT STEP", "Address Review", "JSON", "Raw output"):
             self.set_view(name, "")
 
     def load_document(self, path):
@@ -209,13 +221,48 @@ class BedrockApp:
             self.save_daily()
         self.run_task(f"Sending {min(len(full_text), limit):,} of {len(full_text):,} characters to Bedrock...", work, done)
 
+    def lookup_addresses(self):
+        if self.fields is None or self.busy:
+            return
+        def done(report):
+            self.address_report = report
+            self.set_view("Address Review", json.dumps(report, indent=2) if report else "No partial addresses to look up.")
+            self.tabs.select(self.views["Address Review"])
+            self.status.set("Lookup finished. Suggestions have not changed the extraction or NEXT STEP.")
+        self.run_task("Looking up partial addresses with the U.S. Census service...", lambda: suggest_addresses(self.fields), done)
+
+    def review_addresses(self):
+        if self.fields is None or self.busy:
+            return
+        selected = []
+        for index, item in enumerate(self.address_report):
+            if item["status"] == "suggested":
+                details = "\n".join(f"{key}: {value['original']} -> {value['suggested']}" for key, value in item["changes"].items())
+                if messagebox.askyesno("Apply address suggestion: " + item["target"],
+                    details + "\n\n" + item["source"] + "\n" + item["reason"] + "\n\nApply to this record and daily Excel?", parent=self.root):
+                    selected.append(index)
+        if not selected:
+            return
+        self.fields = apply_suggestions(self.fields, self.address_report, selected)
+        for index in selected:
+            self.address_report[index]["status"] = "accepted"
+        self.result = core.format_field_block(self.fields)
+        self.set_view("Extracted fields", self.result)
+        self.set_view("JSON", json.dumps(core.export_payload(self.fields), indent=2))
+        self.set_view("Address Review", json.dumps(self.fields.address_review, indent=2))
+        self.set_view("NEXT STEP", core.next_step_text(self.fields))
+        self.next_step.set("NEXT STEP: " + core.completeness(self.fields)["status"])
+        self.daily_update = True
+        self.save_daily()
+
     def save_daily(self):
         if self.fields is None or self.record_id is None:
             messagebox.showinfo("Daily Excel", "Extract fields first.", parent=self.root)
             return
         try:
             path, record_id = save_daily_output(self.fields, self.filename.get(), directory=self.daily_directory,
-                                               record_id=self.record_id, extracted_at=self.extracted_at)
+                                               record_id=self.record_id, extracted_at=self.extracted_at, update_existing=self.daily_update)
+            self.daily_update = False
             self.status.set(f"Daily Excel saved: {path} | Record ID: {record_id}")
         except Exception as error:
             self.status.set("Extraction is ready, but daily Excel was not saved. Use Save daily Excel / Retry.")
@@ -299,6 +346,23 @@ def self_test(root, app):
         assert "Provider Information" in app.export_content("txt")
         assert app.next_step.get() == "NEXT STEP: Failed"
         assert len(list(app.daily_directory.glob("*.xlsx"))) == 1
+        # Exercise review/apply and same-row Excel update without external calls.
+        app.fields["Address-line-1"] = "123 Summer St"
+        app.fields["City"] = "Worcester"
+        match = {"matchedAddress": "123 SUMMER ST, WORCESTER, MA, 01608",
+                 "addressComponents": {"city": "WORCESTER", "state": "MA", "zip": "01608"}}
+        app.address_report = suggest_addresses(app.fields, lookup=lambda _: [match])
+        original_confirm = messagebox.askyesno
+        messagebox.askyesno = lambda *args, **kwargs: True
+        try:
+            app.review_addresses()
+        finally:
+            messagebox.askyesno = original_confirm
+        assert app.fields["State"] == "MA" and app.fields["Zip"] == "01608"
+        assert "Address Review" in json.loads(app.export_content("json"))
+        from daily_output import read_record
+        saved, _ = read_record(next(app.daily_directory.glob("*.xlsx")), app.record_id)
+        assert saved["Zip"] == "01608" and saved.address_review
         assert "streamlit" not in sys.modules
     finally:
         core.create_bedrock_client = original

@@ -1,5 +1,9 @@
 import json
 try:
+    from .address_enrichment_ui import address_controls
+except ImportError:
+    from address_enrichment_ui import address_controls
+try:
     from .daily_output_ui import save_streamlit_result, daily_output_controls
 except ImportError:
     from daily_output_ui import save_streamlit_result, daily_output_controls
@@ -452,6 +456,7 @@ if "full_text" in st.session_state:
 if "result_df" in st.session_state:
     st.divider()
     daily_output_controls(st)
+    address_controls(st)
     st.subheader("NEXT STEP")
     readiness = completeness(st.session_state["result_fields"])
     if readiness["status"] == "Passed":

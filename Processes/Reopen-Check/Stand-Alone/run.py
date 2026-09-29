@@ -7,8 +7,8 @@ import os
 from pathlib import Path
 import sys
 
-HERE = Path(__file__).resolve().parent
-ROOT = HERE.parents[2]
+ROOT = Path(sys._MEIPASS) if getattr(sys, "frozen", False) else Path(__file__).resolve().parents[3]
+HERE = ROOT / "Processes" / "Reopen-Check" / "Stand-Alone"
 CORE_PATH = HERE.parent / "Deploy-Ready" / "reopen_flow.py"
 
 
@@ -31,7 +31,7 @@ class ConsolePrompts:
 
 
 def main(argv=None):
-    parser = argparse.ArgumentParser(description=__doc__)
+    parser = argparse.ArgumentParser(prog="CMSCustomerSearch", description=__doc__)
     parser.add_argument("--stage", choices=["all", "reopen", "customer"], default="all")
     parser.add_argument("--scenario", type=Path, default=HERE / "scenarios" / "happy-path.json")
     parser.add_argument("--live", action="store_true", help="Use real CMS; requires Windows and configured dependencies.")

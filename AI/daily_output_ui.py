@@ -9,6 +9,8 @@ except ImportError:
 
 
 def save_streamlit_result(st, fields, source_file):
+    st.session_state["daily_update"] = False
+    st.session_state.pop("address_report", None)
     st.session_state["daily_record_id"] = str(uuid.uuid4())
     st.session_state["daily_extracted_at"] = datetime.now().astimezone()
     st.session_state["daily_source"] = source_file
@@ -18,7 +20,9 @@ def save_streamlit_result(st, fields, source_file):
 def _save(st, fields):
     try:
         path, record_id = save_daily_output(fields, st.session_state["daily_source"],
-            record_id=st.session_state["daily_record_id"], extracted_at=st.session_state["daily_extracted_at"])
+            record_id=st.session_state["daily_record_id"], extracted_at=st.session_state["daily_extracted_at"],
+            update_existing=st.session_state.get("daily_update", False))
+        st.session_state["daily_update"] = False
         st.session_state["daily_path"] = str(path)
         st.session_state.pop("daily_error", None)
     except Exception as error:

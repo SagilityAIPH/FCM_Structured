@@ -11,6 +11,7 @@ import sys
 import tempfile
 import time
 import uuid
+import json
 
 from openpyxl import Workbook, load_workbook
 from openpyxl.styles import Font, PatternFill
@@ -69,7 +70,7 @@ def check_layout(book):
             raise ValueError(f"Unexpected {name} columns; use the AI daily output workbook without renaming headers.")
 
 
-def save_daily_output(fields, source_file, *, directory=None, record_id=None, extracted_at=None):
+def save_daily_output(fields, source_file, *, directory=None, record_id=None, extracted_at=None, update_existing=False):
     timestamp = extracted_at or datetime.now().astimezone()
     record_id = record_id or str(uuid.uuid4())
     folder = Path(directory) if directory is not None else output_directory()
@@ -92,13 +93,25 @@ def save_daily_output(fields, source_file, *, directory=None, record_id=None, ex
                 append_text(book.create_sheet("Schema"), ["Version", VERSION])
             # Retrying a save of the same extraction never appends a duplicate.
             existing = [row[0] for row in book["Referrals"].iter_rows(min_row=2, values_only=True)]
-            if record_id in existing:
+            if record_id in existing and not update_existing:
                 return path, record_id
+            if record_id in existing:
+                for name in ["Referrals", "Providers", "Address Review"]:
+                    if name in book:
+                        sheet = book[name]
+                        for row in range(sheet.max_row, 1, -1):
+                            if sheet.cell(row, 1).value == record_id:
+                                sheet.delete_rows(row)
             append_text(book["Referrals"], [record_id, timestamp.isoformat(), Path(source_file).name,
                         assessment["status"], "\n".join(assessment["missing_fields"])]
                         + [fields.get(key, "Not found") for key in REQUIRED_FIELDS])
             for index, provider in enumerate(providers, 1):
                 append_text(book["Providers"], [record_id, index] + [provider.get(k, "Not found") for k in PROVIDER_FIELDS])
+            if getattr(fields, "address_review", None):
+                if "Address Review" not in book:
+                    append_text(book.create_sheet("Address Review"), ["Record ID", "Review JSON"])
+                for review in fields.address_review:
+                    append_text(book["Address Review"], [record_id, json.dumps(review, ensure_ascii=False)])
             for name in ["Referrals", "Providers"]:
                 sheet = book[name]
                 sheet.freeze_panes = "A2"
@@ -139,6 +152,9 @@ def read_record(path, record_id):
                     raise ValueError("Formula cells are not supported in provider input.")
                 providers.append(dict(zip(PROVIDER_FIELDS, [c.value or "Not found" for c in cells[2:]])))
         fields = ReferralFields({key: record.get(key) or "Not found" for key in REQUIRED_FIELDS}, providers)
+        if "Address Review" in book:
+            fields.address_review = [json.loads(row[1]) for row in book["Address Review"].iter_rows(min_row=2, values_only=True)
+                                     if row[0] == record_id]
         return fields, completeness(fields)
     finally:
         book.close()

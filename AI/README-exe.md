@@ -103,6 +103,38 @@ a retry. Commercial and Case Manager are examples, not defaults. Invalid or
 incomplete model JSON retries once and then reports an error. Output defaults to
 4096 tokens for the expanded schema.
 
+## Missing address lookup and review
+
+After extraction, use **Look up missing address fields**. This explicitly sends
+only partial street/city/state/ZIP addresses to the public U.S. Census Geocoder;
+it does not send names, claim identifiers or document text. The service supports
+U.S. addresses. Lookup is separate from the Bedrock extraction and existing
+Special Instructions precedence rules.
+
+Claimant, attorney and each provider address are checked independently. A
+numbered street plus city or ZIP is required. A single match can suggest missing
+city, state or ZIP, provided all supplied address components agree (allowing
+standard street abbreviations and state names). Multiple matches, conflicts,
+service failures and insufficient input leave the extraction unchanged.
+
+The service cannot reliably recover a completely absent street address,
+building number, apartment/suite, or provider location from a locality or name
+alone. Those gaps remain unresolved. No missing address information is invented.
+
+Use **Review and apply address suggestions** in the desktop app, or select
+suggestions and **Apply selected address suggestions** in Streamlit. Unaccepted
+suggestions do not change NEXT STEP or the daily workbook. Accepted suggestions
+fill only missing fields, recalculate NEXT STEP, and update the same Record ID
+in that day's workbook rather than creating a duplicate. Close Excel and retry
+saving if the workbook is locked; the reviewed output remains available in the UI.
+
+Accepted changes include original value, proposed value, source, timestamps,
+and match limitation in JSON/TXT/CSV exports and the workbook's **Address Review**
+sheet. The workbook reader preserves this history for standalone processing.
+These are street-range matches, not USPS delivery or provider verification.
+The service supplies no calibrated confidence percentage; the UI does not show
+the earlier subjective 90% estimate as a measured score.
+
 ## Daily Excel output and standalone input
 
 After each completed extraction, both native and Streamlit readers automatically
