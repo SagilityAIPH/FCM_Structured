@@ -109,6 +109,14 @@ fields and at least one complete provider record are present; otherwise it
 shows Failed and lists missing fields. Optional gaps do not fail the referral.
 See [field priorities and output formats](AI/README-exe.md#section-priority-and-next-step).
 
+Customer Contact Name, Customer Contact Phone Number and Diagnosis Code are
+optional. Reader UIs automatically append every completed extraction, including
+Passed/Failed status, to one daily Excel workbook in `Output/AI` (beside the EXE
+for packaged runs). Use `FCM_AI_OUTPUT_DIR` to choose a shared folder. Standalone
+Reopen-Check accepts a workbook and Record ID as input; future standalone
+processes should reuse the reader in `AI/daily_output.py`. See
+[daily workbook details](AI/README-exe.md#daily-excel-output-and-standalone-input).
+
 For a native Windows app without Streamlit, use `dist/AI-FCM-Bedrock-Runtime.exe`.
 See [desktop EXE instructions](AI/README-exe.md) for building, testing, and use.
 

@@ -1,4 +1,8 @@
 import json
+try:
+    from .daily_output_ui import save_streamlit_result, daily_output_controls
+except ImportError:
+    from daily_output_ui import save_streamlit_result, daily_output_controls
 import os
 import re
 import time
@@ -428,6 +432,7 @@ if "full_text" in st.session_state:
                     temperature=float(temperature),
                 )
 
+                save_streamlit_result(st, final_fields, uploaded_file.name)
                 result_df = fields_to_table_df(final_fields)
                 result_json = json.dumps(export_payload(final_fields), indent=2, ensure_ascii=False)
 
@@ -446,6 +451,7 @@ if "full_text" in st.session_state:
 
 if "result_df" in st.session_state:
     st.divider()
+    daily_output_controls(st)
     st.subheader("NEXT STEP")
     readiness = completeness(st.session_state["result_fields"])
     if readiness["status"] == "Passed":

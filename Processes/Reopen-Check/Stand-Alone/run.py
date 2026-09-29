@@ -35,6 +35,8 @@ def main(argv=None):
     parser.add_argument("--stage", choices=["all", "reopen", "customer"], default="all")
     parser.add_argument("--scenario", type=Path, default=HERE / "scenarios" / "happy-path.json")
     parser.add_argument("--live", action="store_true", help="Use real CMS; requires Windows and configured dependencies.")
+    parser.add_argument("--excel", type=Path, help="Daily AI output workbook; without --live, preview the mapped input only.")
+    parser.add_argument("--record-id", help="Record ID from the Referrals sheet.")
     parser.add_argument("--claim-number")
     parser.add_argument("--customer")
     parser.add_argument("--claim-id")
@@ -42,6 +44,21 @@ def main(argv=None):
     parser.add_argument("--referral-type", default="")
     args = parser.parse_args(argv)
     try:
+        workbook_data = None
+        if args.excel or args.record_id:
+            if not args.excel or not args.record_id:
+                raise ValueError("Use --excel and --record-id together.")
+            if any([args.claim_number, args.customer, args.claim_id, args.claimant, args.referral_type]):
+                raise ValueError("Use either Excel input or direct input arguments, not both.")
+            sys.path.insert(0, str(ROOT))
+            from AI.daily_output import read_record, reopen_input
+            fields, assessment = read_record(args.excel, args.record_id)
+            workbook_data = reopen_input(fields)
+            if not args.live:
+                print(json.dumps({"record_id": args.record_id, "input": workbook_data, "next_step": assessment}, indent=2))
+                return 0
+            if assessment["status"] != "Passed":
+                raise ValueError("This record has missing required information. Review the AI output before live processing.")
         if not args.live:
             scenario = json.loads(args.scenario.read_text(encoding="utf-8"))
             result = load_core().run_flow(
@@ -53,7 +70,7 @@ def main(argv=None):
             )
         else:
             # Live runs never fall back to synthetic fixture inputs.
-            data = {"claimNumber": args.claim_number or "", "customer": args.customer or "",
+            data = workbook_data or {"claimNumber": args.claim_number or "", "customer": args.customer or "",
                     "claimID": args.claim_id or "", "claimantFull": args.claimant or "",
                     "referralType": args.referral_type}
             required = (["claimNumber"] if args.stage in {"all", "reopen"} else [])

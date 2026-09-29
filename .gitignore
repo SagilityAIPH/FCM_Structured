@@ -19,4 +19,5 @@ node_modules/
 # Local AI samples and derived outputs may contain PHI/claim data.
 /Samples for AI/
 /AI/.sample_runs/
+/Output/
 

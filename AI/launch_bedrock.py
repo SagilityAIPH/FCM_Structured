@@ -6,12 +6,15 @@ from pathlib import Path
 import queue
 import sys
 import threading
+from datetime import datetime
+import uuid
 import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
 from tkinter.scrolledtext import ScrolledText
 
 from dotenv import load_dotenv
 import bedrock_runtime as core
+from daily_output import save_daily_output, output_directory
 
 
 class BedrockApp:
@@ -24,6 +27,9 @@ class BedrockApp:
         self.busy = False
         self.full_text = ""
         self.fields = None
+        self.daily_directory = output_directory()
+        self.record_id = None
+        self.extracted_at = None
         self.result = ""
         self.controls = []
         body = ttk.Frame(root, padding=16)
@@ -71,6 +77,7 @@ class BedrockApp:
         footer.pack(fill="x")
         for label, kind in (("Save CSV", "csv"), ("Save JSON", "json"), ("Save results TXT", "txt"), ("Save document text", "document")):
             ttk.Button(footer, text=label, command=lambda k=kind: self.save(k)).pack(side="left", padx=(0, 8))
+        ttk.Button(footer, text="Save daily Excel / Retry", command=self.save_daily).pack(side="left")
         self.status = tk.StringVar(value="Ready. Document text is sent to Bedrock only when you choose Extract fields.")
         self.next_step = tk.StringVar(value="NEXT STEP: Awaiting extraction")
         ttk.Label(body, textvariable=self.next_step, font=("Segoe UI", 12, "bold")).pack(anchor="w", pady=(8, 0))
@@ -124,6 +131,8 @@ class BedrockApp:
 
     def clear_results(self):
         self.fields = None
+        self.record_id = None
+        self.extracted_at = None
         self.result = ""
         self.next_step.set("NEXT STEP: Awaiting extraction")
         for name in ("Extracted fields", "NEXT STEP", "JSON", "Raw output"):
@@ -187,6 +196,8 @@ class BedrockApp:
                 return core.run_reasoning(client, model, full_text[:limit], full_text, tokens, temperature)
         def done(result):
             self.result, self.fields, raw, elapsed = result
+            self.record_id = str(uuid.uuid4())
+            self.extracted_at = datetime.now().astimezone()
             readiness = core.completeness(self.fields)
             self.next_step.set("NEXT STEP: " + readiness["status"])
             self.set_view("NEXT STEP", core.next_step_text(self.fields))
@@ -195,7 +206,20 @@ class BedrockApp:
             self.set_view("Raw output", raw)
             self.tabs.select(self.views["Extracted fields"])
             self.status.set(f"Completed in {elapsed}s using {model}. Sent {min(len(full_text), limit):,} of {len(full_text):,} characters.")
+            self.save_daily()
         self.run_task(f"Sending {min(len(full_text), limit):,} of {len(full_text):,} characters to Bedrock...", work, done)
+
+    def save_daily(self):
+        if self.fields is None or self.record_id is None:
+            messagebox.showinfo("Daily Excel", "Extract fields first.", parent=self.root)
+            return
+        try:
+            path, record_id = save_daily_output(self.fields, self.filename.get(), directory=self.daily_directory,
+                                               record_id=self.record_id, extracted_at=self.extracted_at)
+            self.status.set(f"Daily Excel saved: {path} | Record ID: {record_id}")
+        except Exception as error:
+            self.status.set("Extraction is ready, but daily Excel was not saved. Use Save daily Excel / Retry.")
+            messagebox.showerror("Daily Excel not saved", f"{error}\nClose the workbook in Excel and retry saving.", parent=self.root)
 
     def export_content(self, kind):
         if kind == "document":
@@ -259,6 +283,8 @@ def self_test(root, app):
         chat = SimpleNamespace(completions=SimpleNamespace(create=lambda **kwargs: SimpleNamespace(
             choices=[SimpleNamespace(message=SimpleNamespace(content=response))])))
     original = core.create_bedrock_client
+    test_output = tempfile.TemporaryDirectory()
+    app.daily_directory = Path(test_output.name)
     core.create_bedrock_client = lambda *args: MockClient()
     try:
         app.key.set("local-test-placeholder")
@@ -272,9 +298,11 @@ def self_test(root, app):
         assert "Provider Information" in app.export_content("csv")
         assert "Provider Information" in app.export_content("txt")
         assert app.next_step.get() == "NEXT STEP: Failed"
+        assert len(list(app.daily_directory.glob("*.xlsx"))) == 1
         assert "streamlit" not in sys.modules
     finally:
         core.create_bedrock_client = original
+        test_output.cleanup()
 
 
 def main():

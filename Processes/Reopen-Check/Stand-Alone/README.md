@@ -1,5 +1,27 @@
 # Run and debug this process only
 
+## Input from the AI reader's daily workbook
+
+Choose a Record ID from the workbook's `Referrals` sheet:
+
+```powershell
+rtk proxy python run.py --excel "C:\path\AI-FCM-Output-2026-09-29.xlsx" --record-id "RECORD-ID"
+rtk proxy python run.py --live --stage reopen --excel "C:\path\AI-FCM-Output-2026-09-29.xlsx" --record-id "RECORD-ID"
+```
+
+Without `--live`, this only previews the selected row's mapped input and its
+recalculated completeness; no CMS session opens. With `--live`, a Passed record
+is required. Failed rows remain available for review in the workbook. Excel
+input cannot be combined with direct claim/customer arguments.
+
+Mapping: Claim Number -> claimNumber, Employer Name -> customer, Claim ID ->
+claimID, First Name + Last Name -> claimantFull, Referral Type -> referralType.
+The shared reader in `AI/daily_output.py` preserves the provider records for
+future standalone processes too. The runner does not edit the daily workbook
+or automatically process all rows.
+
+## Scenario and direct-input modes
+
 From this folder, run the offline example or tests:
 
 ```powershell

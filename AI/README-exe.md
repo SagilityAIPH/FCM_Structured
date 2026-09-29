@@ -74,7 +74,8 @@ The most complete record appears first; distinct appointments are retained.
 Exact duplicate records are removed. The prompt asks the model to consolidate
 complementary details only for the same provider, location and appointment.
 
-Claimant address line 2, Office Phone Number, Nurse Case Manager E-mail Address,
+Customer Contact Name, Customer Contact Phone Number, Diagnosis Code,
+claimant address line 2, Office Phone Number, Nurse Case Manager E-mail Address,
 all attorney fields, and referral instructions/type/priority are optional.
 The four legacy extras (NCM name, employer email, provider street address and
 doctor/facility classification) do not affect completeness.
@@ -101,3 +102,41 @@ Missing facts use `Not found`; optional gaps do not block processing or trigger
 a retry. Commercial and Case Manager are examples, not defaults. Invalid or
 incomplete model JSON retries once and then reports an error. Output defaults to
 4096 tokens for the expanded schema.
+
+## Daily Excel output and standalone input
+
+After each completed extraction, both native and Streamlit readers automatically
+save output to `AI-FCM-Output-YYYY-MM-DD.xlsx`, using the computer's local date.
+All Passed and Failed results are included; API failures without an extraction
+result are not output records. One workbook is used per day and output folder.
+
+Default folder: `Output/AI` under the source repository when running Python, or
+beside the EXE when running the packaged application. Set `FCM_AI_OUTPUT_DIR`
+to an absolute folder path to share the same output location across readers
+and standalone processes. The UI shows the saved path and Record ID.
+
+| Sheet | Content |
+| --- | --- |
+| Referrals | One row per extraction: Record ID, timestamp, source filename, NEXT STEP, missing required fields, and 51 canonical field columns |
+| Providers | Separate provider rows linked by Record ID, including appointment details |
+| Schema | Workbook format version for standalone compatibility |
+
+Only extracted output and its metadata are saved, not raw PDF text or model
+responses. Existing internal aliases are retained in column headers: Customer
+Name = Employer Name, Customer Contact Name = Employer Contact Name, Customer
+Contact Phone Number = Employer Contact Mobile. Identifiers and values are
+literal Excel text, preserving leading zeros and preventing formula execution.
+
+Re-extracting a document creates a new Record ID. Retrying a save uses the same
+ID and does not duplicate that extraction. Close the workbook in Excel if saving
+fails, then use the UI's retry control; you do not need another Bedrock call.
+Writes use a temporary file and an exclusive writer lock. If the application
+crashes and leaves an `.xlsx.lock` file, remove that lock only after confirming
+no other application instance is writing the workbook.
+
+`AI/daily_output.py` provides `read_record()` for standalone processes. The
+Reopen-Check runner accepts `--excel` and `--record-id`; it previews the mapped
+input unless `--live` is explicitly supplied. Live Excel processing requires
+the record to pass recalculated completeness. This does not automatically run
+CMS, process every row, or mark a row as processed. Do not rename sheet/column
+headers. Other future standalone processes can reuse the same reader.
