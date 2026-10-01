@@ -82,17 +82,24 @@ the connection timeout; CMS requires IE mode.
 ### CMS certificate warning
 
 The shared browser session uses `pywinauto.Desktop(backend="uia")` to click
-**More information** when CMS displays **This site is not secure**. It selects
-only a uniquely identified new browser window and verifies the CMS hostname in
-its address bar before clicking. Existing/unrelated browser windows are untouched.
-If Edge reuses a window or multiple new windows prevent a unique match, the app
-reports that the window could not be identified instead of guessing.
+**More information**, then **Go on to the webpage (not recommended)** when the
+configured CMS page displays **This site is not secure**. This accepts the
+certificate warning for that CMS page, as requested; it does not change Windows
+certificate trust or browser-wide certificate settings.
 
-This action expands certificate details; it does not click Continue or bypass
-certificate validation. The process reports a certificate-specific error before
-typing credentials when the warning is detected. The underlying certificate/trust
-problem must still be resolved. The helper also checks for the warning following
-a navigation error, so it is not misreported as an ordinary page-load timeout.
+The handler runs in a separate UI Automation thread during navigation and the
+wait for login controls. It can click while Selenium's navigation command is
+blocked. It refreshes the browser window reference and checks the configured
+HTTPS hostname and port before each click. Only the session's identified window
+or a uniquely matching newly opened window is eligible; preexisting unrelated
+windows are excluded. It waits for the Proceed link to appear after expansion,
+and does not collapse details that are already open.
+
+The app reports each click stage and verifies that the CMS username control has
+loaded before entering credentials. A missing link or UI Automation failure
+stops the process with a specific error. Local verification uses a real IE-mode
+certificate warning from a self-signed local HTTPS server; live CMS behavior
+still requires testing on the affected machine.
 
 The main FCM runner now passes its CMS credentials to the same shared session,
 matching the standalone setup. Browser creation remains deferred until needed.

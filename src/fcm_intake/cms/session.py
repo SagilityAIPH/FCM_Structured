@@ -8,7 +8,7 @@ import time
 from pathlib import Path
 
 from selenium import webdriver
-from selenium.common.exceptions import WebDriverException
+from selenium.common.exceptions import WebDriverException, TimeoutException
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.ie.options import Options as IeOptions
@@ -17,7 +17,7 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
 
 from edge_auto import find_msedge_path
-from fcm_intake.cms.security_warning import snapshot_browser_windows, new_browser_window, check_security_warning
+from fcm_intake.cms.security_warning import snapshot_browser_windows, new_browser_window, CmsCertificateMonitor
 
 CMS_LOGIN_URL = DEFAULT_CMS_LOGIN_URL
 STATIC_IE_DRIVER_PATH = DEFAULT_IE_DRIVER_PATH
@@ -99,6 +99,7 @@ def create_ie_driver():
         drv.set_page_load_timeout(45)
         drv.maximize_window()
         drv._cms_warning_window = new_browser_window(previous_windows)
+        drv._cms_browser_handles_before = previous_windows
         if drv._cms_warning_window is None:
             report_status('CMS browser attached; its desktop window could not be uniquely identified for certificate details.')
     except Exception:
@@ -306,13 +307,17 @@ def init_shared_cms_session(username: str | None = None, password: str | None = 
         if _logged_in and _looks_logged_in(driver):
             return driver
         report_status('Opening the CMS login page (page timeout: 45 seconds).')
-        try:
-            driver.get(CMS_LOGIN_URL)
-        except Exception:
-            check_security_warning(driver, CMS_LOGIN_URL, report_status)
-            raise
-        check_security_warning(driver, CMS_LOGIN_URL, report_status)
-        report_status('Waiting for CMS login controls.')
+        with CmsCertificateMonitor(driver, CMS_LOGIN_URL, report_status) as certificate:
+            try:
+                driver.get(CMS_LOGIN_URL)
+            except TimeoutException:
+                # The original navigation may time out even after UIA clicks
+                # Proceed. Verify the destination before entering credentials.
+                if not certificate.proceeded:
+                    raise
+            report_status('Waiting for CMS login controls.')
+            WebDriverWait(driver, 20).until(EC.presence_of_element_located((By.ID, 'ctl00_Body_UserName')))
+        report_status('CMS login controls found. Entering credentials.')
         legacy_safe_type(By.ID, "ctl00_Body_UserName", user)
         time.sleep(0.5)
         legacy_safe_type(By.ID, "ctl00_Body_Password", pw)
