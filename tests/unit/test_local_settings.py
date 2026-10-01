@@ -16,7 +16,7 @@ def test_missing_local_settings_uses_defaults(tmp_path, monkeypatch):
 def test_local_settings_values_are_exposed():
     assert config.CMS_LOGIN_URL.startswith("https://")
     assert config.IE_DRIVER_PATH.endswith("IEDriverServer.exe")
-    assert config.EDGE_DRIVER_PATH.endswith("msedgedriver.exe")
+    assert not config.EDGE_DRIVER_PATH or config.EDGE_DRIVER_PATH.endswith("msedgedriver.exe")
     assert config.ATTACHMENT_FOLDER
 
 
@@ -28,3 +28,26 @@ def test_environment_overrides_local_settings(monkeypatch):
     finally:
         monkeypatch.delenv("FCM_IE_DRIVER_PATH", raising=False)
         importlib.reload(config)
+
+
+def test_packaged_driver_default_and_external_override(tmp_path, monkeypatch):
+    import runpy
+    import sys
+    bundled = tmp_path / 'bundle'
+    external = tmp_path / 'application'
+    external.mkdir()
+    monkeypatch.setattr(sys, 'frozen', True, raising=False)
+    monkeypatch.setattr(sys, '_MEIPASS', str(bundled), raising=False)
+    monkeypatch.setattr(sys, 'executable', str(external / 'CMSCustomerSearch.exe'))
+    for key in ('FCM_IE_DRIVER_PATH', 'IE_DRIVER_PATH', 'FCM_EDGE_DRIVER_PATH', 'EDGE_DRIVER_PATH'):
+        monkeypatch.delenv(key, raising=False)
+    settings = runpy.run_path(config.__file__)
+    assert settings['IE_DRIVER_PATH'] == str(bundled / 'drivers' / 'IEDriverServer.exe')
+    assert settings['EDGE_DRIVER_PATH'] == ''  # Selenium Manager selects the matching Edge version.
+    (external / 'config').mkdir()
+    custom = tmp_path / 'custom' / 'IEDriverServer.exe'
+    (external / 'config' / 'local_settings.ini').write_text(f'[browser]\nie_driver_path = {custom}\n')
+    settings = runpy.run_path(config.__file__)
+    assert settings['IE_DRIVER_PATH'] == str(custom)
+    monkeypatch.setenv('FCM_IE_DRIVER_PATH', str(tmp_path / 'environment' / 'IEDriverServer.exe'))
+    assert runpy.run_path(config.__file__)['IE_DRIVER_PATH'] == str(tmp_path / 'environment' / 'IEDriverServer.exe')

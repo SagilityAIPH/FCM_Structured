@@ -23,8 +23,10 @@ WINDOW_SIZE = "1040x760"
 
 _DEFAULTS = {
     ("browser", "edge_path"): r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe",
-    ("browser", "ie_driver_path"): r"C:\\path\\to\\IEDriverServer.exe",
-    ("browser", "edge_driver_path"): r"C:\\path\\to\\msedgedriver.exe",
+    ("browser", "ie_driver_path"): str(PROJECT_ROOT / "drivers" / "IEDriverServer.exe") if getattr(sys, 'frozen', False)
+        else str(PROJECT_ROOT / 'dist' / 'browser-drivers' / 'IEDriverServer.exe'),
+    # A blank Edge service path activates Selenium Manager for the installed Edge version.
+    ("browser", "edge_driver_path"): "",
     ("folders", "attachment_folder"): r"C:\\path\\to\\RRS_Referral_Export",
     ("cms", "login_url"): "https://test.genexcms.com/CMS/Login.aspx",
     ("cms", "case_search_url"): "https://test.genexcms.com/CMS/CaseSearch.aspx",

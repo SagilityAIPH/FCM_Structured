@@ -24,13 +24,23 @@ in the EXE. No console window is required.
    source workbook or process every row automatically. Credentials are not saved
    in result files or configuration.
 
-Live requirements: installed Microsoft Edge with IE mode, IEDriverServer,
+The EXE bundles Selenium, IEDriverServer 4.14.0 and Selenium Manager. No separate
+Python or Selenium installation is needed. The default IE driver path resolves
+inside the EXE bundle. For the separate Chromium Edge workflow used by CEM,
+Selenium Manager selects/downloads a driver matching the installed Edge version;
+its first run needs internet access unless a compatible driver is already cached.
+For offline/restricted machines, supply `FCM_EDGE_DRIVER_PATH` or an INI path to
+a matching `msedgedriver.exe`.
+
+Live requirements: installed Microsoft Edge with IE mode,
 network access to CMS, and the SQL Server ODBC driver/database access for case
-validation. CEM uses its existing separate Edge workflow and may additionally
-require EdgeDriver. None of those external drivers or credentials are bundled.
+validation. Microsoft Edge, the SQL Server ODBC driver and credentials are not bundled.
 
 Put `config/local_settings.ini` beside the EXE (copy the repository's
-`config/local_settings.example.ini` and enter machine paths). Existing environment
+`config/local_settings.example.ini` and enter machine paths). Omit or leave blank
+the driver path settings to use the bundled IE driver and automatic Edge management.
+Remove any old placeholder paths: explicit INI/environment settings take precedence.
+Existing environment
 overrides still apply. Set `FCM_CMS_DB_CONNECTION` and `FCM_RRS_DB_CONNECTION` for
 database access, and optionally `FCM_CMS_USERNAME` / `FCM_CMS_PASSWORD` for login.
 Do not put passwords in the INI file.
@@ -39,6 +49,7 @@ Build and offline packaged smoke test from the repository root:
 
 ```powershell
 rtk proxy .venv-bedrock/Scripts/python.exe -m pip install -r Processes/Reopen-Check/Stand-Alone/requirements-build.txt
+rtk proxy .venv-bedrock/Scripts/python.exe Processes/Reopen-Check/Stand-Alone/prepare_drivers.py
 rtk proxy .venv-bedrock/Scripts/python.exe -m PyInstaller --noconfirm Processes/Reopen-Check/Stand-Alone/CMSCustomerSearch.spec
 rtk proxy .venv-bedrock/Scripts/python.exe Processes/Reopen-Check/Stand-Alone/smoke_exe.py
 ```
@@ -48,7 +59,10 @@ sources. It resolves code from the bundle but reads machine settings beside
 the EXE. The smoke test launches from outside the repository, exercises Excel
 input and the worker, and checks both completion and stop outcomes. CEM source
 is checked without importing it because its legacy import opens a browser.
-Live CMS behavior requires separate verification on a configured machine.
+The packaged test also imports Selenium, executes Selenium Manager and starts
+the bundled IE driver service without opening a browser or contacting CMS.
+The build downloads the official Selenium driver archive and verifies its pinned
+SHA-256 checksum. Live CMS behavior requires separate verification on a configured machine.
 
 ## Input from the AI reader's daily workbook
 

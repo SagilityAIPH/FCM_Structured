@@ -14,6 +14,23 @@ def self_test(report):
     from AI.daily_output import save_daily_output
     from fcm_intake import config
     from fcm_intake.workflows import reopen_check, customer_checker
+    from selenium import webdriver
+    from selenium.webdriver.common.selenium_manager import SeleniumManager
+    from selenium.webdriver.ie.service import Service
+    import subprocess
+    assert webdriver.Ie and webdriver.Edge
+    assert Path(config.IE_DRIVER_PATH).is_file(), 'Missing bundled IE-mode driver'
+    manager = SeleniumManager._get_binary()
+    assert manager.is_file(), 'Missing Selenium Manager executable'
+    result = subprocess.run([str(manager), '--version'], capture_output=True, text=True, timeout=15,
+                            creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0))
+    assert result.returncode == 0, result.stderr
+    service = Service(executable_path=config.IE_DRIVER_PATH)
+    try:
+        service.start()
+        assert service.is_connectable(), 'Bundled IE driver did not start'
+    finally:
+        service.stop()
     # CEM creates its browser at import time; verify bundled source without
     # executing that side effect during an offline test.
     compile(config.CEM_SCRIPT.read_text(encoding="utf-8-sig"), str(config.CEM_SCRIPT), "exec")
@@ -52,7 +69,7 @@ def self_test(report):
                     time.sleep(.05)
                 assert app.worker is None, "Worker timed out"
                 assert app.result["result"]["status"] == expected, app.result
-        Path(report).write_text("PASS: desktop UI, bundled legacy imports, daily Excel input, Failed guard, isolated worker, completion and cancellation; no live CMS calls.\n", encoding="utf-8")
+        Path(report).write_text("PASS: bundled Selenium imports, Selenium Manager execution, IE driver service startup, desktop UI, daily Excel input, Failed guard, isolated worker, completion and cancellation; no live CMS calls.\n", encoding="utf-8")
     finally:
         if app.worker is not None:
             app.worker.terminate()

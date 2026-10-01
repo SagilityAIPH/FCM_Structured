@@ -6,6 +6,8 @@ if (-not (Test-Path -LiteralPath $pythonPath)) {
 }
 Push-Location $projectRoot
 try {
+    & rtk proxy $pythonPath (Join-Path $PSScriptRoot 'prepare_drivers.py')
+    if ($LASTEXITCODE -ne 0) { throw 'Browser driver preparation failed.' }
     & rtk proxy $pythonPath -m PyInstaller --noconfirm (Join-Path $PSScriptRoot 'CMSCustomerSearch.spec')
     if ($LASTEXITCODE -ne 0) { throw 'CMSCustomerSearch build failed.' }
 } finally {
