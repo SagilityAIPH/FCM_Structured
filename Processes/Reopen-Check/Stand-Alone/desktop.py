@@ -94,13 +94,21 @@ def execute_request(request):
 
 def worker_main(connection, request):
     """Keep legacy Selenium/Tk work on its own main thread; UI stays responsive."""
+    stage = 'Preparing process'
+    def progress(message):
+        nonlocal stage
+        stage = message
+        connection.send({'progress': message})
     try:
+        if request['mode'] == 'live':
+            from fcm_intake.cms import session
+            session.set_status_callback(progress)
         with open(os.devnull, "w") as sink, contextlib.redirect_stdout(sink), contextlib.redirect_stderr(sink):
             response = execute_request(request)
     except SystemExit:
         response = {"result": {"status": "stopped", "reason": "legacy_process_stopped"}}
     except Exception as error:
-        response = {"error": f"{type(error).__name__}: {error}"}
+        response = {"error": f"{type(error).__name__}: {error}", 'stage': stage}
     try:
         connection.send(response)
     finally:
@@ -288,6 +296,11 @@ class App:
         elif not self.worker.is_alive():
             response = {"error": f"Process exited unexpectedly (code {self.worker.exitcode})."}
         if response is None:
+            self.root.after(100, self.poll)
+            return
+        if 'progress' in response:
+            self.status.set(response['progress'])
+            self.display({'stage': response['progress']})
             self.root.after(100, self.poll)
             return
         self.worker.join(timeout=1)

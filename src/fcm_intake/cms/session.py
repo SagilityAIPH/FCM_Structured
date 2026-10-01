@@ -25,6 +25,18 @@ _lock = threading.RLock()
 _driver = None
 _logged_in = False
 _credentials = {"username": "", "password": ""}
+_status_callback = None
+
+
+def set_status_callback(callback):
+    """Report fixed stage labels only; never credentials or page contents."""
+    global _status_callback
+    _status_callback = callback
+
+
+def report_status(message):
+    if _status_callback is not None:
+        _status_callback(message)
 
 
 def find_iedriver_path() -> str:
@@ -65,9 +77,32 @@ def create_ie_driver():
     options.add_additional_option("requireWindowFocus", True)
     options.add_additional_option("nativeEvents", False)
     options.ensure_clean_session = False
+    # Start in the CMS site's security zone instead of the localhost bootstrap
+    # page. Keep IE mode: CMS does not work in ordinary Chromium Edge.
+    options.initial_browser_url = CMS_LOGIN_URL
+    options.browser_attach_timeout = 30000
     service = IeService(executable_path=find_iedriver_path())
-    drv = webdriver.Ie(service=service, options=options)
-    drv.maximize_window()
+    report_status('Starting Edge in IE mode and attaching WebDriver.')
+    try:
+        drv = webdriver.Ie(service=service, options=options)
+    except Exception as error:
+        service.stop()
+        raise RuntimeError(
+            'Edge IE-mode startup failed before the automation could control the browser. '
+            'Check that CMS opens in IE mode manually, browser zoom is 100%, and Windows '
+            'Internet Options have consistent Protected Mode settings across zones; ask IT '
+            'to check managed IE-mode policies. No CMS credentials were submitted. '
+            f'Driver error: {type(error).__name__}: {error}') from error
+    report_status('IE-mode browser attached. Preparing the CMS window.')
+    try:
+        drv.set_page_load_timeout(45)
+        drv.maximize_window()
+    except Exception:
+        try:
+            drv.quit()
+        finally:
+            service.stop()
+        raise
     return drv
 
 
@@ -266,7 +301,9 @@ def init_shared_cms_session(username: str | None = None, password: str | None = 
             raise ValueError("CMS username and password are required.")
         if _logged_in and _looks_logged_in(driver):
             return driver
+        report_status('Opening the CMS login page (page timeout: 45 seconds).')
         driver.get(CMS_LOGIN_URL)
+        report_status('Waiting for CMS login controls.')
         legacy_safe_type(By.ID, "ctl00_Body_UserName", user)
         time.sleep(0.5)
         legacy_safe_type(By.ID, "ctl00_Body_Password", pw)
@@ -276,6 +313,7 @@ def init_shared_cms_session(username: str | None = None, password: str | None = 
         driver.execute_script("AcceptChanged();")
         time.sleep(0.5)
         login_btn = driver.find_element(By.ID, "ctl00_Body_Login")
+        report_status('Submitting CMS login.')
         element_click(login_btn)
         time.sleep(3)
         _logged_in = True

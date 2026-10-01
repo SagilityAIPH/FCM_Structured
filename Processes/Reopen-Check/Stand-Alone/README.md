@@ -64,6 +64,21 @@ the bundled IE driver service without opening a browser or contacting CMS.
 The build downloads the official Selenium driver archive and verifies its pinned
 SHA-256 checksum. Live CMS behavior requires separate verification on a configured machine.
 
+### Browser stays on localhost
+
+Localhost is IEDriver's bootstrap page, not the CMS server. A 120-second HTTP
+read timeout against localhost means a WebDriver command did not respond.
+Startup now uses the configured CMS login URL as the initial IE-mode page,
+requests a 30-second browser-attach timeout and a 45-second page-load timeout,
+and reports stages in the desktop status/result box. Error results include the
+last stage so attachment failures can be distinguished from navigation/login failures.
+
+If attachment still fails, verify CMS opens manually in Edge IE mode, browser
+zoom is 100%, and ask IT to check IE-mode policies and consistent Windows Internet
+Options Protected Mode settings. Do not disable security protections merely to
+remove the warning banner. The `--ie-mode-force` warning itself is separate from
+the connection timeout; CMS requires IE mode.
+
 ## Input from the AI reader's daily workbook
 
 Choose a Record ID from the workbook's `Referrals` sheet:
