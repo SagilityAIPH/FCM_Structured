@@ -1,8 +1,17 @@
 import json
 
 import pytest
+from datetime import date, timedelta
+from AI.appointment_rules import us_holidays
 
 from AI import bedrock_core as core
+
+
+def future_workday():
+    day = date.today() + timedelta(days=30)
+    while day.weekday() >= 5 or day in us_holidays(day.year):
+        day += timedelta(days=1)
+    return day.isoformat()
 
 
 def payload():
@@ -29,7 +38,7 @@ def test_multiple_providers_keep_matching_slots_and_most_complete_first():
     assert fields["Provider Phone"] == "212-555-0123 & 212-555-0123 & Not found"
     assert fields["Provider Zip"] == "02110 & 02110 & Not found"
     assert "City: Boston & Boston & Not found" in text
-    assert len(core.fields_to_table_df(fields)) == 51
+    assert len(core.fields_to_table_df(fields)) == 64  # 58 matrix + 3 extras + 3 appointment rows
 
 
 def test_optional_absence_does_not_retry_and_roles_are_separate():
@@ -75,6 +84,7 @@ def complete_payload():
             data[key] = "Documented value"
     data["Provider Information"] = [provider(**{key: "Documented value" for key in core.PROVIDER_FIELDS
                                                if key not in core.SUPPLEMENTAL_FIELDS})]
+    data['Provider Information'][0]['Appointment Date'] = future_workday()
     return data
 
 
@@ -127,19 +137,19 @@ def test_completeness_requires_one_whole_provider_not_combined_partial_records()
     data = complete_payload()
     one = data["Provider Information"][0]
     one["Provider Name (First Name / Last Name)"] = "Clinic A & B"
-    one["Appointment Time"] = "Not found"
+    one["Provider Address"] = "Not found"
     two = dict(one, **{"Provider Name (First Name / Last Name)": "Clinic C", "Appointment Time": "2 PM",
                        "Provider Zip": "Not found"})
     data["Provider Information"] = [one, two]
     _, fields = core.force_exact_field_output(json.dumps(data))
     assert core.completeness(fields)["status"] == "Failed"
-    one["Appointment Time"] = "3 PM"
+    one["Provider Address"] = "123 Main St"
     _, fields = core.force_exact_field_output(json.dumps(data))
     assert core.completeness(fields)["status"] == "Passed"
     exported = core.export_payload(fields)
-    assert exported["Provider Information"][0]["Provider / Facility Name"] == "Clinic A & B"
+    assert exported["Provider Information"][0]["Provider / Facility"] == "Clinic A & B"
     assert exported["NEXT STEP"]["status"] == "Passed"
-    assert list(exported)[:5] == list(core.FIELD_GROUPS)
+    assert list(exported)[:7] == list(core.FIELD_GROUPS)
 
 
 def test_no_providers_fails_and_output_uses_requested_labels():
@@ -147,7 +157,7 @@ def test_no_providers_fails_and_output_uses_requested_labels():
     data["Provider Information"] = []
     text, fields = core.force_exact_field_output(json.dumps(data))
     assert core.completeness(fields)["status"] == "Failed"
-    assert len(core.completeness(fields)["missing_fields"]) == 7
+    assert len(core.completeness(fields)["missing_fields"]) == 6
     rows = core.fields_to_table_df(fields)
     assert list(rows.columns) == ["Section", "Field", "Value", "Optional"]
     assert rows.iloc[0]["Field"] == "First Name"

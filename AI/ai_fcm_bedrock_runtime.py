@@ -1,5 +1,9 @@
 import json
 try:
+    from .appointment_ui import appointment_controls
+except ImportError:
+    from appointment_ui import appointment_controls
+try:
     from .address_enrichment_ui import address_controls
 except ImportError:
     from address_enrichment_ui import address_controls
@@ -288,7 +292,7 @@ with st.sidebar:
     max_tokens = st.number_input(
         "Max output tokens",
         min_value=128,
-        max_value=4096,
+        max_value=8192,
         value=DEFAULT_MAX_TOKENS,
         step=128,
     )
@@ -457,14 +461,15 @@ if "result_df" in st.session_state:
     st.divider()
     daily_output_controls(st)
     address_controls(st)
+    appointment_controls(st)
     st.subheader("NEXT STEP")
     readiness = completeness(st.session_state["result_fields"])
     if readiness["status"] == "Passed":
         st.success("Passed — required information is complete.")
     else:
-        st.error("Failed — required information is missing.")
-        st.write("Missing required fields:")
-        for missing_field in readiness["missing_fields"]:
+        st.error("Failed — information or appointment confirmation is required.")
+        st.write("Items to resolve:")
+        for missing_field in readiness["missing_fields"] + readiness['confirmation_required']:
             st.write("• " + missing_field)
     st.subheader("Required Fields Result")
 

@@ -142,6 +142,14 @@ fields and at least one complete provider record are present; otherwise it
 shows Failed and lists missing fields. Optional gaps do not fail the referral.
 See [field priorities and output formats](AI/README-exe.md#section-priority-and-next-step).
 
+The October 2026 matrix adds separate doctor names, provider address lines,
+compensable body parts, employer contacts, language and Special Instructions text
+(58 matrix field rows, 61 canonical keys including supplemental data). Provider,
+attorney and employer details prioritize Special Instructions. Appointment date
+is required; time is optional (Date Only). Past, weekend and U.S. federal/observed
+holiday appointments remain Failed until the runner confirms them. Workbook
+schema 2 preserves these confirmations; use the matching CMSCustomerSearch build.
+
 Customer Contact Name, Customer Contact Phone Number and Diagnosis Code are
 optional. Reader UIs automatically append every completed extraction, including
 Passed/Failed status, to one daily Excel workbook in `Output/AI` (beside the EXE

@@ -17,8 +17,8 @@ from AI.batch_samples import (
 def test_load_core_without_streamlit_or_boto3_imports():
     core = load_extraction_core()
 
-    assert len(core["REQUIRED_FIELDS"]) == 51
-    assert len(set(core["REQUIRED_FIELDS"])) == 51
+    assert len(core["REQUIRED_FIELDS"]) == 61
+    assert len(set(core["REQUIRED_FIELDS"])) == 61
     assert "Customer Name" not in core["REQUIRED_FIELDS"]
     assert "{DOCUMENT_TEXT}" in core["FIELD_ONLY_PROMPT"]
     assert callable(core["run_reasoning"])
@@ -105,6 +105,6 @@ def test_review_export_and_score(tmp_path):
     score = score_review(review)
 
     assert score["reviewed_documents"] == 1
-    assert score["field_values_scored"] == 51
+    assert score["field_values_scored"] == 61
     assert score["per_field"][fields[0]]["accuracy"] == 1.0
     assert score["per_field"][fields[1]]["accuracy"] == 0.0

@@ -16,6 +16,7 @@ from dotenv import load_dotenv
 import bedrock_runtime as core
 from daily_output import save_daily_output, output_directory
 from address_enrichment import suggest_addresses, apply_suggestions
+from appointment_rules import appointment_checks, confirm_appointments
 
 
 class BedrockApp:
@@ -75,6 +76,9 @@ class BedrockApp:
             self.controls.append(button)
         ttk.Label(body, text="Address lookup sends only partial addresses to the U.S. Census service. Review suggestions before applying.").pack(anchor="w")
         ttk.Label(body, textvariable=self.filename).pack(anchor="w")
+        button = ttk.Button(body, text='Review and confirm appointments', command=self.review_appointments)
+        button.pack(anchor='w', pady=4)
+        self.controls.append(button)
         tabs = ttk.Notebook(body)
         tabs.pack(fill="both", expand=True, pady=8)
         self.views = {}
@@ -194,8 +198,8 @@ class BedrockApp:
         try:
             region, model, key = self.settings()
             tokens, temperature, limit = int(self.tokens.get()), float(self.temperature.get()), int(self.limit.get())
-            if not (128 <= tokens <= 4096 and 0 <= temperature <= 0.5 and 5000 <= limit <= 400000):
-                raise ValueError("Use 128–4096 tokens, temperature 0–0.5, and 5,000–400,000 document characters.")
+            if not (128 <= tokens <= 8192 and 0 <= temperature <= 0.5 and 5000 <= limit <= 400000):
+                raise ValueError("Use 128–8192 tokens, temperature 0–0.5, and 5,000–400,000 document characters.")
             if not self.full_text.strip():
                 raise ValueError("Open a document containing selectable text first.")
         except ValueError as error:
@@ -267,6 +271,33 @@ class BedrockApp:
         except Exception as error:
             self.status.set("Extraction is ready, but daily Excel was not saved. Use Save daily Excel / Retry.")
             messagebox.showerror("Daily Excel not saved", f"{error}\nClose the workbook in Excel and retry saving.", parent=self.root)
+
+    def review_appointments(self):
+        if self.fields is None or self.busy:
+            return
+        selected = []
+        for item in appointment_checks(self.fields):
+            if item['can_confirm'] and not item['confirmed']:
+                provider = self.fields.providers[item['provider_index'] - 1]
+                identity = ' / '.join(provider.get(k, 'Not found') for k in
+                    ('Provider Name (First Name / Last Name)', 'Doctor First Name', 'Doctor Last Name'))
+                detail = (f"Provider {item['provider_index']}: {identity}\n"
+                          f"Date: {item['appointment_date']}\nTime: {provider.get('Appointment Time', 'Not found')}\n\n"
+                          + '\n'.join(item['reasons']) + '\n\nHave you verified and confirmed this appointment?')
+                if messagebox.askyesno('Confirm appointment', detail, parent=self.root):
+                    selected.append(item['provider_index'])
+        if not selected:
+            self.set_view('NEXT STEP', core.next_step_text(self.fields))
+            self.tabs.select(self.views['NEXT STEP'])
+            return
+        self.fields = confirm_appointments(self.fields, selected)
+        self.result = core.format_field_block(self.fields)
+        self.set_view('Extracted fields', self.result)
+        self.set_view('JSON', json.dumps(core.export_payload(self.fields), indent=2))
+        self.set_view('NEXT STEP', core.next_step_text(self.fields))
+        self.next_step.set('NEXT STEP: ' + core.completeness(self.fields)['status'])
+        self.daily_update = True
+        self.save_daily()
 
     def export_content(self, kind):
         if kind == "document":
@@ -363,6 +394,22 @@ def self_test(root, app):
         from daily_output import read_record
         saved, _ = read_record(next(app.daily_directory.glob("*.xlsx")), app.record_id)
         assert saved["Zip"] == "01608" and saved.address_review
+        app.fields.providers[0]['Appointment Date'] = '2020-07-04'
+        app.fields.providers[0]['Appointment Time'] = 'Not found'
+        app.fields['Appointment Date'] = '2020-07-04'
+        app.fields['Appointment Time'] = 'Not found'
+        messagebox.askyesno = lambda *args, **kwargs: False
+        try:
+            app.review_appointments()
+            assert not getattr(app.fields, 'appointment_review', [])
+            messagebox.askyesno = lambda *args, **kwargs: True
+            app.review_appointments()
+        finally:
+            messagebox.askyesno = original_confirm
+        assert app.fields.appointment_review[0]['status'] == 'confirmed'
+        saved, assessment = read_record(next(app.daily_directory.glob('*.xlsx')), app.record_id)
+        assert saved.appointment_review and not assessment['confirmation_required']
+        assert json.loads(app.export_content('json'))['Provider Information'][0]['Date Only']
         assert "streamlit" not in sys.modules
     finally:
         core.create_bedrock_client = original

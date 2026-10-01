@@ -231,7 +231,7 @@ def run_samples(
     model: str,
     limit: int | None = None,
     max_doc_chars: int = 100_000,
-    max_tokens: int = 4096,
+    max_tokens: int = 8192,
     force: bool = False,
 ) -> dict[str, Any]:
     core = load_extraction_core()
@@ -428,7 +428,7 @@ def build_parser() -> argparse.ArgumentParser:
     run.add_argument("--model", default=os.getenv("BEDROCK_MODEL_ID", DEFAULT_MODEL))
     run.add_argument("--limit", type=int)
     run.add_argument("--max-doc-chars", type=int, default=100_000)
-    run.add_argument("--max-tokens", type=int, default=4096)
+    run.add_argument("--max-tokens", type=int, default=8192)
     run.add_argument("--force", action="store_true")
 
     review = subparsers.add_parser("export-review", help="Create a human-review CSV.")

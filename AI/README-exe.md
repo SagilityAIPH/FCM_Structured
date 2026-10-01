@@ -45,9 +45,10 @@ the original Streamlit app retains its existing Mantle transport.
 
 ## Referral fields
 
-All three interfaces and the batch runner share `referral_schema.py`: 51 unique
-internal fields. Visible results follow the supplied PDF table's 47 fields and
-five sections, with four legacy extras in Additional extracted information.
+All three interfaces and the batch runner share `referral_schema.py`: 61 unique
+internal fields. Visible results follow the October 2026 `AI Reader.xlsx` matrix:
+58 field rows across seven sections, plus NCM, provider classification and
+Additional Diagnosis Codes in Additional extracted information.
 Existing internal names are reused; displayed names follow the table:
 
 | Requested/display label | Internal field |
@@ -55,7 +56,8 @@ Existing internal names are reused; displayed names follow the table:
 | Customer Name | Employer Name |
 | Customer Contact Name | Employer Contact Name |
 | Customer Contact Phone Number | Employer Contact Mobile |
-| Provider / Facility Name | Provider Name (First Name / Last Name) |
+| Provider / Facility (facility names only) | Provider Name (First Name / Last Name) |
+| Provider Address Line 1 | Provider Address |
 | Provider Phone Number | Provider Phone |
 | Attorney Address-line-1 | Attorney Address |
 | Attorney Phone Number | Attorney Phone Number |
@@ -66,7 +68,7 @@ Address now holds street line 1, with line 2, city, state and ZIP separately.
 NCM remains the nurse name; the nurse email is a separate new field.
 
 Bedrock returns provider records as an internal JSON array. JSON exports use
-the five named sections, a provider array, additional information and NEXT STEP.
+the seven named sections, a provider array, additional information and NEXT STEP.
 CSV exports use Section, Field, Value and Optional columns. TXT groups fields
 under their section headings and includes NEXT STEP. CSV/TXT provider values
 are joined with ` & ` in the same order, including missing-value placeholders.
@@ -77,21 +79,38 @@ complementary details only for the same provider, location and appointment.
 Customer Contact Name, Customer Contact Phone Number, Diagnosis Code,
 claimant address line 2, Office Phone Number, Nurse Case Manager E-mail Address,
 all attorney fields, and referral instructions/type/priority are optional.
-The four legacy extras (NCM name, employer email, provider street address and
-doctor/facility classification) do not affect completeness.
+Compensable Body/Part(s), provider phone and address line 2, appointment time,
+employer first/last names, employer email/mobile and Language are also optional.
+Provider address line 1 is now required. Identity requires either a facility name
+or both Doctor First Name and Doctor Last Name. Doctor names never belong in
+the facility output. Employer Mobile is separate from Customer Contact Phone Number.
+Special Instructions is required and stops before the Referrer Name label/value.
+Additional Diagnosis Codes preserves other documented codes without replacing
+the primary Diagnosis Code. Single-line addresses are split into street, unit,
+city, state and ZIP; absent components are not invented.
+
+Missing employer names may be derived from an unambiguous first.last or first_last
+email username. Generic mailboxes, initials and ambiguous usernames remain missing.
+These derived names are identified as unverified in Name Inference output.
 
 ## Section priority and NEXT STEP
 
 The model extracts primary-section values and Special Instructions values
-separately. Python applies Special Instructions only when an allowed primary
-field is missing. Claimant/customer fields, Claim Number, Claim ID and Claim
-Type never use this fallback. The remaining five claim fields, all case manager
-fields, provider fields, attorney fields and referral metadata allow it.
-Existing section values win conflicts. Compatible provider records can fill
-each other's gaps; conflicting or ambiguous records remain separate.
+separately, using the internal `Special Instruction Fields` object. The separate
+`Special Instructions` string holds instruction text. Claimant/customer fields,
+Claim Number, Claim ID and Claim Type never use this fallback. The remaining
+original five claim fields and case manager fields prioritize their named sections.
+Compensable body parts, providers, attorney/referral metadata, employer contacts
+and language prioritize Special Instructions. Missing provider address/appointment
+details also use Referral Instructions before the Provider Information section.
+Compatible records for the same provider can fill gaps; distinct locations and
+appointments remain separate. No provider borrows another provider's information.
 
 NEXT STEP is Passed only when every non-optional scalar field and at least one
-complete seven-field provider record exist. Otherwise it is Failed, with the
+complete provider record exist, and every flagged appointment has been confirmed.
+A complete provider has facility or doctor identity, address line 1, city, state,
+ZIP and appointment date. Time is optional: a date without time uses Date Only.
+Otherwise NEXT STEP is Failed, with the
 missing scalar fields and the gaps in the most complete provider listed.
 Other incomplete providers remain in the results and their missing fields are
 included in the JSON assessment. This is a completeness check, not a guarantee
@@ -101,7 +120,15 @@ and extraction attempts clear the previous result.
 Missing facts use `Not found`; optional gaps do not block processing or trigger
 a retry. Commercial and Case Manager are examples, not defaults. Invalid or
 incomplete model JSON retries once and then reports an error. Output defaults to
-4096 tokens for the expanded schema.
+8192 tokens for the expanded schema and instruction text.
+
+Use **Review and confirm appointments** in the desktop app, or the appointment
+review controls in Streamlit. Past dates, weekends and U.S. federal holidays
+(including observed dates) require explicit runner confirmation. Invalid dates
+cannot be confirmed; correct the source and re-extract. Confirmation does not
+waive missing required fields. Confirmation is tied to the provider, location,
+date, time and review reasons, so a changed appointment requires review again.
+Accepted confirmations update the same daily record and preserve timestamps.
 
 ## Missing address lookup and review
 
@@ -149,8 +176,11 @@ and standalone processes. The UI shows the saved path and Record ID.
 
 | Sheet | Content |
 | --- | --- |
-| Referrals | One row per extraction: Record ID, timestamp, source filename, NEXT STEP, missing required fields, and 51 canonical field columns |
-| Providers | Separate provider rows linked by Record ID, including appointment details |
+| Referrals | One row per extraction: Record ID, timestamp, source filename, NEXT STEP, unresolved requirements, and 61 canonical field columns |
+| Providers | Separate provider rows linked by Record ID, including Date Only and appointment confirmation status |
+| Appointment Review | Runner confirmations with appointment identity, reasons and timestamp |
+| Name Inference | Employer names derived from email and their unverified origin |
+| Address Review | Accepted address suggestions and their provenance |
 | Schema | Workbook format version for standalone compatibility |
 
 Only extracted output and its metadata are saved, not raw PDF text or model
@@ -172,3 +202,9 @@ input unless `--live` is explicitly supplied. Live Excel processing requires
 the record to pass recalculated completeness. This does not automatically run
 CMS, process every row, or mark a row as processed. Do not rename sheet/column
 headers. Other future standalone processes can reuse the same reader.
+
+New workbooks use schema version 2. The updated reader accepts version 1 and
+upgrades an existing daily workbook when appending new results, preserving old
+records. Old records may fail the new requirements until re-extracted. Use the
+CMSCustomerSearch build from the same release with version 2 workbooks; older
+EXEs reject the new schema rather than silently ignoring new validation rules.

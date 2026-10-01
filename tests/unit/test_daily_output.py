@@ -8,6 +8,7 @@ import pytest
 
 from AI import referral_schema as schema
 from AI.daily_output import save_daily_output, read_record, reopen_input
+from tests.unit.test_referral_schema import future_workday
 
 
 def fields():
@@ -18,6 +19,8 @@ def fields():
                    "Employer Name": "=Example", "Social Security Number": "001-02-0003"})
     values["Provider Information"] = [{key: "Provider one" for key in schema.PROVIDER_FIELDS},
                                       {key: "Provider two" for key in schema.PROVIDER_FIELDS}]
+    for provider in values['Provider Information']:
+        provider['Appointment Date'] = future_workday()
     return schema.parse_field_block(json.dumps(values))
 
 
