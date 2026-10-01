@@ -3,7 +3,13 @@ import pytest
 from fcm_intake.cms import session
 
 
-def test_ie_mode_starts_on_cms_and_reports_stages(monkeypatch):
+@pytest.fixture(autouse=True)
+def desktop_isolation(monkeypatch):
+    monkeypatch.setattr(session, 'snapshot_browser_windows', lambda: {100})
+    monkeypatch.setattr(session, 'new_browser_window', lambda before: Mock(handle=200))
+
+
+def test_ie_mode_attaches_before_cms_navigation_and_reports_stages(monkeypatch):
     service = Mock()
     driver = Mock()
     create = Mock(return_value=driver)
@@ -14,7 +20,7 @@ def test_ie_mode_starts_on_cms_and_reports_stages(monkeypatch):
     monkeypatch.setattr(session, '_status_callback', events.append)
     assert session.create_ie_driver() is driver
     capabilities = create.call_args.kwargs['options'].to_capabilities()['se:ieOptions']
-    assert capabilities['initialBrowserUrl'] == session.CMS_LOGIN_URL
+    assert 'initialBrowserUrl' not in capabilities
     assert capabilities['browserAttachTimeout'] == 30000
     assert capabilities['ie.edgechromium'] is True
     driver.set_page_load_timeout.assert_called_once_with(45)

@@ -68,7 +68,7 @@ SHA-256 checksum. Live CMS behavior requires separate verification on a configur
 
 Localhost is IEDriver's bootstrap page, not the CMS server. A 120-second HTTP
 read timeout against localhost means a WebDriver command did not respond.
-Startup now uses the configured CMS login URL as the initial IE-mode page,
+Startup uses IEDriver's original local bootstrap page before navigating to the CMS login URL,
 requests a 30-second browser-attach timeout and a 45-second page-load timeout,
 and reports stages in the desktop status/result box. Error results include the
 last stage so attachment failures can be distinguished from navigation/login failures.
@@ -78,6 +78,24 @@ zoom is 100%, and ask IT to check IE-mode policies and consistent Windows Intern
 Options Protected Mode settings. Do not disable security protections merely to
 remove the warning banner. The `--ie-mode-force` warning itself is separate from
 the connection timeout; CMS requires IE mode.
+
+### CMS certificate warning
+
+The shared browser session uses `pywinauto.Desktop(backend="uia")` to click
+**More information** when CMS displays **This site is not secure**. It selects
+only a uniquely identified new browser window and verifies the CMS hostname in
+its address bar before clicking. Existing/unrelated browser windows are untouched.
+If Edge reuses a window or multiple new windows prevent a unique match, the app
+reports that the window could not be identified instead of guessing.
+
+This action expands certificate details; it does not click Continue or bypass
+certificate validation. The process reports a certificate-specific error before
+typing credentials when the warning is detected. The underlying certificate/trust
+problem must still be resolved. The helper also checks for the warning following
+a navigation error, so it is not misreported as an ordinary page-load timeout.
+
+The main FCM runner now passes its CMS credentials to the same shared session,
+matching the standalone setup. Browser creation remains deferred until needed.
 
 ## Input from the AI reader's daily workbook
 

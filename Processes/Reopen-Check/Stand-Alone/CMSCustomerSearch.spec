@@ -17,7 +17,8 @@ for name in ["legacy_reopencheck.py", "legacy_customerchecker.py", "legacy_cem.p
 a = Analysis([str(here / "CMSCustomerSearch.py")],
              pathex=[str(here), str(root), str(root / "src")], datas=datas,
              hiddenimports=["fcm_intake.legacy.legacy_reopencheck", "fcm_intake.legacy.legacy_customerchecker",
-                            "fcm_intake.legacy.legacy_cem", "pyodbc", "dateutil.relativedelta"] + collect_submodules('selenium.webdriver'),
+                            "fcm_intake.legacy.legacy_cem", "pyodbc", "dateutil.relativedelta"]
+             + collect_submodules('selenium.webdriver') + collect_submodules('pywinauto'),
              excludes=["streamlit", "pandas", "numpy", "scipy", "matplotlib", "openai", "boto3", "torch"])
 pyz = PYZ(a.pure)
 exe = EXE(pyz, a.scripts, a.binaries, a.datas, [], name="CMSCustomerSearch",

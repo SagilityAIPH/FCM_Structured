@@ -17,6 +17,7 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
 
 from edge_auto import find_msedge_path
+from fcm_intake.cms.security_warning import snapshot_browser_windows, new_browser_window, check_security_warning
 
 CMS_LOGIN_URL = DEFAULT_CMS_LOGIN_URL
 STATIC_IE_DRIVER_PATH = DEFAULT_IE_DRIVER_PATH
@@ -77,11 +78,11 @@ def create_ie_driver():
     options.add_additional_option("requireWindowFocus", True)
     options.add_additional_option("nativeEvents", False)
     options.ensure_clean_session = False
-    # Start in the CMS site's security zone instead of the localhost bootstrap
-    # page. Keep IE mode: CMS does not work in ordinary Chromium Edge.
-    options.initial_browser_url = CMS_LOGIN_URL
+    # Keep IEDriver's original local bootstrap page for attachment. Navigate to
+    # CMS afterwards so a certificate page cannot become the attachment target.
     options.browser_attach_timeout = 30000
     service = IeService(executable_path=find_iedriver_path())
+    previous_windows = snapshot_browser_windows()
     report_status('Starting Edge in IE mode and attaching WebDriver.')
     try:
         drv = webdriver.Ie(service=service, options=options)
@@ -97,6 +98,9 @@ def create_ie_driver():
     try:
         drv.set_page_load_timeout(45)
         drv.maximize_window()
+        drv._cms_warning_window = new_browser_window(previous_windows)
+        if drv._cms_warning_window is None:
+            report_status('CMS browser attached; its desktop window could not be uniquely identified for certificate details.')
     except Exception:
         try:
             drv.quit()
@@ -302,7 +306,12 @@ def init_shared_cms_session(username: str | None = None, password: str | None = 
         if _logged_in and _looks_logged_in(driver):
             return driver
         report_status('Opening the CMS login page (page timeout: 45 seconds).')
-        driver.get(CMS_LOGIN_URL)
+        try:
+            driver.get(CMS_LOGIN_URL)
+        except Exception:
+            check_security_warning(driver, CMS_LOGIN_URL, report_status)
+            raise
+        check_security_warning(driver, CMS_LOGIN_URL, report_status)
         report_status('Waiting for CMS login controls.')
         legacy_safe_type(By.ID, "ctl00_Body_UserName", user)
         time.sleep(0.5)

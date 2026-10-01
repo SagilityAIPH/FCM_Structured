@@ -14,6 +14,8 @@ def self_test(report):
     from AI.daily_output import save_daily_output
     from fcm_intake import config
     from fcm_intake.workflows import reopen_check, customer_checker
+    from fcm_intake.cms.security_warning import snapshot_browser_windows
+    assert isinstance(snapshot_browser_windows(), set), 'UI Automation initialization failed'
     from selenium import webdriver
     from selenium.webdriver.common.selenium_manager import SeleniumManager
     from selenium.webdriver.ie.service import Service
@@ -69,7 +71,7 @@ def self_test(report):
                     time.sleep(.05)
                 assert app.worker is None, "Worker timed out"
                 assert app.result["result"]["status"] == expected, app.result
-        Path(report).write_text("PASS: bundled Selenium imports, Selenium Manager execution, IE driver service startup, desktop UI, daily Excel input, Failed guard, isolated worker, completion and cancellation; no live CMS calls.\n", encoding="utf-8")
+        Path(report).write_text("PASS: bundled UI Automation initialization, Selenium imports, Selenium Manager execution, IE driver service startup, desktop UI, daily Excel input, Failed guard, isolated worker, completion and cancellation; no live CMS calls.\n", encoding="utf-8")
     finally:
         if app.worker is not None:
             app.worker.terminate()

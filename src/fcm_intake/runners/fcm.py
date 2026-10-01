@@ -10,13 +10,8 @@ from fcm_intake.config import FCM_SCRIPT
 from fcm_intake.legacy_loader import load_module_from_path
 
 def run_fcm(ui, context):
-    # TEST RRS
-    # cms_session.set_credentials(context.cms_username, context.cms_password)
-    # cms_session.init_shared_cms_session()
-
-    # sys.modules["ReOpenCheck"] = ReOpenCheck_shared
-    # sys.modules["CustomerCheckerV2"] = CustomerCheckerV2_shared
-    #END RRS Remove when ready
+    # Match standalone credential setup; the CMS process opens the browser lazily.
+    cms_session.set_credentials(context.cms_username, context.cms_password)
     module = load_module_from_path("legacy_fcm_shared_runtime", FCM_SCRIPT)
 
     def ui_notify(title: str, text: str):
