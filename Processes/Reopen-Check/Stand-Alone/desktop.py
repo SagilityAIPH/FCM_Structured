@@ -86,7 +86,7 @@ def execute_request(request):
         scenario = json.loads((HERE / "scenarios" / request["scenario"]).read_text(encoding="utf-8"))
         notices = []
         result = load_core().run_flow(scenario["input"], stage=request["stage"],
-            search_cases=lambda _: scenario.get("cases", []),
+            search_cases=lambda *_: scenario.get("cases", []),
             check_customer=lambda *_: scenario.get("selected_customer"),
             notify=lambda title, text: notices.append({"title": title, "message": text}),
             confirm=lambda *_: scenario.get("proceed", False))

@@ -398,13 +398,25 @@ def element_click(el):
 # WEB CASE VALIDATION (UI)
 # -------------------------
  
-def ValidateCaseNumber(ClaimNumber):
+def _normalize_name(value):
+    """Collapse a claimant name to bare letters/digits for tolerant matching
+    (e.g. "Engelen, Garan" and "ENGELEN,GARAN" both become "ENGELENGARAN")."""
+    return re.sub(r"[^A-Z0-9]", "", str(value or "").upper())
+
+
+def ValidateCaseNumber(ClaimNumber, ClaimantName=None):
     """
     Uses the already-logged-in driver to validate a case number via CMS UI.
     Assumes init_cms_session() has been called.
+
+    If ClaimantName is provided, only the search-result row whose Name column
+    matches it is opened/processed; other rows (e.g. a different claimant who
+    happens to share the same claim number) are skipped. If ClaimantName is
+    not provided, every row is processed as before.
     """
     global driver, found_cases
     driver = get_driver()
+    target_claimant = _normalize_name(ClaimantName) if ClaimantName else ""
 
     try:
         driver.switch_to.default_content()
@@ -443,14 +455,28 @@ def ValidateCaseNumber(ClaimNumber):
  
     time.sleep(4)
  
-    if elementExist(By.XPATH, "/html/body/form/div[3]/table[2]/tbody/tr/td[6]/a"):
+    try:
         tableClaim = driver.find_element(By.ID, "ctl00_Body_SearchResultsTable_Table")
         claimTrs = tableClaim.find_elements(By.TAG_NAME, "tr")
+    except WebDriverException:
+        claimTrs = []
+ 
+    # claimTrs[0] is the header row; a claim was found only if there is at
+    # least one data row below it.
+    if len(claimTrs) > 1:
  
         for row_index in range(1, len(claimTrs)):
             tableClaim = driver.find_element(By.ID, "ctl00_Body_SearchResultsTable_Table")
             claimTrs = tableClaim.find_elements(By.TAG_NAME, "tr")
-            claimLink = claimTrs[row_index].find_element(By.TAG_NAME, "a")
+            row = claimTrs[row_index]
+
+            if target_claimant:
+                cells = row.find_elements(By.TAG_NAME, "td")
+                row_name = cells[0].text.strip() if cells else ""
+                if _normalize_name(row_name) != target_claimant:
+                    continue
+
+            claimLink = row.find_element(By.TAG_NAME, "a")
             element_click(claimLink)
             time.sleep(3)
  
@@ -533,7 +559,7 @@ def ValidateCaseNumber(ClaimNumber):
             # print("FINAL CASES:", found_cases)
 
 
-            claimaintListing = driver.find_element(By.XPATH, "/html/body/form/div[3]/div[2]/a")
+            claimaintListing = driver.find_element(By.PARTIAL_LINK_TEXT, "Return to Claimant Listing")
             element_click(claimaintListing)
             time.sleep(4)
     else:
@@ -561,12 +587,12 @@ RRSconn_str = (
 )
  
  
-def MainReopenCheck(ClaimNumber):
+def MainReopenCheck(ClaimNumber, ClaimantName=None):
     global found_cases
     found_cases.clear()
  
     drv = init_cms_session("", "")
-    ValidateCaseNumber(ClaimNumber)
+    ValidateCaseNumber(ClaimNumber, ClaimantName)
  
     results = []
     for item in found_cases:

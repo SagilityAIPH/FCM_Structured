@@ -93,7 +93,7 @@ class IntegrationTests(unittest.TestCase):
         with patch.dict(sys.modules, {cases.__name__: cases, customers.__name__: customers}):
             result = run_live(data, app=app, notify=Mock())
         self.assertEqual(result["customer"], "Selected Customer")
-        cases.MainReopenCheck.assert_called_once_with("DEMO")
+        cases.MainReopenCheck.assert_called_once_with("DEMO", "Person")
         customers.MainCustomerCheck.assert_called_once_with("Customer", "ID", "Person", app=app)
 
     def test_customer_wrapper_forwards_app_without_closing_shared_session(self):
@@ -127,7 +127,7 @@ class IntegrationTests(unittest.TestCase):
         from fcm_intake import legacy_loader
         fake_legacy = Mock()
         fake_legacy.found_cases = []
-        fake_legacy.ValidateCaseNumber.side_effect = lambda _: fake_legacy.found_cases.append(
+        fake_legacy.ValidateCaseNumber.side_effect = lambda *_: fake_legacy.found_cases.append(
             {"cms_caseNum": "DEMO01", "caseType": "FCM"})
         fake_legacy.validate_cms_case.return_value = {"message": "Error validating case: connection failed"}
         session = Mock()

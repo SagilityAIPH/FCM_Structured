@@ -21,7 +21,7 @@ def run_flow(data, *, search_cases, check_customer, notify, confirm, stage="all"
               "cases": [], "steps": []}
     if stage in {"all", "reopen"}:
         result["steps"].append("search_cases")
-        cases = search_cases(data["claimNumber"])
+        cases = search_cases(data["claimNumber"], data.get("claimantFull"))
         result["cases"] = cases
         visible = [case for case in cases if case.get("case_status") in {"C", "O"}]
         open_tcm = any(case.get("caseType") == "TCM" and case.get("case_status") == "O" for case in cases)

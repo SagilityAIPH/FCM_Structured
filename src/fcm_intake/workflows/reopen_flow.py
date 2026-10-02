@@ -11,9 +11,9 @@ run_flow = _core.run_flow
 
 def run_live(data, *, app=None, notify=None, confirm=None, stage="all"):
     # Import live dependencies only on execution, never during offline tests.
-    def search_cases(claim_number):
+    def search_cases(claim_number, claimant_name=None):
         from fcm_intake.workflows.reopen_check import MainReopenCheck
-        return MainReopenCheck(claim_number)
+        return MainReopenCheck(claim_number, claimant_name)
 
     def check_customer(customer, claim_id, claimant):
         from fcm_intake.workflows.customer_checker import MainCustomerCheck

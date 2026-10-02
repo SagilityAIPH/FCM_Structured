@@ -21,12 +21,12 @@ def _bind():
     _orig.elementExist = cms_session.element_exist
     return drv
 
-def MainReopenCheck(claim_number):
+def MainReopenCheck(claim_number, claimant_name=None):
     drv = cms_session.init_shared_cms_session()
     _bind()
     if hasattr(_orig, "found_cases"):
         _orig.found_cases.clear()
-    _orig.ValidateCaseNumber(claim_number)
+    _orig.ValidateCaseNumber(claim_number, claimant_name)
     try:
         drv.switch_to.default_content()
     except Exception:

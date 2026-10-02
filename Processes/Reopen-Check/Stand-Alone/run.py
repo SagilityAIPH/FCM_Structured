@@ -63,7 +63,7 @@ def main(argv=None):
             scenario = json.loads(args.scenario.read_text(encoding="utf-8"))
             result = load_core().run_flow(
                 scenario["input"], stage=args.stage,
-                search_cases=lambda _: scenario.get("cases", []),
+                search_cases=lambda *_: scenario.get("cases", []),
                 check_customer=lambda *_: scenario.get("selected_customer"),
                 notify=lambda title, message: print(f"[{title}]\n{message}"),
                 confirm=lambda *_: scenario.get("proceed", False),
