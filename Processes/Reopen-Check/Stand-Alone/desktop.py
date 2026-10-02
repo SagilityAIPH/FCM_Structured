@@ -45,18 +45,39 @@ def validate_input(data, stage):
 
 
 class DesktopPrompts:
-    def __init__(self, root):
-        self.root = root
+    """Create the Tk root lazily, on first prompt, not at worker startup.
+
+    Creating a Tk root puts this process's main thread into a COM apartment
+    with no message pump. If that happens before CMS login, it permanently
+    deadlocks the certificate-warning handler's background UI Automation
+    thread (it never returns from window enumeration). Login never needs a
+    prompt, so deferring root creation until a prompt is actually requested
+    avoids the deadlock while keeping dialogs available afterward.
+    """
+
+    def __init__(self):
+        self._root = None
+
+    def _ensure_root(self):
+        if self._root is None:
+            self._root = tk.Tk()
+            self._root.withdraw()
+        return self._root
 
     def ask_yes_no(self, title, message):
-        return messagebox.askyesno(title, message, parent=self.root)
+        return messagebox.askyesno(title, message, parent=self._ensure_root())
 
     def ask_text(self, title, message):
         from tkinter.simpledialog import askstring
-        return askstring(title, message, parent=self.root)
+        return askstring(title, message, parent=self._ensure_root())
 
     def notify(self, title, message):
-        messagebox.showinfo(title, message, parent=self.root)
+        messagebox.showinfo(title, message, parent=self._ensure_root())
+
+    def destroy(self):
+        if self._root is not None:
+            self._root.destroy()
+            self._root = None
 
 
 def execute_request(request):
@@ -79,9 +100,7 @@ def execute_request(request):
     validate_input(data, request["stage"])
     from fcm_intake.cms import session
     from fcm_intake.workflows.reopen_flow import run_live
-    root = tk.Tk()
-    root.withdraw()
-    prompts = DesktopPrompts(root)
+    prompts = DesktopPrompts()
     session.set_credentials(request["username"], request["password"])
     try:
         result = run_live(data, stage=request["stage"], app=prompts,
@@ -89,7 +108,7 @@ def execute_request(request):
         return {"result": result, "mode": "live"}
     finally:
         session.close_shared_driver()
-        root.destroy()
+        prompts.destroy()
 
 
 def worker_main(connection, request):
