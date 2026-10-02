@@ -4,12 +4,14 @@ import re
 try:
     from .appointment_rules import appointment_checks, parse_date
     from .address_normalization import split_address
-    from .provider_records import merge_provider_records, provider_identity
+    from .provider_records import merge_provider_records, provider_identity, provider_summary
+    from .source_evidence import explicit_form_fields, special_evidence, recover_provider_identity, ICD
     from .document_sections import clean_special_instructions, extract_special_instructions
 except ImportError:
     from appointment_rules import appointment_checks, parse_date
     from address_normalization import split_address
-    from provider_records import merge_provider_records, provider_identity
+    from provider_records import merge_provider_records, provider_identity, provider_summary
+    from source_evidence import explicit_form_fields, special_evidence, recover_provider_identity, ICD
     from document_sections import clean_special_instructions, extract_special_instructions
 
 FIELD_GROUPS = {
@@ -107,6 +109,10 @@ Rules:
   Special Instructions supplies one. Read the full document including later pages.
 - Claimant Information (including Customer Name and customer contact details),
   Claim Number, Claim ID and Claim Type must NEVER use Special Instructions.
+  Blank Customer Contact Name/Phone labels stay Not found. Employer contacts in
+  Special Instructions (including Contact name under Employer) belong ONLY in
+  Employer First/Last Name, Employer Contact Email and Employer Mobile. A phone
+  extension belongs with that employer phone. Preserve masked SSNs when printed.
 - For the five remaining Claim Information fields and all Case Manager Information
   fields, the named section wins every conflict. Special Instructions is used ONLY
   when that section is missing the value. No inferred defaults for Commercial or Case Manager.
@@ -147,6 +153,9 @@ Rules:
   Split one-line addresses into these components, never repeat city/state/ZIP in
   the street field. Extract the respective city/state/zip separately.
 - NCM is the actual nurse name; Nurse Case Manager E-mail Address is the actual email.
+  An explicit instruction to send the referral to a named person at the nursing
+  vendor identifies the assigned NCM, even without an NCM: label (for example,
+  'Please send the referral to Tracy Vortman at Genex'). Generic role text is not a name.
   Both are optional and belong in NCM Information. Special Instructions wins;
   fall back to the documented nurse details in Case Manager Information when missing.
   Do not confuse either with Claims Case Manager Name or claims manager email.
@@ -185,6 +194,10 @@ Rules:
   Do not require referral metadata to occur inside an attorney section.
 - Return every requested key, no commentary or markdown.
 - Compensable Body/Part(s) is optional and prioritizes Special Instructions.
+  This field contains the description only, without ICD codes. A combined heading
+  such as COMPENSABLE BODY PART(S) & DIAGNOSIS supplies BOTH description and codes:
+  'S39.012A Strain of muscle, fascia and tendon of lower back.' means the diagnosis
+  fallback is S39.012A and the body/part text is the description without that code.
   Keep the primary Diagnosis Code from Claim Information, with Special Instructions
   as fallback. Capture all other documented codes in Additional Diagnosis Codes
   separated by semicolons. Do not replace a primary code with the list.
@@ -197,6 +210,10 @@ Rules:
   the end of the section. The application also restores this field from source text.
 - Employer First Name, Employer Last Name, Employer Contact Email, Employer Mobile
   and Language are optional. Employer Mobile is distinct from Customer Contact Phone Number.
+  When a mailbox has no separator, derive its first name only with a documented
+  surname anchor: GT Lomas + georgelomas@example.com supports George Lomas.
+  Do not expand initials alone, invent names from generic mailboxes, or merge
+  different employer contacts into one person.
 
 DOCUMENT:
 {DOCUMENT_TEXT}
@@ -236,12 +253,21 @@ def split_claims_manager_name(fields):
         fields['Claims Case Manager Name'] = fields[first] + ' ' + fields[last]
 
 
-def _email_name(email):
+def _email_name(email, documented_last='Not found'):
     match = re.fullmatch(r"([A-Za-z]{2,})[._]([A-Za-z]{2,})@[^\s@]+\.[^\s@]+", email)
     generic = {'info', 'contact', 'office', 'claims', 'support', 'admin', 'team',
                'human', 'resources', 'hr', 'noreply', 'case', 'manager', 'nurse'}
     if match and not generic.intersection(part.casefold() for part in match.groups()):
         return tuple(part.title() for part in match.groups())
+    # An undelimited username is usable only with an independently documented
+    # surname anchor: georgelomas + Lomas -> George Lomas, never gt -> George.
+    mailbox = re.fullmatch(r'([A-Za-z]+)@[^\s@;]+\.[^\s@;]+', email)
+    if mailbox and re.fullmatch(r'[A-Za-z]{3,}', documented_last) and documented_last != 'Not found':
+        local, last = mailbox[1].casefold(), documented_last.casefold()
+        if local.endswith(last):
+            first = local[:-len(last)]
+            if len(first) >= 3 and first not in generic and last not in generic:
+                return first.title(), documented_last
     return None
 
 
@@ -261,6 +287,8 @@ def parse_field_block(text, source_text=''):
     if not isinstance(fallback, dict):
         raise ValueError("Special Instruction Fields must be an object.")
     fallback = dict(fallback)
+    fields.update(explicit_form_fields(source_text))
+    fallback.update(special_evidence(source_text))
     split_claims_manager_name(fields)
     split_claims_manager_name(fallback)
     for key in SPECIAL_INSTRUCTION_FIELDS:
@@ -275,6 +303,7 @@ def parse_field_block(text, source_text=''):
         fields['Special Instructions'] = source_instructions
     split_address(fields, 'Address-line-1', 'Address-line-2', 'City', 'State', 'Zip')
     split_address(fields, 'Attorney Address', 'Attorney Address-line-2', 'Attorney City', 'Attorney State', 'Attorney Zip')
+    fields['Compensable Body/Part(s)'] = clean_value(re.sub(r'\(\s*\)', '', ICD.sub('', fields['Compensable Body/Part(s)'])))
     code_sources = [clean_value(data.get('Additional Diagnosis Codes')),
                     clean_value(fallback.get('Additional Diagnosis Codes')), clean_value(fallback.get('Diagnosis Code'))]
     codes = {}
@@ -285,7 +314,7 @@ def parse_field_block(text, source_text=''):
                 codes.setdefault(code.casefold(), code)
     fields['Additional Diagnosis Codes'] = '; '.join(codes.values()) or 'Not found'
     name_inference = []
-    parts = _email_name(fields['Employer Contact Email'])
+    parts = _email_name(fields['Employer Contact Email'], fields['Employer Last Name'])
     if parts:
         for key, part in zip(('Employer First Name', 'Employer Last Name'), parts):
             if fields[key].casefold() != part.casefold():
@@ -315,6 +344,7 @@ def parse_field_block(text, source_text=''):
             raise ValueError("Bedrock returned an incomplete provider record.")
         record = {key: clean_value(item[key]) for key in PROVIDER_FIELDS}
         split_address(record, 'Provider Address', 'Provider Address Line 2', 'Provider City', 'Provider State', 'Provider Zip')
+        recover_provider_identity(record, source_text)
         if record['Determining if Doctor or Provider Name'].casefold() == 'doctor' and record['Doctor First Name'] != 'Not found' and record['Doctor Last Name'] != 'Not found':
             doctor_name = record['Doctor First Name'] + ' ' + record['Doctor Last Name']
             if record['Provider Name (First Name / Last Name)'].casefold() == doctor_name.casefold():
@@ -326,10 +356,10 @@ def parse_field_block(text, source_text=''):
     records = merge_provider_records(records)
     records.sort(key=lambda item: sum(value != "Not found" for key, value in item.items()
                                       if key not in SUPPLEMENTAL_FIELDS), reverse=True)
-    # Aligned entries preserve the existing flat export contract. Never remove a
-    # missing slot: entry n in each provider column refers to the same record.
+    # Keep mixed known/missing slots aligned; collapse only all-missing summaries.
+    # Lossless per-provider records always remain in JSON and the Providers sheet.
     for key in PROVIDER_FIELDS:
-        fields[key] = " & ".join(record[key] for record in records) or "Not found"
+        fields[key] = provider_summary(records, key)
     for key, value in fields.items():
         if ("Phone" in key or key in ("Employer Contact Mobile", "Employer Mobile")) and "@" in value:
             fields[key] = "Not found"

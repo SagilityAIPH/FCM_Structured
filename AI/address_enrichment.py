@@ -8,8 +8,10 @@ from urllib.request import Request, urlopen
 
 try:
     from .referral_schema import clean_value, PROVIDER_FIELDS
+    from .provider_records import provider_summary
 except ImportError:
     from referral_schema import clean_value, PROVIDER_FIELDS
+    from provider_records import provider_summary
 
 ENDPOINT = "https://geocoding.geo.census.gov/geocoder/locations/onelineaddress"
 SOURCE = "U.S. Census Geocoder (street-range match; not USPS delivery validation)"
@@ -132,6 +134,6 @@ def apply_suggestions(fields, report, selected):
         item["status"] = "accepted"
         item["accepted_at"] = datetime.now(timezone.utc).isoformat()
     for key in PROVIDER_FIELDS:
-        result[key] = " & ".join(record[key] for record in result.providers) or "Not found"
+        result[key] = provider_summary(result.providers, key)
     result.address_review = getattr(fields, "address_review", []) + [review[position] for position in selected]
     return result

@@ -93,6 +93,14 @@ replaces a missing or truncated AI transcription in the UI and all exports. If
 the source heading is unavailable, the model text is retained with the same
 pagination cleanup. Structured fields still use the shared extraction prompt.
 
+Reviewed corrections are documented in [EXTRACTION_RULES.md](EXTRACTION_RULES.md).
+`source_evidence.py` enforces printed Claimant/Claim values and recovers explicitly
+labeled employer, nurse and compensable-diagnosis details. Blank customer contacts
+stay blank even when employer contacts are present elsewhere. An undelimited
+employer email can supply a first name when a documented surname identifies its
+boundary; derived names keep unverified provenance. Provider summaries collapse
+all-missing values to one Not found while retaining separate underlying records.
+
 The updated matrix gives a recognizable employer email name priority over
 conflicting employer first/last names. A missing NCM name can be derived from the
 nurse email; an explicitly documented NCM name is retained. Generic or ambiguous

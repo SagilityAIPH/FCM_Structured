@@ -4,6 +4,11 @@ FCM Intake V3 is a structured, behavior-preserving migration of the V2 Windows a
 
 ## Project context for future sessions
 
+For AI PDF Reader work, read [the extraction rules and review lessons](AI/EXTRACTION_RULES.md).
+The user wants corrections taught as reusable prompt rules, shared source checks,
+and regression examples so future PDFs and future AI coding sessions benefit.
+Never patch outputs by sample filename or hardcode a person's corrected identity.
+
 This is an existing, large Windows automation project. Running the entire
 workflow end to end for every bug fix or new feature takes too much time.
 The owner's ongoing goal is to break the workflow into business processes,

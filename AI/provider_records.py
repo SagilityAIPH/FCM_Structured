@@ -12,6 +12,11 @@ VISIT_FIELDS = ('Provider Address', 'Provider Address Line 2', 'Provider City',
                 'Provider State', 'Provider Zip', 'Appointment Date', 'Appointment Time')
 
 
+def provider_summary(records, key):
+    values = [record.get(key, 'Not found') for record in records]
+    return ' & '.join(values) if any(value != 'Not found' for value in values) else 'Not found'
+
+
 def provider_identity(record):
     first, last = record.get('Doctor First Name', 'Not found'), record.get('Doctor Last Name', 'Not found')
     if first != 'Not found' and last != 'Not found':
