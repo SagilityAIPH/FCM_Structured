@@ -45,10 +45,14 @@ the original Streamlit app retains its existing Mantle transport.
 
 ## Referral fields
 
-All three interfaces and the batch runner share `referral_schema.py`: 61 unique
+All three interfaces and the batch runner share `referral_schema.py`: 63 unique
 internal fields. Visible results follow the October 2026 `AI Reader.xlsx` matrix:
-58 field rows across seven sections, plus NCM, provider classification and
-Additional Diagnosis Codes in Additional extracted information.
+59 field rows across nine sections, plus provider classification and Additional
+Diagnosis Codes in Additional extracted information. Claims Case Manager First
+Name and Last Name replace the combined name in visible results. Referral Type
+and Priority have their own Referral Information section; NCM and nurse email
+appear under NCM Information. The legacy combined manager name and Referral
+Instructions remain internal workbook columns for compatibility.
 Existing internal names are reused; displayed names follow the table:
 
 | Requested/display label | Internal field |
@@ -68,11 +72,34 @@ Address now holds street line 1, with line 2, city, state and ZIP separately.
 NCM remains the nurse name; the nurse email is a separate new field.
 
 Bedrock returns provider records as an internal JSON array. JSON exports use
-the seven named sections, a provider array, additional information and NEXT STEP.
+the nine named sections, a provider array, additional information and NEXT STEP.
 CSV exports use Section, Field, Value and Optional columns. TXT groups fields
 under their section headings and includes NEXT STEP. CSV/TXT provider values
 are joined with ` & ` in the same order, including missing-value placeholders.
 The most complete record appears first; distinct appointments are retained.
+
+Provider merging is shared in `provider_records.py`. An unnamed referral address
+and appointment is merged into a named provider only when the street and date
+match exactly one compatible visit. One doctor without a facility produces one
+record, with the facility field set to Not found, rather than a second blank
+facility. Conflicting names, locations and appointments remain separate. Source
+priority is preserved even when the unnamed fragment came from Special Instructions.
+
+`document_sections.py` restores the complete Special Instructions narrative from
+the document text, starting at its heading and ending before Referrer Name. It
+continues across page breaks, removes standalone pagination and injected page
+separators, and preserves the original wording and line breaks. This source text
+replaces a missing or truncated AI transcription in the UI and all exports. If
+the source heading is unavailable, the model text is retained with the same
+pagination cleanup. Structured fields still use the shared extraction prompt.
+
+The updated matrix gives a recognizable employer email name priority over
+conflicting employer first/last names. A missing NCM name can be derived from the
+nurse email; an explicitly documented NCM name is retained. Generic or ambiguous
+mailbox names are not used. Derivations remain marked as unverified in Name Inference,
+including previous employer names when replaced. NCM and nurse email prioritize
+Special Instructions, with Case Manager Information as fallback. Appointment date
+remains required and time optional per the user's date-only clarification.
 Exact duplicate records are removed. The prompt asks the model to consolidate
 complementary details only for the same provider, location and appointment.
 
@@ -176,10 +203,10 @@ and standalone processes. The UI shows the saved path and Record ID.
 
 | Sheet | Content |
 | --- | --- |
-| Referrals | One row per extraction: Record ID, timestamp, source filename, NEXT STEP, unresolved requirements, and 61 canonical field columns |
+| Referrals | One row per extraction: Record ID, timestamp, source filename, NEXT STEP, unresolved requirements, and 63 canonical field columns |
 | Providers | Separate provider rows linked by Record ID, including Date Only and appointment confirmation status |
 | Appointment Review | Runner confirmations with appointment identity, reasons and timestamp |
-| Name Inference | Employer names derived from email and their unverified origin |
+| Name Inference | Employer/NCM names derived from email, previous values when replaced, and their unverified origin |
 | Address Review | Accepted address suggestions and their provenance |
 | Schema | Workbook format version for standalone compatibility |
 
@@ -203,8 +230,10 @@ the record to pass recalculated completeness. This does not automatically run
 CMS, process every row, or mark a row as processed. Do not rename sheet/column
 headers. Other future standalone processes can reuse the same reader.
 
-New workbooks use schema version 2. The updated reader accepts version 1 and
+New workbooks use schema version 3. The updated reader accepts versions 1 and 2 and
 upgrades an existing daily workbook when appending new results, preserving old
-records. Old records may fail the new requirements until re-extracted. Use the
-CMSCustomerSearch build from the same release with version 2 workbooks; older
+records and appointment confirmations. Documented legacy claims-manager names
+are split into the new columns on read/upgrade. Old records may fail the new
+requirements until re-extracted. Use the CMSCustomerSearch build from the same
+release with version 3 workbooks; older
 EXEs reject the new schema rather than silently ignoring new validation rules.

@@ -200,7 +200,7 @@ def run_reasoning(client, model_id, full_document_text, validation_source_text="
         raw = invoke(client=client, model_id=model_id, prompt=prompt,
                      max_tokens=max_tokens, temperature=temperature)
         try:
-            result, fields = force_exact_field_output(raw, validation_source_text)
+            result, fields = force_exact_field_output(raw, validation_source_text or full_document_text)
             return result, fields, raw, round(time.time() - start, 2)
         except (ValueError, TypeError) as error:
             if attempt:

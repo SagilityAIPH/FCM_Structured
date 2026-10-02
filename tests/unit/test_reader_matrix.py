@@ -7,7 +7,7 @@ from openpyxl import load_workbook
 
 from AI import referral_schema as schema
 from AI.appointment_rules import appointment_checks, confirm_appointments, us_holidays
-from AI.daily_output import save_daily_output, read_record, LEGACY_HEADERS, LEGACY_PROVIDER_HEADERS
+from AI.daily_output import save_daily_output, read_record, LEGACY_HEADERS, LEGACY_PROVIDER_HEADERS, V2_HEADERS
 from tests.unit.test_referral_schema import complete_payload, payload, provider
 
 
@@ -16,8 +16,8 @@ def parse(data):
 
 
 def test_matrix_fields_unique_and_source_priority():
-    assert len(schema.REQUIRED_FIELDS) == len(set(schema.REQUIRED_FIELDS)) == 61
-    assert sum(map(len, schema.FIELD_GROUPS.values())) == 58
+    assert len(schema.REQUIRED_FIELDS) == len(set(schema.REQUIRED_FIELDS)) == 63
+    assert sum(map(len, schema.FIELD_GROUPS.values())) == 59
     data = payload()
     data.update({'Attorney Name': 'Section Attorney', 'Accident Description': 'Section description',
                  'Employer Contact Name': 'Customer contact', 'Employer First Name': 'Section',
@@ -159,3 +159,87 @@ def test_v1_workbooks_remain_readable_and_upgrade_without_losing_records(tmp_pat
     save_daily_output(data, 'new.pdf', directory=tmp_path, record_id='new')
     assert read_record(path, 'old')[0]['Claim Number'] == data['Claim Number']
     assert read_record(path, 'new')[1]['status'] == 'Passed'
+
+
+def test_matrix_sections_and_required_manager_names():
+    data = complete_payload()
+    data['Claims Case Manager First Name'] = data['Claims Case Manager Last Name'] = 'Not found'
+    data['Claims Case Manager Name'] = 'Saylor, Jessica'
+    data['Special Instruction Fields'] = {'Claims Case Manager Name': 'Other, Person'}
+    fields = parse(data)
+    assert fields['Claims Case Manager First Name'] == 'Jessica'
+    assert fields['Claims Case Manager Last Name'] == 'Saylor'
+    output = schema.export_payload(fields)
+    assert list(output['Referral Information']) == ['Referral Type', 'Referral Priority']
+    assert list(output['NCM Information']) == ['NCM', 'Nurse Case Manager E-mail Address']
+    assert 'Claims Case Manager Name' not in output['Case Manager Information']
+    assert 'Referral Instructions' not in output['Attorney Information']
+    fields['Claims Case Manager Last Name'] = 'Not found'
+    assert 'Case Manager Information / Claims Case Manager Last Name' in schema.completeness(fields)['missing_fields']
+
+
+def test_manager_names_fall_back_to_special_only_when_section_missing():
+    data = payload()
+    data['Special Instruction Fields'] = {'Claims Case Manager First Name': 'Jessica',
+                                         'Claims Case Manager Last Name': 'Saylor'}
+    fields = parse(data)
+    assert fields['Claims Case Manager First Name'] == 'Jessica'
+    assert fields['Claims Case Manager Last Name'] == 'Saylor'
+    assert fields['Claims Case Manager Name'] == 'Jessica Saylor'
+
+
+def test_employer_email_overrides_conflicting_names_with_provenance():
+    data = payload()
+    data['Special Instruction Fields'] = {'Employer First Name': 'Different', 'Employer Last Name': 'Person',
+                                         'Employer Contact Email': 'jane.doe@example.com'}
+    fields = parse(data)
+    assert (fields['Employer First Name'], fields['Employer Last Name']) == ('Jane', 'Doe')
+    assert [item['previous_value'] for item in fields.name_inference] == ['Different', 'Person']
+    data['Special Instruction Fields']['Employer Contact Email'] = 'claims.team@example.com'
+    fields = parse(data)
+    assert (fields['Employer First Name'], fields['Employer Last Name']) == ('Different', 'Person')
+    assert not fields.name_inference
+
+
+def test_ncm_special_priority_fallback_and_email_name():
+    data = payload()
+    data['Nurse Case Manager E-mail Address'] = 'section.nurse@example.com'
+    data['Special Instruction Fields'] = {'Nurse Case Manager E-mail Address': 'jane.doe@example.com'}
+    fields = parse(data)
+    assert fields['NCM'] == 'Jane Doe'
+    assert fields['Nurse Case Manager E-mail Address'] == 'jane.doe@example.com'
+    assert fields.name_inference[0]['source'] == 'Nurse Case Manager E-mail Address'
+    data['Special Instruction Fields']['NCM'] = 'Documented Nurse'
+    assert parse(data)['NCM'] == 'Documented Nurse'
+    data['Special Instruction Fields'] = {}
+    assert parse(data)['Nurse Case Manager E-mail Address'] == 'section.nurse@example.com'
+    assert parse(data)['NCM'] == 'Not found'  # generic mailbox name must not be guessed
+
+
+def test_v2_upgrade_preserves_manager_names_and_appointment_confirmation(tmp_path):
+    data = complete_payload()
+    data.update({'Claims Case Manager Name': 'Saylor, Jessica',
+                 'Claims Case Manager First Name': 'Jessica', 'Claims Case Manager Last Name': 'Saylor'})
+    data['Provider Information'][0]['Appointment Date'] = '2020-07-04'
+    fields = confirm_appointments(parse(data), [1])
+    path, _ = save_daily_output(fields, 'old.pdf', directory=tmp_path, record_id='old')
+    book = load_workbook(path)
+    sheet = book['Referrals']
+    for i in range(sheet.max_column, 0, -1):
+        if sheet.cell(1, i).value not in V2_HEADERS:
+            sheet.delete_cols(i)
+    book['Schema']['B1'] = '2'
+    book.save(path)
+    book.close()
+    old, status = read_record(path, 'old')
+    assert old['Claims Case Manager First Name'] == 'Jessica'
+    assert status['status'] == 'Passed'
+    save_daily_output(fields, 'new.pdf', directory=tmp_path, record_id='new')
+    old, status = read_record(path, 'old')
+    assert old['Claims Case Manager Last Name'] == 'Saylor'
+    assert status['status'] == 'Passed'
+    assert old.appointment_review == fields.appointment_review
+    book = load_workbook(path)
+    assert book['Schema']['B1'].value == '3'
+    assert book['Referrals']['D2'].value == 'Passed'
+    book.close()

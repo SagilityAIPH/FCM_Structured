@@ -38,7 +38,7 @@ def test_multiple_providers_keep_matching_slots_and_most_complete_first():
     assert fields["Provider Phone"] == "212-555-0123 & 212-555-0123 & Not found"
     assert fields["Provider Zip"] == "02110 & 02110 & Not found"
     assert "City: Boston & Boston & Not found" in text
-    assert len(core.fields_to_table_df(fields)) == 64  # 58 matrix + 3 extras + 3 appointment rows
+    assert len(core.fields_to_table_df(fields)) == 64  # 59 matrix + 2 extras + 3 appointment rows
 
 
 def test_optional_absence_does_not_retry_and_roles_are_separate():
@@ -149,7 +149,7 @@ def test_completeness_requires_one_whole_provider_not_combined_partial_records()
     exported = core.export_payload(fields)
     assert exported["Provider Information"][0]["Provider / Facility"] == "Clinic A & B"
     assert exported["NEXT STEP"]["status"] == "Passed"
-    assert list(exported)[:7] == list(core.FIELD_GROUPS)
+    assert list(exported)[:len(core.FIELD_GROUPS)] == list(core.FIELD_GROUPS)
 
 
 def test_no_providers_fails_and_output_uses_requested_labels():

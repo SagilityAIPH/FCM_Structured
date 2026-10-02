@@ -17,15 +17,17 @@ from openpyxl import Workbook, load_workbook
 from openpyxl.styles import Font, PatternFill
 
 try:
-    from .referral_schema import REQUIRED_FIELDS, PROVIDER_FIELDS, ReferralFields, completeness
+    from .referral_schema import REQUIRED_FIELDS, PROVIDER_FIELDS, ReferralFields, completeness, split_claims_manager_name
 except ImportError:
-    from referral_schema import REQUIRED_FIELDS, PROVIDER_FIELDS, ReferralFields, completeness
+    from referral_schema import REQUIRED_FIELDS, PROVIDER_FIELDS, ReferralFields, completeness, split_claims_manager_name
 
-VERSION = "2"
+VERSION = "3"
 HEADERS = ["Record ID", "Extracted At", "Source File", "NEXT STEP", "Missing Required Fields"] + REQUIRED_FIELDS
 PROVIDER_HEADERS = ["Record ID", "Provider Index"] + PROVIDER_FIELDS + ['Date Only', 'Appointment Confirmation']
 NEW_FIELDS = {"Compensable Body/Part(s)", "Additional Diagnosis Codes", "Doctor First Name", "Doctor Last Name",
-              "Provider Address Line 2", "Employer First Name", "Employer Last Name", "Employer Mobile", "Language", "Special Instructions"}
+              "Provider Address Line 2", "Employer First Name", "Employer Last Name", "Employer Mobile", "Language", "Special Instructions",
+              "Claims Case Manager First Name", "Claims Case Manager Last Name"}
+V2_HEADERS = [h for h in HEADERS if h not in ('Claims Case Manager First Name', 'Claims Case Manager Last Name')]
 LEGACY_HEADERS = [h for h in HEADERS if h not in NEW_FIELDS]
 LEGACY_PROVIDER_HEADERS = [h for h in ['Record ID', 'Provider Index'] + PROVIDER_FIELDS if h not in NEW_FIELDS]
 REVIEW_SHEETS = ('Address Review', 'Appointment Review', 'Name Inference')
@@ -68,10 +70,11 @@ def append_text(sheet, values):
 
 
 def check_layout(book):
-    if "Schema" not in book or book["Schema"]["B1"].value not in ('1', VERSION):
+    if "Schema" not in book or book["Schema"]["B1"].value not in ('1', '2', VERSION):
         raise ValueError("Unsupported daily workbook schema.")
     legacy = book['Schema']['B1'].value == '1'
-    for name, headers in [("Referrals", LEGACY_HEADERS if legacy else HEADERS),
+    referral_headers = LEGACY_HEADERS if legacy else V2_HEADERS if book['Schema']['B1'].value == '2' else HEADERS
+    for name, headers in [("Referrals", referral_headers),
                           ("Providers", LEGACY_PROVIDER_HEADERS if legacy else PROVIDER_HEADERS)]:
         if name not in book or [c.value for c in book[name][1]] != headers:
             raise ValueError(f"Unexpected {name} columns; use the AI daily output workbook without renaming headers.")
@@ -93,7 +96,7 @@ def save_daily_output(fields, source_file, *, directory=None, record_id=None, ex
         try:
             if path.exists():
                 check_layout(book)
-                if book['Schema']['B1'].value == '1':
+                if book['Schema']['B1'].value != VERSION:
                     for name, headers in [('Referrals', HEADERS), ('Providers', PROVIDER_HEADERS)]:
                         sheet = book[name]
                         old = [cell.value for cell in sheet[1]]
@@ -101,6 +104,8 @@ def save_daily_output(fields, source_file, *, directory=None, record_id=None, ex
                         sheet.delete_rows(1, sheet.max_row)
                         append_text(sheet, headers)
                         for row in rows:
+                            if name == 'Referrals':
+                                split_claims_manager_name(row)
                             append_text(sheet, [row.get(key, 'Not found') for key in headers])
                     book['Schema']['B1'] = VERSION
                     # Refresh old status cells under the new requirements too.
@@ -113,6 +118,7 @@ def save_daily_output(fields, source_file, *, directory=None, record_id=None, ex
                         row = dict(zip(HEADERS, [c.value for c in cells]))
                         previous = ReferralFields({k: row.get(k, 'Not found') for k in REQUIRED_FIELDS},
                                                   provider_rows.get(row['Record ID'], []))
+                        _load_reviews(book, row['Record ID'], previous)
                         checked = completeness(previous)
                         cells[3].value = checked['status']
                         cells[4].value = '\n'.join(checked['missing_fields'] + checked['confirmation_required'])
@@ -166,6 +172,18 @@ def save_daily_output(fields, source_file, *, directory=None, record_id=None, ex
     return path, record_id
 
 
+def _load_reviews(book, record_id, fields):
+    for name in REVIEW_SHEETS:
+        if name in book:
+            reviews = []
+            for cells in book[name].iter_rows(min_row=2):
+                if cells[0].value == record_id:
+                    if any(cell.data_type == 'f' for cell in cells):
+                        raise ValueError('Formula cells are not supported in review input.')
+                    reviews.append(json.loads(cells[1].value))
+            setattr(fields, name.lower().replace(' ', '_'), reviews)
+
+
 def read_record(path, record_id):
     """Shared standalone reader; never executes Excel formulas."""
     book = load_workbook(path, read_only=True, data_only=False)
@@ -190,15 +208,8 @@ def read_record(path, record_id):
                 values = dict(zip(provider_headers, [c.value or 'Not found' for c in cells[2:]]))
                 providers.append({key: values.get(key, 'Not found') for key in PROVIDER_FIELDS})
         fields = ReferralFields({key: record.get(key) or "Not found" for key in REQUIRED_FIELDS}, providers)
-        for name in REVIEW_SHEETS:
-            if name in book:
-                reviews = []
-                for cells in book[name].iter_rows(min_row=2):
-                    if cells[0].value == record_id:
-                        if any(cell.data_type == 'f' for cell in cells):
-                            raise ValueError('Formula cells are not supported in review input.')
-                        reviews.append(json.loads(cells[1].value))
-                setattr(fields, name.lower().replace(' ', '_'), reviews)
+        split_claims_manager_name(fields)
+        _load_reviews(book, record_id, fields)
         return fields, completeness(fields)
     finally:
         book.close()
