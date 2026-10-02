@@ -10,6 +10,29 @@ BASE_DIR = PROJECT_ROOT / "src" / "fcm_intake" if getattr(sys, "frozen", False) 
 LEGACY_DIR = BASE_DIR / "legacy"
 LOCAL_SETTINGS_PATH = (Path(sys.executable).parent if getattr(sys, "frozen", False) else PROJECT_ROOT) / "config" / "local_settings.ini"
 
+
+def _load_dotenv_files() -> None:
+    """Load developer/test credentials from .env files, if present.
+
+    Never overrides variables already set in the real environment. Missing
+    .env files (e.g. on a teammate's machine or in CI) are silently skipped.
+    """
+    try:
+        from dotenv import load_dotenv
+    except ImportError:
+        return
+
+    for env_path in (
+        PROJECT_ROOT / ".env",
+        PROJECT_ROOT / "AI" / ".env",
+        PROJECT_ROOT / "Processes" / "Reopen-Check" / "Stand-Alone" / ".env",
+    ):
+        if env_path.is_file():
+            load_dotenv(env_path, override=False)
+
+
+_load_dotenv_files()
+
 FCM_SCRIPT = LEGACY_DIR / "legacy_fcm.py"
 REOPENCHECK_SCRIPT = LEGACY_DIR / "legacy_reopencheck.py"
 CUSTOMERCHECKER_SCRIPT = LEGACY_DIR / "legacy_customerchecker.py"
