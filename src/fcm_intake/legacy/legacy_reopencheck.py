@@ -398,10 +398,11 @@ def element_click(el):
 # WEB CASE VALIDATION (UI)
 # -------------------------
  
-def _normalize_name(value):
-    """Collapse a claimant name to bare letters/digits for tolerant matching
-    (e.g. "Engelen, Garan" and "ENGELEN,GARAN" both become "ENGELENGARAN")."""
-    return re.sub(r"[^A-Z0-9]", "", str(value or "").upper())
+def _name_tokens(value):
+    """Break a claimant name into comparable tokens, tolerant of both
+    "Last, First" (CMS's format, e.g. "Engelen, Garan") and "First Last"
+    orderings -- both yield the same token set so order doesn't matter."""
+    return frozenset(re.findall(r"[A-Z0-9]+", str(value or "").upper()))
 
 
 def ValidateCaseNumber(ClaimNumber, ClaimantName=None):
@@ -416,7 +417,7 @@ def ValidateCaseNumber(ClaimNumber, ClaimantName=None):
     """
     global driver, found_cases
     driver = get_driver()
-    target_claimant = _normalize_name(ClaimantName) if ClaimantName else ""
+    target_claimant = _name_tokens(ClaimantName) if ClaimantName else frozenset()
 
     try:
         driver.switch_to.default_content()
@@ -473,7 +474,7 @@ def ValidateCaseNumber(ClaimNumber, ClaimantName=None):
             if target_claimant:
                 cells = row.find_elements(By.TAG_NAME, "td")
                 row_name = cells[0].text.strip() if cells else ""
-                if _normalize_name(row_name) != target_claimant:
+                if _name_tokens(row_name) != target_claimant:
                     continue
 
             claimLink = row.find_element(By.TAG_NAME, "a")
