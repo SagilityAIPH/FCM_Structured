@@ -38,6 +38,7 @@ class WorkbenchAPI:
         self._lock = threading.RLock()
         self._documents = {}
         self._busy = False
+        self._unsaved = False
         self._thread = None
         self._stage = "Ready to import documents"
         self._bedrock = "Not tested"
@@ -386,6 +387,13 @@ class WorkbenchAPI:
             path.write_text(content, encoding="utf-8-sig" if kind == "csv" else "utf-8")
             return str(path)
         return None
+
+    @response
+    def set_unsaved(self, value):
+        # Pushed from React so the close handler never has to query the page:
+        # evaluate_js inside pywebview's closing event deadlocks the UI thread.
+        self._unsaved = bool(value)
+        return True
 
     @response
     def open_output(self):

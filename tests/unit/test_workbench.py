@@ -192,3 +192,13 @@ def test_editing_appointment_invalidates_previous_confirmation(workbench, monkey
     finish(api)
     assert api.get_document(identifier)['value']['next_step'] == 'Failed'
     assert api.get_document(identifier)['value']['validation']['confirmation_required']
+
+
+def test_unsaved_state_is_pushed_and_close_handler_never_queries_page():
+    api = WorkbenchAPI()
+    assert api.set_unsaved(True) == {'ok': True, 'value': True} and api._unsaved is True
+    assert api.set_unsaved(False)['ok'] and api._unsaved is False
+    # pywebview runs `closing` on the UI thread; evaluate_js there deadlocks the window.
+    from pathlib import Path
+    launcher = (Path(backend.__file__).parent / 'launcher.py').read_text(encoding='utf-8')
+    assert 'evaluate_js' not in launcher

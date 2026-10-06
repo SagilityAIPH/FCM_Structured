@@ -19,5 +19,6 @@ export interface API {
   confirm_appointment(id: string, index: number): Promise<boolean>
   retry_save(id: string): Promise<string>
   export_document(id: string, kind: string): Promise<string | null>
+  set_unsaved(value: boolean): Promise<boolean>
   open_output(): Promise<boolean>
 }

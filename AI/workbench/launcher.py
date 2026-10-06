@@ -29,7 +29,7 @@ def main():
     def closing():
         if api._busy:
             return window.create_confirmation_dialog("Processing is active", "Exit and stop the current operation? Unsaved results may be lost.")
-        if window.evaluate_js("document.documentElement.dataset.unsaved === 'true'"):
+        if api._unsaved:
             return window.create_confirmation_dialog("Unsaved changes", "Exit and discard unsaved field edits?")
         return True
     window.events.closing += closing

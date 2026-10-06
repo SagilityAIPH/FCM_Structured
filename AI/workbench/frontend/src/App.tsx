@@ -29,7 +29,10 @@ export default function App() {
   const [settingsDirty, setSettingsDirty] = useState(false)
   const edits = Object.values(draft)
   const dirty = edits.length > 0
-  useEffect(() => { document.documentElement.dataset.unsaved = String(dirty || settingsDirty) }, [dirty, settingsDirty])
+  useEffect(() => {
+    document.documentElement.dataset.unsaved = String(dirty || settingsDirty)
+    getAPI().then(api => api.set_unsaved(dirty || settingsDirty)).catch(() => {})
+  }, [dirty, settingsDirty])
   const mounted = useRef(true)
   const busy = pending || !!state?.busy
   const refresh = useCallback(async () => {

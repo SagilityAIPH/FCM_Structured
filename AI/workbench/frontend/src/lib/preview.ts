@@ -79,5 +79,6 @@ export const previewAPI: API = {
     const url = URL.createObjectURL(blob); const anchor = document.createElement('a'); anchor.href = url; anchor.download = `synthetic-preview-${kind}.json`; anchor.click(); setTimeout(() => URL.revokeObjectURL(url), 1000)
     return anchor.download
   },
+  async set_unsaved() { return true },
   async open_output() { throw new Error('The browser preview does not create local workbooks.') },
 }
