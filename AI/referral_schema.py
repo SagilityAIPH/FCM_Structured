@@ -5,13 +5,15 @@ try:
     from .appointment_rules import appointment_checks, parse_date
     from .address_normalization import split_address
     from .provider_records import merge_provider_records, provider_identity, provider_summary
-    from .source_evidence import explicit_form_fields, special_evidence, recover_provider_identity, ICD
+    from .source_evidence import explicit_form_fields, special_evidence, recover_provider_identity, enforce_source_roles, ICD
+    from .provider_evidence import recover_provider_records
     from .document_sections import clean_special_instructions, extract_special_instructions
 except ImportError:
     from appointment_rules import appointment_checks, parse_date
     from address_normalization import split_address
     from provider_records import merge_provider_records, provider_identity, provider_summary
-    from source_evidence import explicit_form_fields, special_evidence, recover_provider_identity, ICD
+    from source_evidence import explicit_form_fields, special_evidence, recover_provider_identity, enforce_source_roles, ICD
+    from provider_evidence import recover_provider_records
     from document_sections import clean_special_instructions, extract_special_instructions
 
 FIELD_GROUPS = {
@@ -182,7 +184,11 @@ Rules:
   doctor, or leave identity missing if ambiguous; never invent a second provider.
 - Deduplicate repeated appointments, preserve time ranges and associate each time with
   its date. NOV means next office visit. Return dates as YYYY-MM-DD with an explicit
-  documented year; do not guess a year. Appointment Date is required; time is optional
+  documented year; do not guess a year. If only month/day is documented, preserve
+  that literal date (e.g. 3/23) for missing-year review; never discard it as Not found.
+  Next appt, NOV and Appt. Date: Time: are appointment labels. Pending scheduling
+  is not a date. LOV, prior surgery and PT start dates are not next appointments.
+  Appointment Date is required; time is optional
   and missing time means Date Only. Provider Phone and Provider Address Line 2 are optional.
   Provider address line 1, city, state and ZIP are required. Identity must be either
   a facility name or both doctor first and last names. Never invent appointment confirmation.
@@ -214,6 +220,21 @@ Rules:
   surname anchor: GT Lomas + georgelomas@example.com supports George Lomas.
   Do not expand initials alone, invent names from generic mailboxes, or merge
   different employer contacts into one person.
+- Company names (for example Acme Wholesale) are not employer contact people.
+  When several employer contacts are listed, preserve all first and last names
+  in aligned order separated by &; never combine one person's first name with
+  another person's surname. Preserve partial names if no matching email resolves them.
+- Read all attorney name and phone labels inside Special Instructions even if
+  Attorney Information is blank. A facility accompanying a practitioner (including
+  FNP, NP or PA) belongs in the SAME provider record. Dr followed by one name is
+  a surname, not a first name. Occupational medicine/Occ Med is a specialty, not
+  a facility; preserve the named clinician. Do not invent a hospital from a
+  truncated department name or specialty. Capture every explicitly named clinic.
+- Language includes narrative statements such as 'Patient speaks Spanish'.
+  Referral Instructions is the labeled referral-section content, not a duplicate
+  of Special Instructions. Do not put the full Special Instructions narrative
+  into Referral Instructions. Compensable Body/Part(s) requires explicit
+  compensability evidence; do not copy Injury Description into it automatically.
 
 DOCUMENT:
 {DOCUMENT_TEXT}
@@ -329,6 +350,7 @@ def parse_field_block(text, source_text=''):
         name_inference.append({'field': 'NCM', 'value': fields['NCM'],
                                'source': 'Nurse Case Manager E-mail Address',
                                'method': 'Derived from email for missing nurse name; not verified'})
+    enforce_source_roles(fields, source_text)
     providers = data["Provider Information"]
     if not isinstance(providers, list):
         raise ValueError("Provider Information must be an array.")
@@ -353,6 +375,9 @@ def parse_field_block(text, source_text=''):
             record["Provider Phone"] = "Not found"
         if any(value != "Not found" for value in record.values()):
             records.append(record)
+    records = recover_provider_records(records, source_text, PROVIDER_FIELDS)
+    for record in records:
+        split_address(record, 'Provider Address', 'Provider Address Line 2', 'Provider City', 'Provider State', 'Provider Zip')
     records = merge_provider_records(records)
     records.sort(key=lambda item: sum(value != "Not found" for key, value in item.items()
                                       if key not in SUPPLEMENTAL_FIELDS), reverse=True)

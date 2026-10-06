@@ -40,3 +40,29 @@ Validation must distinguish an offline replay of supplied AI outputs from a fres
 Bedrock extraction. Replaying a corrected workbook proves shared parsing/output
 behavior, not live model accuracy. Run the regression suite after implementation
 changes; build and test both consumers when the workbook schema changes.
+# October 6 sample review: explicit evidence and role separation
+
+- Treat QA field accuracy separately from NEXT STEP. An accurately extracted past
+  appointment still requires confirmation; a genuinely absent required value
+  remains missing. Never change validation just to raise an accuracy percentage.
+- Recover attorney name/phone from their Special Instructions block, without
+  borrowing a provider/employer phone. Recognize narrative language statements.
+- Preserve explicit month/day appointments when the year is absent. They require
+  missing-year review; never invent a year or replace the stated date with Not found.
+  Recognize Next appt, NOV, and combined Appt. Date: Time: labels. LOV, PT starts,
+  and historical surgery alone do not supply a next appointment.
+- Reconcile labeled provider blocks using unique identity or phone evidence.
+  Keep facilities accompanying doctors/nurse practitioners on the same record;
+  keep distinct clinics separate and recover omitted labeled clinics. A single
+  name after Dr is a surname; credentials/specialties are not facilities.
+- Do not assign an unassociated narrative appointment to multiple providers.
+- Company names do not supply employer first/last names. Multiple documented
+  contacts remain aligned, with surname completion only from matching emails.
+- The legacy Referral Instructions column is not a duplicate of Special
+  Instructions. Preserve the full special narrative in its dedicated field.
+- Implement source fallbacks in `source_evidence.py` / `provider_evidence.py` and
+  AI reasoning guidance in `referral_schema.py`. Use synthetic regression tests;
+  never hardcode sample names or commit referral PDFs/workbooks.
+- October 6 verification uses offline replay of 18 compiled rows with full PDF
+  text, plus synthetic regression tests. This is not a fresh Bedrock accuracy
+  measurement and does not establish 100% accuracy on future documents.

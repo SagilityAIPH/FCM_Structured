@@ -58,7 +58,7 @@ def explicit_form_fields(source):
 def _name_parts(text):
     text = re.sub(r'^(?:DMS|Mr\.?|Ms\.?|Mrs\.?)\s+', '', text.strip(), flags=re.I)
     match = re.fullmatch(r"([A-Za-z][A-Za-z'-]*)\s+([A-Za-z][A-Za-z' -]*)", text)
-    if not match or len(text.split()) > 4 or re.search(r'\b(?:and|contact|no|required|protocol)\b', text, re.I):
+    if not match or len(text.split()) > 4 or re.search(r'\b(?:and|contact|no|required|protocol|wholesale|corporation|company|inc|llc)\b', text, re.I):
         return None
     return match[1], match[2]
 
@@ -69,6 +69,18 @@ def special_evidence(source):
     if not text or text == 'Not found':
         return {}
     values = {}
+    attorney = re.search(r'(?im)^[ \t]*(?:Atty|Attorney) name\s*:[ \t]*([^\n]*)', text)
+    if attorney and attorney[1].strip():
+        values['Attorney Name'] = _clean(attorney[1])
+        tail = text[attorney.end():]
+        end = re.search(r'(?im)^\s*(?:Compensable|Outline|Work Status|Employer|Provider|Additional Instructions)\b', tail)
+        block = tail[:end.start()] if end else tail
+        phone = re.search(r'(?im)^[ \t]*Phone\s*#?\s*:[ \t]*([^\n]*)', block)
+        if phone and PHONE.search(phone[1]):
+            values['Attorney Phone Number'] = PHONE.search(phone[1])[0]
+    language = re.search(r'\b(?:patient|claimant|IW|worker)\s+(?:speaks|language\s*:)\s*(English|Spanish|French|Mandarin|Cantonese|Vietnamese|Korean|Arabic|Portuguese|Russian|Tagalog)\b', text, re.I)
+    if language:
+        values['Language'] = language[1].title()
     # Employer phone/email must remain inside the employer block, before attorney,
     # provider, clinical or work-status labels. Never reuse a nearby provider phone.
     start = re.search(r'(?im)^[ \t]*Employer(?: name (?:and|or) contact| Contact & Phone)?\s*:+\s*', text)
@@ -114,7 +126,7 @@ def special_evidence(source):
     else:
         # A referral recipient alone might instead be a claims/attorney contact.
         # Require the named organization to match the documented nursing vendor.
-        recipient = re.search(r"\bsend the referral to\s+([A-Z][a-z'-]+\s+[A-Z][a-z'-]+)\s+at\s+([A-Za-z]+)\b", text)
+        recipient = re.search(r"\b(?:send the referral to|assign to|requesting)\s+([A-Z][a-z'-]+\s+[A-Z][a-z'-]+)\s+(?:at|with)\s+([A-Za-z]+)\b", text)
         vendor = re.search(r'(?im)^Vendor Name:[ \t]*\n?([A-Za-z][^\n]*)', source)
         if recipient and vendor and vendor[1].casefold().split()[0] == recipient[2].casefold():
             values['NCM'] = recipient[1]
@@ -146,3 +158,45 @@ def recover_provider_identity(record, source):
     if street != 'Not found' and street.casefold() in block.casefold() and phone and phone in phone_matches:
         record[facility] = name
         record['Determining if Doctor or Provider Name'] = 'Facility'
+
+
+def enforce_source_roles(fields, source):
+    """Remove source-role leakage; preserve multiple explicitly named contacts."""
+    special = extract_special_instructions(source)
+    if special is None:
+        return
+    # This legacy column must not become a second, inconsistently truncated copy
+    # of Special Instructions. Explicit referral metadata remains separate.
+    if _section(source, 'Referral Instructions', 'Vendor Information'):
+        referral = _section(source, 'Referral Instructions', 'Vendor Information')
+        explicit = re.search(r'(?im)^Referral Instructions\s*:[ \t]*([^\n]+)', referral)
+        fields['Referral Instructions'] = explicit[1].strip() if explicit else 'Not found'
+    if not re.search(r'(?i)\bcompensab', special) and fields.get('Compensable Body/Part(s)') == fields.get('Injury Description'):
+        fields['Compensable Body/Part(s)'] = 'Not found'
+    employer = re.search(r'(?im)^[ \t]*Employer(?: name (?:and|or) contact)?\s*:[ \t]*([^\n]+)', special)
+    if employer:
+        name = employer[1].strip()
+        company = fields.get('Employer Name', '')
+        if (re.search(r'\b(?:wholesale|corporation|company|inc|llc)\b', name, re.I)
+                or name.casefold() == company.casefold()) and not re.search(r'[@,&]|\bcontact\b', name, re.I):
+            fields['Employer First Name'] = fields['Employer Last Name'] = 'Not found'
+        names = re.split(r'\s+(?:and|&)\s+', name)
+        if len(names) > 1:
+            emails = EMAIL.findall(fields.get('Employer Contact Email', ''))
+            firsts, lasts = [], []
+            for person in names:
+                if ',' in person:
+                    last, first = [s.strip() for s in person.split(',', 1)]
+                else:
+                    pieces = person.split()
+                    first, last = pieces[0], ' '.join(pieces[1:]) or 'Not found'
+                for email in emails:
+                    local = email.split('@')[0]
+                    parts = re.fullmatch(r'([A-Za-z]+)[._]([A-Za-z]+)', local)
+                    if parts and parts[1].casefold() == first.casefold() and (last == 'Not found' or parts[2].casefold() == last.casefold()):
+                        first, last = parts[1].title(), parts[2].title()
+                        break
+                firsts.append(first)
+                lasts.append(last)
+            fields['Employer First Name'] = ' & '.join(firsts)
+            fields['Employer Last Name'] = ' & '.join(lasts)
