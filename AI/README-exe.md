@@ -155,7 +155,14 @@ and extraction attempts clear the previous result.
 Missing facts use `Not found`; optional gaps do not block processing or trigger
 a retry. Commercial and Case Manager are examples, not defaults. Invalid or
 incomplete model JSON retries once and then reports an error. Output defaults to
-8192 tokens for the expanded schema and instruction text.
+16,384 tokens for the expanded schema and instruction text across desktop,
+Streamlit, and batch extraction. Desktop and Streamlit allow up to 16,384.
+This is the generation budget, separate from the document character limit;
+depending on the model, reasoning can consume some of this budget before the
+visible answer. An explicit token-limit stop reports an error immediately and
+does not accept the partial extraction. Raising the budget reduces truncation
+but does not guarantee every document will fit. Rebuild the EXE to apply these
+source settings to the packaged app.
 
 Use **Review and confirm appointments** in the desktop app, or the appointment
 review controls in Streamlit. Past dates, weekends and U.S. federal holidays

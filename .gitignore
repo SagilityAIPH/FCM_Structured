@@ -20,4 +20,6 @@ node_modules/
 /Samples for AI/
 /AI/.sample_runs/
 /Output/
+/AI/workbench/test-results/
+*.tsbuildinfo
 

@@ -2,8 +2,54 @@ import json
 
 import httpx
 import pytest
+from types import SimpleNamespace
 
 from AI import bedrock_runtime as runtime
+from AI import bedrock_core as core
+from AI.batch_samples import _make_llm_call
+from tests.unit.test_referral_schema import complete_payload
+
+
+def test_default_extraction_sends_16k_budget():
+    def handle(request):
+        assert json.loads(request.content)['inferenceConfig']['maxTokens'] == 16384
+        return httpx.Response(200, json={
+            'stopReason': 'end_turn',
+            'output': {'message': {'content': [{'text': json.dumps(complete_payload())}]}},
+        })
+
+    with runtime.RuntimeClient('test-token', runtime.build_bedrock_base_url('us-east-2'),
+                               transport=httpx.MockTransport(handle)) as client:
+        _, fields, _, _ = runtime.run_reasoning(client, runtime.DEFAULT_BEDROCK_MODEL, 'Sample')
+        assert fields['First Name'] == complete_payload()['First Name']
+
+
+@pytest.mark.parametrize('answer', ['', json.dumps(complete_payload())])
+def test_token_limit_stop_rejects_even_parseable_partial_answer(answer):
+    def handle(request):
+        return httpx.Response(200, json={
+            'stopReason': 'max_tokens',
+            'output': {'message': {'content': [{'text': answer}]}},
+        })
+
+    with runtime.RuntimeClient('test-token', runtime.build_bedrock_base_url('us-east-2'),
+                               transport=httpx.MockTransport(handle)) as client:
+        with pytest.raises(RuntimeError, match=r'output token limit \(16,384\)'):
+            runtime.run_reasoning(client, runtime.DEFAULT_BEDROCK_MODEL, 'Sample')
+
+
+@pytest.mark.parametrize('transport', ['mantle', 'batch'])
+def test_other_transports_reject_token_limit_stop(transport):
+    if transport == 'mantle':
+        response = SimpleNamespace(choices=[SimpleNamespace(
+            finish_reason='length', message=SimpleNamespace(content='{}'))])
+        client = SimpleNamespace(chat=SimpleNamespace(completions=SimpleNamespace(create=lambda **_: response)))
+        invoke = core.call_llm_once
+    else:
+        client = SimpleNamespace(converse=lambda **_: {'stopReason': 'max_tokens'})
+        invoke = _make_llm_call()
+    with pytest.raises(RuntimeError, match='Increase Output tokens to 16,384'):
+        invoke(client=client, model_id='test', prompt='Sample', max_tokens=8192, temperature=0.0)
 
 
 def test_runtime_converse_request_and_response():

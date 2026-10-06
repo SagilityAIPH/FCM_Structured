@@ -198,8 +198,8 @@ class BedrockApp:
         try:
             region, model, key = self.settings()
             tokens, temperature, limit = int(self.tokens.get()), float(self.temperature.get()), int(self.limit.get())
-            if not (128 <= tokens <= 8192 and 0 <= temperature <= 0.5 and 5000 <= limit <= 400000):
-                raise ValueError("Use 128–8192 tokens, temperature 0–0.5, and 5,000–400,000 document characters.")
+            if not (128 <= tokens <= core.MAX_OUTPUT_TOKENS and 0 <= temperature <= 0.5 and 5000 <= limit <= 400000):
+                raise ValueError(f"Use 128–{core.MAX_OUTPUT_TOKENS:,} tokens, temperature 0–0.5, and 5,000–400,000 document characters.")
             if not self.full_text.strip():
                 raise ValueError("Open a document containing selectable text first.")
         except ValueError as error:

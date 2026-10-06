@@ -10,7 +10,10 @@ from openai import OpenAI
 
 DEFAULT_BEDROCK_REGION = "us-east-2"
 DEFAULT_BEDROCK_MODEL = "openai.gpt-oss-120b"
-DEFAULT_MAX_TOKENS = 8192
+try:
+    from .inference_settings import DEFAULT_MAX_TOKENS, MAX_OUTPUT_TOKENS, check_output_limit
+except ImportError:
+    from inference_settings import DEFAULT_MAX_TOKENS, MAX_OUTPUT_TOKENS, check_output_limit
 DEFAULT_TEMP = 0.0
 DEFAULT_MAX_DOC_CHARS = 100000
 DEFAULT_REQUEST_TIMEOUT = 180.0
@@ -66,6 +69,7 @@ def test_bedrock_connection(client: OpenAI, model_id: str) -> str:
         temperature=0.0,
     )
 
+    check_output_limit(getattr(response.choices[0], "finish_reason", None), 32)
     return (response.choices[0].message.content or "").strip()
 
 
@@ -179,6 +183,7 @@ def call_llm_once(
         top_p=0.4,
     )
 
+    check_output_limit(getattr(response.choices[0], "finish_reason", None), max_tokens)
     return (response.choices[0].message.content or "").strip()
 
 

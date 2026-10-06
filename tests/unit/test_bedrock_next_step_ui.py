@@ -9,6 +9,20 @@ from AI import bedrock_core as core
 from tests.unit.test_referral_schema import future_workday
 
 
+@pytest.mark.parametrize('entrypoint', ['ai_fcm_bedrock.py', 'ai_fcm_bedrock_runtime.py'])
+def test_streamlit_accepts_16k_output_budget(entrypoint):
+    if entrypoint == 'ai_fcm_bedrock_runtime.py':
+        pytest.importorskip('boto3')
+    path = Path(__file__).resolve().parents[2] / 'AI' / entrypoint
+    app = AppTest.from_file(str(path)).run(timeout=20)
+    assert not app.exception
+    tokens = next(item for item in app.number_input if item.label == 'Max output tokens')
+    assert tokens.value == 16384
+    assert tokens.max == 16384
+    tokens.set_value(16384).run(timeout=20)
+    assert not app.exception
+
+
 def test_streamlit_review_applies_only_after_acceptance(tmp_path, monkeypatch):
     import sys
     from datetime import datetime

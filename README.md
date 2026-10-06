@@ -5,6 +5,18 @@ FCM Intake V3 is a structured, behavior-preserving migration of the V2 Windows a
 ## Project context for future sessions
 
 For AI PDF Reader work, read [the extraction rules and review lessons](AI/EXTRACTION_RULES.md).
+The new [desktop workbench](AI/workbench/README.md) lives in `AI/workbench/`:
+Python backend + React/TypeScript, Tailwind, shadcn/ui, and pywebview. The owner's
+latest UI direction follows `docs/Sample A.png`: a 480 × 900 form, fixed width and
+resizable height, with collapsible field group boxes and one main scrollbar.
+Bottom navigation toggles Documents, PDF, Output, and Settings groups below the
+fields without losing unsaved values. A fixed progress bar, Save control, and
+status remain visible at the bottom. There is no sidebar or permanent document
+table. Import triggers extraction;
+missing-address lookup and application of a unique compatible match run automatically.
+Conflicting addresses remain unresolved and appointment exceptions still need confirmation.
+Keep this adapter independently testable and reuse the existing shared AI modules.
+Do not invent confidence percentages; the current engine does not supply them.
 The user wants corrections taught as reusable prompt rules, shared source checks,
 and regression examples so future PDFs and future AI coding sessions benefit.
 Never patch outputs by sample filename or hardcode a person's corrected identity.

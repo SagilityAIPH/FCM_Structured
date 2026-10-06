@@ -28,6 +28,11 @@ from urllib.parse import quote
 import requests
 
 try:
+    from .inference_settings import DEFAULT_MAX_TOKENS, check_output_limit
+except ImportError:
+    from inference_settings import DEFAULT_MAX_TOKENS, check_output_limit
+
+try:
     import pymupdf
 except ImportError as exc:  # pragma: no cover - exercised by CLI installations
     raise SystemExit(
@@ -219,6 +224,7 @@ def _make_llm_call():
                 "topP": 0.4,
             },
         )
+        check_output_limit(response.get("stopReason"), max_tokens)
         return _extract_bedrock_text(response)
 
     return call_llm_once
@@ -231,7 +237,7 @@ def run_samples(
     model: str,
     limit: int | None = None,
     max_doc_chars: int = 100_000,
-    max_tokens: int = 8192,
+    max_tokens: int = DEFAULT_MAX_TOKENS,
     force: bool = False,
 ) -> dict[str, Any]:
     core = load_extraction_core()
@@ -428,7 +434,7 @@ def build_parser() -> argparse.ArgumentParser:
     run.add_argument("--model", default=os.getenv("BEDROCK_MODEL_ID", DEFAULT_MODEL))
     run.add_argument("--limit", type=int)
     run.add_argument("--max-doc-chars", type=int, default=100_000)
-    run.add_argument("--max-tokens", type=int, default=8192)
+    run.add_argument("--max-tokens", type=int, default=DEFAULT_MAX_TOKENS)
     run.add_argument("--force", action="store_true")
 
     review = subparsers.add_parser("export-review", help="Create a human-review CSV.")

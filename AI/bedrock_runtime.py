@@ -61,6 +61,7 @@ class RuntimeClient:
             detail = response.text.replace(self._key, "[redacted]")[:2000]
             raise RuntimeError(f"Bedrock Runtime HTTP {response.status_code}: {detail}")
         body = response.json()
+        check_output_limit(body.get("stopReason"), max_completion_tokens)
         blocks = body.get("output", {}).get("message", {}).get("content", [])
         text = "\n".join(block["text"] for block in blocks if isinstance(block, dict) and block.get("text"))
         if not text.strip():

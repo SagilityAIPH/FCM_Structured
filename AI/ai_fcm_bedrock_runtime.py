@@ -176,6 +176,7 @@ def test_bedrock_connection(client, model_id: str) -> str:
         },
     )
 
+    check_output_limit(response.get("stopReason"), 32)
     return extract_bedrock_text(response)
 
 
@@ -211,6 +212,7 @@ def call_llm_once(
         },
     )
 
+    check_output_limit(response.get("stopReason"), max_tokens)
     return extract_bedrock_text(response)
 
 
@@ -292,7 +294,7 @@ with st.sidebar:
     max_tokens = st.number_input(
         "Max output tokens",
         min_value=128,
-        max_value=8192,
+        max_value=MAX_OUTPUT_TOKENS,
         value=DEFAULT_MAX_TOKENS,
         step=128,
     )

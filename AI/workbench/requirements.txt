@@ -1,0 +1,2 @@
+-r ../requirements-bedrock-build.txt
+pywebview==6.1
