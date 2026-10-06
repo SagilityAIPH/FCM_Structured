@@ -70,7 +70,7 @@ test('document selection, validation edits, PDF navigation, and settings errors'
   await page.getByRole('button', {name: 'PDF', exact: true}).click()
   await expect(page.getByRole('button', {name: 'Reset zoom'})).toHaveText('125%')
   await page.getByRole('button', {name: 'Settings', exact: true}).click()
-  await expect(page.getByLabel('Output token budget')).toHaveValue('16384')
+  await expect(page.getByLabel('Output token budget')).toHaveValue('32768')
   await page.getByRole('button', {name: 'Test connection'}).click()
   await expect(page.getByRole('alert')).toContainText('only in the Python desktop app')
 })
@@ -79,7 +79,7 @@ test('native bridge initialization and real queue progress semantics', async ({p
   await page.addInitScript(() => {
     const fixture = {documents: [], busy: true, stage: 'Extracting synthetic document', bedrock: 'Connected', elapsed: 4,
       progress: {done: 1, total: 3}, key_configured: true, output_directory: 'Synthetic output',
-      settings: {region: 'us-east-2', model: 'test', max_tokens: 16384, temperature: 0, document_limit: 100000}}
+      settings: {region: 'us-east-2', model: 'test', max_tokens: 32768, temperature: 0, document_limit: 100000}}
     Object.assign(window, {queueFixture: fixture})
     setTimeout(() => {
       window.pywebview = {api: {get_state: async () => ({ok: true, value: structuredClone(fixture)})}}

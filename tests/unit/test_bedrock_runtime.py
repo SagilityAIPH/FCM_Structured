@@ -10,9 +10,9 @@ from AI.batch_samples import _make_llm_call
 from tests.unit.test_referral_schema import complete_payload
 
 
-def test_default_extraction_sends_16k_budget():
+def test_default_extraction_sends_32k_budget():
     def handle(request):
-        assert json.loads(request.content)['inferenceConfig']['maxTokens'] == 16384
+        assert json.loads(request.content)['inferenceConfig']['maxTokens'] == 32768
         return httpx.Response(200, json={
             'stopReason': 'end_turn',
             'output': {'message': {'content': [{'text': json.dumps(complete_payload())}]}},
@@ -34,7 +34,7 @@ def test_token_limit_stop_rejects_even_parseable_partial_answer(answer):
 
     with runtime.RuntimeClient('test-token', runtime.build_bedrock_base_url('us-east-2'),
                                transport=httpx.MockTransport(handle)) as client:
-        with pytest.raises(RuntimeError, match=r'output token limit \(16,384\)'):
+        with pytest.raises(RuntimeError, match=r'output token limit \(32,768\)'):
             runtime.run_reasoning(client, runtime.DEFAULT_BEDROCK_MODEL, 'Sample')
 
 
@@ -48,7 +48,7 @@ def test_other_transports_reject_token_limit_stop(transport):
     else:
         client = SimpleNamespace(converse=lambda **_: {'stopReason': 'max_tokens'})
         invoke = _make_llm_call()
-    with pytest.raises(RuntimeError, match='Increase Output tokens to 16,384'):
+    with pytest.raises(RuntimeError, match='Increase Output tokens to 32,768'):
         invoke(client=client, model_id='test', prompt='Sample', max_tokens=8192, temperature=0.0)
 
 

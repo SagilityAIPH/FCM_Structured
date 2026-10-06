@@ -1,7 +1,7 @@
 """Shared generation budget and truncation checks for PDF Reader entry points."""
 
-DEFAULT_MAX_TOKENS = 16384
-MAX_OUTPUT_TOKENS = 16384
+DEFAULT_MAX_TOKENS = 32768
+MAX_OUTPUT_TOKENS = 32768
 
 
 def check_output_limit(stop_reason, max_tokens):

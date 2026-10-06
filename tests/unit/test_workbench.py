@@ -134,7 +134,7 @@ def test_settings_unblock_waiting_imports_and_busy_rejects_edits(workbench, monk
     api._queue_pending()
     assert not api._busy
     settings = api.get_state()['value']['settings']
-    assert settings['max_tokens'] == 16384
+    assert settings['max_tokens'] == 32768
     assert api.save_settings(settings, 'test-secret-not-real')['ok']
     assert api._busy
     assert not api.save_settings(settings, '')['ok']
