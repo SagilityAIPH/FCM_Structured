@@ -80,8 +80,14 @@ class DesktopPrompts:
             self._root = None
 
 
-def execute_request(request):
-    """Same process logic for offline scenarios and live CMS; no UI duplication."""
+def execute_request(request, prompts_factory=None):
+    """Same process logic for offline scenarios and live CMS; no UI duplication.
+
+    prompts_factory lets alternate front-ends (e.g. the pywebview UI) supply
+    their own ask_yes_no/ask_text/notify/destroy implementation instead of the
+    Tk-based DesktopPrompts used by this desktop app. Defaults preserve the
+    existing behavior exactly.
+    """
     if request["mode"] == "offline":
         scenario = json.loads((HERE / "scenarios" / request["scenario"]).read_text(encoding="utf-8"))
         notices = []
@@ -100,7 +106,7 @@ def execute_request(request):
     validate_input(data, request["stage"])
     from fcm_intake.cms import session
     from fcm_intake.workflows.reopen_flow import run_live
-    prompts = DesktopPrompts()
+    prompts = prompts_factory() if prompts_factory is not None else DesktopPrompts()
     session.set_credentials(request["username"], request["password"])
     try:
         result = run_live(data, stage=request["stage"], app=prompts,
@@ -111,7 +117,7 @@ def execute_request(request):
         prompts.destroy()
 
 
-def worker_main(connection, request):
+def worker_main(connection, request, prompts_factory=None):
     """Keep legacy Selenium/Tk work on its own main thread; UI stays responsive."""
     stage = 'Preparing process'
     def progress(message):
@@ -123,7 +129,7 @@ def worker_main(connection, request):
             from fcm_intake.cms import session
             session.set_status_callback(progress)
         with open(os.devnull, "w") as sink, contextlib.redirect_stdout(sink), contextlib.redirect_stderr(sink):
-            response = execute_request(request)
+            response = execute_request(request, prompts_factory=prompts_factory)
     except SystemExit:
         response = {"result": {"status": "stopped", "reason": "legacy_process_stopped"}}
     except Exception as error:

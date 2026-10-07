@@ -4,6 +4,29 @@ The desktop application is named **CMSCustomerSearch**. It runs the existing
 re-open/customer flow; the `Reopen-Check` folder name remains for compatibility
 with the main app and existing commands.
 
+## Desktop UI stack
+
+The desktop window is a React + TypeScript frontend (Vite, Tailwind CSS,
+shadcn-style components, lucide-react icons) hosted in a native window via
+`pywebview` + Microsoft Edge WebView2 (`ui/`, `webview_app.py`). Python keeps
+all automation/backend logic (`desktop.py`'s `execute_request`/`worker_main`,
+Selenium/CMS session code); the frontend only calls into it through
+`window.pywebview.api`.
+
+- Run the built app: `python CMSCustomerSearch.py` (builds under `ui/dist`
+  must exist; see below).
+- Build the frontend: `cd ui && npm install && npm run build`.
+- Iterate on the UI alone, in a browser, without Python/WebView2:
+  `cd ui && npm run dev` (uses an in-browser mock of the Python API,
+  `ui/src/lib/mock.ts`).
+- Point the desktop window at the Vite dev server instead of the built
+  `dist/` (for live-reload while keeping the real Python backend):
+  set `CMSCUSTOMERSEARCH_UI_DEV_URL=http://localhost:5173` before running
+  `python webview_app.py`, with `npm run dev` running in `ui/`.
+- The previous Tk/ttk desktop form still exists for reference and is used by
+  the packaged build's `--self-test-report` smoke check; run it directly with
+  `python CMSCustomerSearch.py --legacy-ui`.
+
 ## Windows desktop application
 
 Open `dist/CMSCustomerSearch.exe` from the repository build output, or run

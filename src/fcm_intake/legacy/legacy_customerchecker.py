@@ -603,6 +603,64 @@ def _get_result_rows(drv, timeout=20):
  
     return WebDriverWait(drv, timeout).until(_rows_ready)
 
+
+def extract_results_table(drv):
+    """
+    Reads the whole customer search results table (all rows/columns, including
+    the header row if present) and returns it as a list of lists of strings.
+    """
+    try:
+        table = drv.find_element(By.ID, RESULTS_TABLE_ID)
+    except NoSuchElementException:
+        return []
+
+    table_rows = []
+    for tr in table.find_elements(By.TAG_NAME, "tr"):
+        cells = tr.find_elements(By.TAG_NAME, "th") + tr.find_elements(By.TAG_NAME, "td")
+        row_values = [(cell.text or "").strip() for cell in cells]
+        if row_values:
+            table_rows.append(row_values)
+    return table_rows
+
+
+def format_results_table(table_rows):
+    """Formats a list-of-lists table into an aligned, monospace-friendly string."""
+    if not table_rows:
+        return "(No results found.)"
+
+    col_count = max(len(row) for row in table_rows)
+    col_widths = [0] * col_count
+    for row in table_rows:
+        for i in range(col_count):
+            value = row[i] if i < len(row) else ""
+            col_widths[i] = max(col_widths[i], len(value))
+
+    lines = []
+    for row in table_rows:
+        padded = [
+            (row[i] if i < len(row) else "").ljust(col_widths[i])
+            for i in range(col_count)
+        ]
+        lines.append(" | ".join(padded).rstrip())
+    return "\n".join(lines)
+
+
+def show_results_table(table_text, app=None, title="Customer Search Results"):
+    """Displays the formatted results table in a message box / modal dialog."""
+    if app is not None and hasattr(app, "show_info"):
+        app.show_info(title, table_text)
+        return
+
+    # fallback only when running this file directly (no main app UI available)
+    root = tk.Tk()
+    root.withdraw()
+    root.attributes("-topmost", True)
+    root.update()
+    try:
+        messagebox.showinfo(title, table_text, parent=root)
+    finally:
+        root.destroy()
+
 # =========================
 # PROMPTER (YOUR EXISTING FLOW)
 # =========================
@@ -848,6 +906,11 @@ def ValidateCustomer(CustomerName: str,ClaimID,ClaimantName,app=None):
                 print(f"[ValidateCustomer] customer_prompt_and_cem failed after retry: {prompt_error}")
                 return None
 
+
+    # Capture the whole results table and show it to the user in a modal.
+    results_table = extract_results_table(drv)
+    results_table_text = format_results_table(results_table)
+    show_results_table(results_table_text, app=app)
 
     # Optional: some apps show a "no records found" row as 1 row
     if len(rows) == 1 and "NO RECORD" in (rows[0].text or "").upper():

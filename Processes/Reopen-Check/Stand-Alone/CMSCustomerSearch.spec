@@ -10,6 +10,10 @@ if not ie_driver.is_file():
 datas = [(str(here / "scenarios"), "Processes/Reopen-Check/Stand-Alone/scenarios"),
          (str(here.parent / "Deploy-Ready" / "reopen_flow.py"), "Processes/Reopen-Check/Deploy-Ready")]
 datas += [(str(ie_driver), 'drivers')]
+ui_dist = here / "ui" / "dist"
+if not ui_dist.is_dir():
+    raise SystemExit('Run "npm install && npm run build" inside Stand-Alone/ui before building CMSCustomerSearch.')
+datas += [(str(ui_dist), "Processes/Reopen-Check/Stand-Alone/ui/dist")]
 # Includes Selenium Manager's Windows executable as well as Selenium's data.
 datas += collect_data_files('selenium')
 for name in ["legacy_reopencheck.py", "legacy_customerchecker.py", "legacy_cem.py"]:
@@ -17,8 +21,10 @@ for name in ["legacy_reopencheck.py", "legacy_customerchecker.py", "legacy_cem.p
 a = Analysis([str(here / "CMSCustomerSearch.py")],
              pathex=[str(here), str(root), str(root / "src")], datas=datas,
              hiddenimports=["fcm_intake.legacy.legacy_reopencheck", "fcm_intake.legacy.legacy_customerchecker",
-                            "fcm_intake.legacy.legacy_cem", "pyodbc", "dateutil.relativedelta"]
-             + collect_submodules('selenium.webdriver') + collect_submodules('pywinauto'),
+                            "fcm_intake.legacy.legacy_cem", "pyodbc", "dateutil.relativedelta", "webview_app",
+                            "webview.platforms.edgechromium"]
+             + collect_submodules('selenium.webdriver') + collect_submodules('pywinauto')
+             + collect_submodules('webview'),
              excludes=["streamlit", "pandas", "numpy", "scipy", "matplotlib", "openai", "boto3", "torch"])
 pyz = PYZ(a.pure)
 exe = EXE(pyz, a.scripts, a.binaries, a.datas, [], name="CMSCustomerSearch",

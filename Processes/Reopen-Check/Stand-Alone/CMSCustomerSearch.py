@@ -91,12 +91,15 @@ def main():
             Path(report).write_text(traceback.format_exc(), encoding="utf-8")
             return 1
         return 0
-    import tkinter as tk
-    from desktop import App
-    root = tk.Tk()
-    App(root)
-    root.mainloop()
-    return 0
+    if "--legacy-ui" in sys.argv:
+        import tkinter as tk
+        from desktop import App
+        root = tk.Tk()
+        App(root)
+        root.mainloop()
+        return 0
+    import webview_app
+    return webview_app.main() or 0
 
 
 if __name__ == "__main__":
