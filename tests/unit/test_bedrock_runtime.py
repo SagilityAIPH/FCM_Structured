@@ -104,3 +104,30 @@ def test_key_priority(monkeypatch):
     monkeypatch.setenv('OPENAI_API_KEY', 'old-key')
     assert runtime.resolve_bedrock_api_key() == 'runtime-key'
     assert runtime.resolve_bedrock_api_key('manual-key') == 'manual-key'
+
+
+@pytest.mark.parametrize('model', [
+    'anthropic.claude-opus-5-5',
+    'global.anthropic.claude-opus-5-5',
+    'us.anthropic.claude-opus-5-5-v1:0',
+    'arn:aws:bedrock:us-east-2:123456789012:inference-profile/global.anthropic.claude-opus-5-5',
+])
+@pytest.mark.parametrize('probe', [True, False])
+def test_opus_55_omits_sampling_parameters(model, probe):
+    calls = []
+    def handle(request):
+        body = json.loads(request.content)
+        calls.append(body)
+        assert body['inferenceConfig'] == {'maxTokens': 32 if probe else 32768}
+        assert request.url.path == f'/model/{model}/converse'
+        answer = 'BEDROCK_OK' if probe else json.dumps(complete_payload())
+        return httpx.Response(200, json={'stopReason': 'end_turn',
+            'output': {'message': {'content': [{'text': answer}]}}})
+    with runtime.RuntimeClient('test-token', runtime.build_bedrock_base_url('us-east-2'),
+                               transport=httpx.MockTransport(handle)) as client:
+        if probe:
+            assert runtime.test_bedrock_connection(client, model) == 'BEDROCK_OK'
+        else:
+            _, fields, _, _ = runtime.run_reasoning(client, model, 'Sample', temperature=0.2)
+            assert fields['First Name'] == complete_payload()['First Name']
+    assert len(calls) == 1

@@ -56,6 +56,12 @@ class RuntimeClient:
             payload["system"] = system
         if top_p is not None:
             payload["inferenceConfig"]["topP"] = top_p
+        # Opus 5.5 rejects temperature. Let it use model-managed sampling,
+        # including topP, for both extraction and the connection probe.
+        # Match direct IDs, regional/global profiles and their full ARNs.
+        if re.search(r"(?:^|[./])anthropic\.claude-opus-5-5(?:$|[:/.-])", model.strip()):
+            payload["inferenceConfig"].pop("temperature", None)
+            payload["inferenceConfig"].pop("topP", None)
         response = self._http.post(f"/model/{quote(model.strip(), safe='')}/converse", json=payload)
         if response.is_error:
             detail = response.text.replace(self._key, "[redacted]")[:2000]
