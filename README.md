@@ -85,6 +85,7 @@ For each process:
 
 | Process | Modularization status | Verification | Remaining work |
 | --- | --- | --- | --- |
+| [SubjectLineBuilder](processes/SubjectLineBuilder/README.md) | Existing UI implementation moved to its process folder; main app and standalone CLI share one controller; offline and explicit live modes | Moved function AST unchanged; 5 offline controller tests passed | Live RRS validation; separate PDF capture and lookup stages, add daily workbook input; legacy runtime globals remain behind a transitional adapter |
 | [Reopen-Check and customer validation](Processes/Reopen-Check/README.md) | Shared controller extracted; main app integrated; CMSCustomerSearch desktop EXE and CLI support both stages or either individually, plus daily Excel input by Record ID | Last recorded checks: 12 process tests, 37 repository tests, and packaged desktop smoke test passed | Live CMS verification; browser search, database eligibility, customer matching and CEM still use shared legacy implementations |
 | Other intake processes | Not yet migrated to this folder structure | Not assessed for modularization | Identify and extract the next process |
 
