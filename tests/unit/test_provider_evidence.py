@@ -98,3 +98,51 @@ def test_dr_prefix_is_not_promoted_to_first_name():
     result = recover_provider_records([initial], source('Provider Name: Dr. Smith\nPhone: 212-555-0100'), PROVIDER_FIELDS)
     assert result[0]['Doctor First Name'] == 'Not found'
     assert result[0][FACILITY] == 'Not found'
+
+
+@pytest.mark.parametrize('label', ['Example Clinic- Dr. Alex Smith', 'Alex Smith DPM - Example Clinic'])
+def test_combined_facility_labels_are_split_before_matching(label):
+    initial = record(**{FACILITY: label, 'Doctor First Name': 'Alex', 'Doctor Last Name': 'Smith'})
+    result = recover_provider_records([initial], '', PROVIDER_FIELDS)
+    assert result[0][FACILITY] == 'Example Clinic'
+    assert result[0]['Doctor Last Name'] == 'Smith'
+
+
+def test_inline_attorney_phone_is_separate_from_name():
+    values = special_evidence(source('Atty name: Alex W. Smith 212.555.0100\nOther Firm 212-555-0199\nWORK STATUS: OOW'))
+    assert values['Attorney Name'] == 'Alex W. Smith'
+    assert values['Attorney Phone Number'] == '212.555.0100'
+    fields = {'Attorney Name': 'Alex W. Smith 212.555.0100', 'Attorney Phone Number': 'Not found'}
+    enforce_source_roles(fields, '')
+    assert fields['Attorney Name'] == 'Alex W. Smith'
+    assert fields['Attorney Phone Number'] == '212.555.0100'
+
+
+def test_icd_subheadings_do_not_end_compensable_description():
+    values = special_evidence(source('COMPENSABLE BODY PART(S) & DIAGNOSIS:\nICD: Shoulder disorder (M70.812)\nICD: Wrist disorder (M70.832)\nWORK STATUS: OOW'))
+    assert values['Diagnosis Code'] == 'M70.812'
+    assert values['Additional Diagnosis Codes'] == 'M70.812; M70.832'
+    assert values['Compensable Body/Part(s)'] == 'Shoulder disorder Wrist disorder'
+
+
+@pytest.mark.parametrize('value', ['One-Time RN Visit - Provider', 'Full Case Management'])
+def test_referral_type_comes_from_selected_referral_instruction(value):
+    fields = {'Referral Type': 'ONSITE Limited'}
+    text = ('Referral Instructions\nReferral Type:\n' + value +
+            '\nOne-Time RN Visit Location:\nProvider Office\nReferral Priority:\nNormal\nVendor Information\n' +
+            source('MDCM Referral - Onsite Full assignment'))
+    enforce_source_roles(fields, text)
+    assert fields['Referral Type'] == value
+
+
+def test_blank_referral_type_does_not_capture_next_label():
+    fields = {'Referral Type': 'Documented fallback'}
+    enforce_source_roles(fields, 'Referral Instructions\nReferral Type:\nReferral Priority:\nNormal\nVendor Information\n')
+    assert fields['Referral Type'] == 'Documented fallback'
+
+
+@pytest.mark.parametrize('value', ['Limited Provider', 'Onsite Full', 'Telephonic NCM'])
+def test_assignment_roles_are_not_nurse_names(value):
+    fields = {'NCM': value}
+    enforce_source_roles(fields, '')
+    assert fields['NCM'] == 'Not found'

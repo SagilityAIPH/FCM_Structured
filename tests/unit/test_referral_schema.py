@@ -32,12 +32,14 @@ def test_multiple_providers_keep_matching_slots_and_most_complete_first():
     third = dict(second, **{"Appointment Date": "10/02/2026", "Appointment Time": "2:30 PM"})
     data["Provider Information"] = [first, second, second, third]
     text, fields = core.force_exact_field_output(json.dumps(data))
-    assert fields["Provider Name (First Name / Last Name)"] == "Second Clinic & Second Clinic & First Clinic"
-    assert fields["Appointment Date"] == "10/02/2026 & 10/01/2026 & Not found"
-    assert fields["Appointment Time"] == "2:30 PM & Not found & Not found"
-    assert fields["Provider Phone"] == "212-555-0123 & 212-555-0123 & Not found"
-    assert fields["Provider Zip"] == "02110 & 02110 & Not found"
-    assert "City: Boston & Boston & Not found" in text
+    assert fields["Provider Name (First Name / Last Name)"] == "Second Clinic & First Clinic"
+    assert fields["Appointment Date"] == "10/02/2026 & 10/01/2026"
+    assert fields["Appointment Time"] == "2:30 PM"
+    assert fields["Provider Phone"] == "212-555-0123"
+    assert fields["Provider Zip"] == "02110"
+    assert "City: Boston" in text
+    assert len(fields.providers) == 3
+    assert fields.providers[-1]['Provider Phone'] == 'Not found'
     assert len(core.fields_to_table_df(fields)) == 64  # 59 matrix + 2 extras + 3 appointment rows
 
 

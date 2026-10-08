@@ -43,14 +43,14 @@ def appointment(text):
 def _identity(label):
     label = re.sub(r'^\(include[^)]*\)\s*', '', label.strip(), flags=re.I)
     label = re.sub(r'\s*-?\s*\((?:Treating|Specialist|Speicalist)\)\s*$', '', label, flags=re.I)
-    reverse = re.fullmatch(r'(.+?)\s*/\s*(Dr\.?\s+.+)', label, re.I)
+    reverse = re.fullmatch(r'(.+?)\s*[-/]\s*(Dr\.?\s+.+)', label, re.I)
     if reverse:
         result = _identity(reverse[2])
         result[FACILITY] = reverse[1].strip()
         return result
     # Credentials or an explicit Dr/Surgeon marker distinguish people from clinics.
     doctor = re.search(r'^(?:Dr\.?\s+|Surgeon\s*:\s*)([^/]+?)(?:\s*[-/]\s*(.+))?$', label, re.I)
-    credential = re.search(r'^(.+?)\s*,?\s+(?:M\.?D\.?|D\.?O\.?|FNP|NP|PA-C)\b\.?\s*(?:/\s*(.*))?$', label, re.I)
+    credential = re.search(r'^(.+?)\s*,?\s+(?:M\.?D\.?|D\.?O\.?|DPM|FNP|NP|PA-C)\b\.?\s*(?:[-/]\s*(.*))?$', label, re.I)
     if doctor or credential:
         match = doctor or credential
         name = re.sub(r'\s*,?\s*(?:M\.?D\.?|D\.?O\.?)\.?$', '', match[1], flags=re.I).strip()
@@ -75,6 +75,12 @@ def _norm(value):
 
 def recover_provider_records(records, source, keys):
     records = [dict(record) for record in records]
+    for record in records:
+        identity = _identity(record.get(FACILITY, MISSING))
+        if identity.get('Doctor Last Name'):
+            for key, value in identity.items():
+                if key in (FACILITY, 'Determining if Doctor or Provider Name') or record.get(key, MISSING) == MISSING:
+                    record[key] = value
     special = extract_special_instructions(source) or ''
     labels = list(re.finditer(r'(?im)^[ \t]*Provider(?: Name)?\s*:[ \t]*([^\n]+)', special))
     for index, label in enumerate(labels):

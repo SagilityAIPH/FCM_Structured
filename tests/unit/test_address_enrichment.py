@@ -82,7 +82,7 @@ def test_city_lookup_and_provider_isolation():
     accepted = apply_suggestions(data, report, [1])
     assert accepted.providers[0]["Provider Zip"] == "01608"
     assert accepted.providers[1]["Provider Zip"] == "Not found"
-    assert accepted["Provider Zip"] == "01608 & Not found"
+    assert accepted["Provider Zip"] == "01608"
     assert accepted["City"] == "Not found"
 
 

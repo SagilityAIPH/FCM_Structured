@@ -154,7 +154,7 @@ def test_all_missing_summary_is_single_but_records_and_mixed_slots_stay_aligned(
         provider(**{'Provider Name (First Name / Last Name)': 'Clinic A', 'Appointment Date': '2026-12-01'}),
         provider(**{'Provider Name (First Name / Last Name)': 'Clinic B', 'Appointment Date': '2026-12-02', 'Provider City': 'Waco'})]})
     assert fields['Doctor First Name'] == fields['Doctor Last Name'] == 'Not found'
-    assert fields['Provider City'] == 'Waco & Not found'  # most-complete provider comes first
+    assert fields['Provider City'] == 'Waco'  # missing slots remain in detailed records only
     assert fields['Provider Name (First Name / Last Name)'] == 'Clinic B & Clinic A'
     assert len(fields.providers) == 2
     assert 'Doctor First Name: Not found & Not found' not in schema.format_field_block(fields)

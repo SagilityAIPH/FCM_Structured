@@ -71,12 +71,15 @@ def special_evidence(source):
     values = {}
     attorney = re.search(r'(?im)^[ \t]*(?:Atty|Attorney) name\s*:[ \t]*([^\n]*)', text)
     if attorney and attorney[1].strip():
-        values['Attorney Name'] = _clean(attorney[1])
+        inline_phone = PHONE.search(attorney[1])
+        values['Attorney Name'] = _clean(PHONE.sub('', attorney[1]).strip(' ,;-'))
+        if inline_phone:
+            values['Attorney Phone Number'] = inline_phone[0]
         tail = text[attorney.end():]
         end = re.search(r'(?im)^\s*(?:Compensable|Outline|Work Status|Employer|Provider|Additional Instructions)\b', tail)
         block = tail[:end.start()] if end else tail
         phone = re.search(r'(?im)^[ \t]*Phone\s*#?\s*:[ \t]*([^\n]*)', block)
-        if phone and PHONE.search(phone[1]):
+        if not inline_phone and phone and PHONE.search(phone[1]):
             values['Attorney Phone Number'] = PHONE.search(phone[1])[0]
     language = re.search(r'\b(?:patient|claimant|IW|worker)\s+(?:speaks|language\s*:)\s*(English|Spanish|French|Mandarin|Cantonese|Vietnamese|Korean|Arabic|Portuguese|Russian|Tagalog)\b', text, re.I)
     if language:
@@ -110,10 +113,11 @@ def special_evidence(source):
     comp = re.search(r'(?im)^[ \t]*COMPENSABLE(?:\s+BODY)?\s+PART(?:\(S\)|S)?(?:[ \t]*&[ \t]*DIAGNOSIS)?[ \t]*:[ \t]*', text)
     if comp:
         tail = text[comp.end():]
-        end = re.search(r'(?im)^[ \t]*(?:[A-Za-z][A-Za-z /()&-]{2,70}):', tail)
+        end = re.search(r'(?im)^[ \t]*(?!ICD\s*:)(?:[A-Za-z][A-Za-z /()&-]{2,70}):', tail)
         block = tail[:end.start()] if end else tail
         codes = list(dict.fromkeys(match[0].upper() for match in ICD.finditer(block)))
         description = ICD.sub('', block)
+        description = re.sub(r'(?im)^[ \t]*ICD\s*:\s*', '', description)
         description = re.sub(r'\(\s*\)', '', description)
         values['Compensable Body/Part(s)'] = _clean(description)
         if codes:
@@ -162,13 +166,30 @@ def recover_provider_identity(record, source):
 
 def enforce_source_roles(fields, source):
     """Remove source-role leakage; preserve multiple explicitly named contacts."""
+    # Referral Type is the labeled selection, not an assignment description
+    # (e.g. Onsite Limited) elsewhere in the referral narrative.
+    referral = _section(source, 'Referral Instructions', 'Vendor Information')
+    selected_type = re.search(
+        r'(?ims)^[ \t]*Referral Type[ \t]*:[ \t]*(.*?)'
+        r'(?=^[ \t]*[^\n:]+:|\Z)', referral)
+    if selected_type and _clean(selected_type[1]) != 'Not found':
+        fields['Referral Type'] = _clean(selected_type[1])
+    # Assignment labels can run into Provider Name at PDF line/page boundaries.
+    # These role phrases must never become a person's name.
+    if re.fullmatch(r'(?i)(?:(?:onsite|telephonic|limited|full|provider|ncm|nurse|case manager|assignment)[ \t]*)+',
+                    fields.get('NCM', '').strip()):
+        fields['NCM'] = 'Not found'
+    attorney_phone = PHONE.search(fields.get('Attorney Name', ''))
+    if attorney_phone:
+        fields['Attorney Name'] = _clean(PHONE.sub('', fields['Attorney Name']).strip(' ,;-'))
+        if fields.get('Attorney Phone Number', 'Not found') == 'Not found':
+            fields['Attorney Phone Number'] = attorney_phone[0]
     special = extract_special_instructions(source)
     if special is None:
         return
     # This legacy column must not become a second, inconsistently truncated copy
     # of Special Instructions. Explicit referral metadata remains separate.
-    if _section(source, 'Referral Instructions', 'Vendor Information'):
-        referral = _section(source, 'Referral Instructions', 'Vendor Information')
+    if referral:
         explicit = re.search(r'(?im)^Referral Instructions\s*:[ \t]*([^\n]+)', referral)
         fields['Referral Instructions'] = explicit[1].strip() if explicit else 'Not found'
     if not re.search(r'(?i)\bcompensab', special) and fields.get('Compensable Body/Part(s)') == fields.get('Injury Description'):

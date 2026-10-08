@@ -13,8 +13,18 @@ VISIT_FIELDS = ('Provider Address', 'Provider Address Line 2', 'Provider City',
 
 
 def provider_summary(records, key):
+    if key == 'Determining if Doctor or Provider Name':
+        if any(any(r.get(k, 'Not found') != 'Not found' for k in ('Doctor First Name', 'Doctor Last Name')) for r in records):
+            return 'Doctor'
+        return 'Facility' if any(r.get(FACILITY, 'Not found') != 'Not found' for r in records) else 'Not found'
     values = [record.get(key, 'Not found') for record in records]
-    return ' & '.join(values) if any(value != 'Not found' for value in values) else 'Not found'
+    # Summaries are display values, not a positional record format. Provider
+    # arrays / workbook Providers rows preserve the full association and gaps.
+    unique = {}
+    for value in values:
+        if value != 'Not found':
+            unique.setdefault(value.casefold(), value)
+    return ' & '.join(unique.values()) or 'Not found'
 
 
 def provider_identity(record):
@@ -33,6 +43,9 @@ def _value(record, key):
         parsed = parse_date(value)
         return parsed.isoformat() if parsed else value.casefold()
     if key == 'Appointment Time':
+        compact = re.fullmatch(r'(\d{1,2})(\d{2})\s*([ap])\.?m\.?', value.strip(), re.I)
+        if compact:
+            value = f'{compact[1]}:{compact[2]}{compact[3]}m'
         match = re.fullmatch(r'(\d{1,2})(?::(\d{2}))?\s*(?:([ap])\.?m\.?)?', value.strip(), re.I)
         if match:
             hour, minute, suffix = int(match[1]), int(match[2] or '0'), (match[3] or '').lower()
@@ -62,6 +75,22 @@ def _same_visit(left, right):
 
 def merge_provider_records(source_records):
     """Input order is source priority: Special, Referral, Provider sections."""
+    source_records = [dict(record) for record in source_records]
+    for record in source_records:
+        partial = re.fullmatch(r'(\d{1,2})/(\d{1,2})', record.get('Appointment Date', ''))
+        if not partial:
+            continue
+        dates = set()
+        for other in source_records:
+            full = parse_date(other.get('Appointment Date', ''))
+            if (full and (full.month, full.day) == (int(partial[1]), int(partial[2]))
+                    and _same_identity(record, other)
+                    and _value(record, 'Provider Address') is not None
+                    and _value(record, 'Provider Address') == _value(other, 'Provider Address')
+                    and _compatible(dict(record, **{'Appointment Date': other['Appointment Date']}), other)):
+                dates.add(full.isoformat())
+        if len(dates) == 1:
+            record['Appointment Date'] = dates.pop()
     named, anonymous = [], []
 
     def entry(record, order):
@@ -93,6 +122,19 @@ def merge_provider_records(source_records):
         matches = [old for old in named if _compatible(old[0], record) and _same_visit(old[0], record)]
         if len(matches) == 1:
             merge(matches[0], incoming)
-        elif not any(old[0] == record for old in unresolved):
-            unresolved.append(incoming)
+        else:
+            # Missing first name does not erase documented surname evidence.
+            # Require the same visit AND surname, with no conflicting peers.
+            peers = [other for other in anonymous if
+                     _value(record, 'Doctor Last Name') is not None
+                     and _value(record, 'Doctor Last Name') == _value(other[0], 'Doctor Last Name')
+                     and _same_visit(record, other[0])]
+            safe = peers and all(_compatible(a[0], b[0]) for a in peers for b in peers)
+            partial = [old for old in unresolved if safe and _compatible(old[0], record)
+                       and _same_visit(old[0], record)
+                       and _value(old[0], 'Doctor Last Name') == _value(record, 'Doctor Last Name')]
+            if len(partial) == 1:
+                merge(partial[0], incoming)
+            elif not any(old[0] == record for old in unresolved):
+                unresolved.append(incoming)
     return [record for record, _ in sorted(named + unresolved, key=lambda item: min(item[1].values()))]

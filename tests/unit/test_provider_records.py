@@ -95,3 +95,39 @@ def test_no_identity_anywhere_is_retained_for_missing_information_review():
     fields = parse([visit(), visit()])
     assert len(fields.providers) == 1
     assert 'Provider 1 / Facility name or doctor first and last names' in schema.completeness(fields)['missing_fields']
+
+
+def test_surname_only_visit_merges_complementary_phone_and_compact_time():
+    first = doctor(**{'Doctor First Name': 'Not found', 'Appointment Time': '0830 AM'})
+    second = doctor(**{'Doctor First Name': 'Not found', 'Provider Phone': 'Not found'})
+    fields = parse([first, second])
+    assert len(fields.providers) == 1
+    assert fields['Doctor First Name'] == 'Not found'
+    assert fields['Determining if Doctor or Provider Name'] == 'Doctor'
+
+
+def test_partial_doctor_does_not_merge_conflicting_visits():
+    first = doctor(**{'Doctor First Name': 'Not found'})
+    second = dict(first, **{'Provider Address Line 2': 'Suite 999'})
+    assert len(parse([first, second]).providers) == 2
+
+
+def test_summary_omits_missing_but_detailed_export_keeps_each_provider(tmp_path):
+    records = [doctor(), visit(**{'Provider Name (First Name / Last Name)': 'Other Clinic',
+                                 'Provider Address': '99 Other Road'})]
+    fields = parse(records)
+    assert fields['Provider Name (First Name / Last Name)'] == 'Other Clinic'
+    assert fields['Determining if Doctor or Provider Name'] == 'Doctor'
+    path, record_id = save_daily_output(fields, 'synthetic.pdf', directory=tmp_path)
+    loaded, _ = read_record(path, record_id)
+    assert len(loaded.providers) == 2
+    assert loaded.providers[0]['Provider Name (First Name / Last Name)'] == 'Not found'
+
+
+def test_partial_date_uses_unique_documented_year_only():
+    fields = parse([doctor(**{'Appointment Date': '9/4'}), doctor()])
+    assert len(fields.providers) == 1
+    assert fields['Appointment Date'] == '2025-09-04'
+    ambiguous = parse([doctor(**{'Appointment Date': '9/4'}), doctor(),
+                       doctor(**{'Appointment Date': '2026-09-04'})])
+    assert len(ambiguous.providers) == 3

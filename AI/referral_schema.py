@@ -84,10 +84,11 @@ OPTIONAL_FIELDS += ["Compensable Body/Part(s)", "Additional Diagnosis Codes", "P
 SUPPLEMENTAL_FIELDS = ["Determining if Doctor or Provider Name", "Additional Diagnosis Codes"]
 # Claims Case Manager Name and Referral Instructions remain internal workbook
 # columns for older consumers, but are no longer duplicate visible matrix rows.
-SPECIAL_FIRST_FIELDS = OPTIONAL_FIELDS[:10] + ["Compensable Body/Part(s)", "Additional Diagnosis Codes",
+SPECIAL_FIRST_FIELDS = [key for key in OPTIONAL_FIELDS[:10] if key != 'Referral Type'] + ["Compensable Body/Part(s)", "Additional Diagnosis Codes",
     "Employer First Name", "Employer Last Name", "Employer Contact Email", "Employer Mobile", "Language",
     "NCM", "Nurse Case Manager E-mail Address"]
 SPECIAL_INSTRUCTION_FIELDS = [
+    "Referral Type",
     "Date of Injury/Accident/Illness", "State/Jurisdiction of Claim", "Accident Description",
     "Injury Description", "Diagnosis Code",
 ] + FIELD_GROUPS["Case Manager Information"] + ["Claims Case Manager Name"] + SPECIAL_FIRST_FIELDS
@@ -171,6 +172,10 @@ Rules:
   never put a doctor in the facility field. If both are documented for the same visit,
   preserve both. Remove credentials from doctor names. Determining if Doctor or Provider Name
   must be Doctor for a practitioner, Facility for an organization, or Not found.
+  When both a practitioner and facility are present, Doctor takes priority.
+  A documented doctor surname alone still identifies the type as Doctor; do not
+  invent a first name. Split combined clinic/Dr labels and DPM credentials into
+  the facility and practitioner fields of the same record.
   Never substitute another
   party's contact details. An email is not a phone number.
 - Most Complete Info: combine complementary details ONLY when the document clearly
@@ -179,6 +184,14 @@ Rules:
   Sort records by completeness, most complete first. Do not drop less complete providers.
 - One doctor without a named facility is ONE provider record. Leave that record's
   facility field Not found; never add an empty facility record alongside the doctor.
+  A repeated mention in another section is supporting evidence, not automatically
+  another provider. This includes surname-only doctors: when the surname, address
+  and appointment uniquely match with no conflict, combine their complementary
+  details without inventing the first name. Split clinic/doctor names into the
+  fields of that same record. Keep genuinely distinct providers/visits separate.
+  Each provider-array field contains one value or Not found, never a joined
+  summary such as WV & WV or a known value & Not found. Python produces unique
+  summary values from these records while preserving detailed associations.
   Repeated address/appointment details in Referral Instructions refer to the same
   visit when the document unambiguously identifies it. Associate them with that
   doctor, or leave identity missing if ambiguous; never invent a second provider.
@@ -194,10 +207,16 @@ Rules:
   a facility name or both doctor first and last names. Never invent appointment confirmation.
   Return [] when no provider information exists.
 - Attorney Information fields are optional: missing attorney data must not block processing.
+  A phone printed on the attorney name line belongs only in Attorney Phone Number,
+  never in Attorney Name. Keep a neighboring firm's phone separate from that person.
   Referral Instructions, Referral Type and Referral Priority are also optional; extract
   them from their labeled referral sections even when no attorney is listed. Put any
   values found in Special Instructions only in the Special Instruction Fields object.
   Do not require referral metadata to occur inside an attorney section.
+  Referral Type specifically prioritizes the labeled Referral Type in Referral
+  Instructions. Use Special Instructions only if that selection is absent.
+  Assignment prose such as Onsite Limited or Onsite Full must not replace the
+  documented selection. Role phrases such as Limited Provider are not NCM names.
 - Return every requested key, no commentary or markdown.
 - Compensable Body/Part(s) is optional and prioritizes Special Instructions.
   This field contains the description only, without ICD codes. A combined heading
@@ -378,11 +397,12 @@ def parse_field_block(text, source_text=''):
     records = recover_provider_records(records, source_text, PROVIDER_FIELDS)
     for record in records:
         split_address(record, 'Provider Address', 'Provider Address Line 2', 'Provider City', 'Provider State', 'Provider Zip')
+        record['Determining if Doctor or Provider Name'] = provider_summary([record], 'Determining if Doctor or Provider Name')
     records = merge_provider_records(records)
     records.sort(key=lambda item: sum(value != "Not found" for key, value in item.items()
                                       if key not in SUPPLEMENTAL_FIELDS), reverse=True)
-    # Keep mixed known/missing slots aligned; collapse only all-missing summaries.
-    # Lossless per-provider records always remain in JSON and the Providers sheet.
+    # Display unique known values; retain missing slots only in detailed records.
+    # Lossless per-provider records remain in JSON and the Providers sheet.
     for key in PROVIDER_FIELDS:
         fields[key] = provider_summary(records, key)
     for key, value in fields.items():

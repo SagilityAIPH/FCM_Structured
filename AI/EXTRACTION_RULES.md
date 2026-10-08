@@ -40,6 +40,31 @@ Validation must distinguish an offline replay of supplied AI outputs from a fres
 Bedrock extraction. Replaying a corrected workbook proves shared parsing/output
 behavior, not live model accuracy. Run the regression suite after implementation
 changes; build and test both consumers when the workbook schema changes.
+# October 8 provider summary and attorney rules
+
+- Referral Type prioritizes the labeled selection in Referral Instructions,
+  including One-Time RN Visit - Provider. Special Instructions is fallback only;
+  Onsite Limited / Onsite Full assignment prose must not replace that selection.
+  Generic assignment phrases such as Limited Provider are never NCM names.
+
+- Provider summaries show unique known values, or one `Not found` if all are
+  missing. Never append `& Not found` or repeat identical values. This supersedes
+  the earlier positional-summary rule. Detailed provider arrays and the workbook
+  Providers sheet retain every distinct record and its missing fields.
+- Determining if Doctor or Provider Name is one summary value: Doctor if any
+  practitioner name is documented, otherwise Facility if a clinic is named,
+  otherwise Not found. Doctor takes priority when both are present.
+- Merge complementary surname-only doctor records only with matching address,
+  appointment and surname evidence and no conflicting peer records. Do not
+  invent first names or relax required-name validation.
+- Separate combined clinic/doctor labels in either order, including DPM. A
+  partial appointment may use the year explicitly documented for the uniquely
+  matching provider visit; ambiguity keeps records separate.
+- Remove inline phone numbers from attorney names and retain them in the phone
+  field. Repeated ICD subheadings do not end a compensable-description block.
+- Verified by source-backed offline replay of all ten October 8 workbook records;
+  no fresh Bedrock call. Original sample workbooks remain unchanged.
+
 # October 6 sample review: explicit evidence and role separation
 
 - Treat QA field accuracy separately from NEXT STEP. An accurately extracted past
