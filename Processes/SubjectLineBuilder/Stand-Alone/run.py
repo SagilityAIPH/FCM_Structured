@@ -1,4 +1,4 @@
-"""Run SubjectLineBuilder alone; offline by default, --live touches RRS."""
+"""Open the manual SubjectLineBuilder desktop; --scenario checks the legacy controller offline."""
 import argparse
 import importlib.util
 import json
@@ -28,20 +28,18 @@ def simulated_steps(app=None):
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
-    mode = parser.add_mutually_exclusive_group()
-    mode.add_argument('--live', action='store_true', help='Use the first RRS referral row and its PDF; requires an interactive Windows desktop.')
-    mode.add_argument('--scenario', choices=['completed', 'stopped', 'failure'])
+    parser.add_argument('--scenario', choices=['completed', 'stopped', 'failure'])
     args = parser.parse_args(argv)
     try:
-        if args.live:
-            sys.path.insert(0, str(ROOT / 'src'))
-            from fcm_intake.workflows.subject_line_builder import run_live
-            result = run_live()
+        if not args.scenario:
+            from launcher import main as launch
+            launch()
+            return 0
         else:
             result = load_core().run_flow({'scenario': args.scenario or 'completed'}, steps=simulated_steps)
         # Data remains available to the application; do not dump claim PHI to CLI.
         summary = {key: value for key, value in result.items() if key != 'data'}
-        summary['mode'] = 'live' if args.live else 'offline simulation'
+        summary['mode'] = 'offline simulation'
         print(json.dumps(summary, indent=2))
         return {'completed': 0, 'stopped': 2, 'failed': 1}[result['status']]
     except Exception as error:

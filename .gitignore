@@ -21,5 +21,7 @@ node_modules/
 /AI/.sample_runs/
 /Output/
 /AI/workbench/test-results/
+/Processes/SubjectLineBuilder/Stand-Alone/test-results/
+/Processes/SubjectLineBuilder/Stand-Alone/frontend/dist/
 *.tsbuildinfo
 

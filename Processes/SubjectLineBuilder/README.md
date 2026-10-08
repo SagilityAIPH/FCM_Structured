@@ -1,74 +1,90 @@
 # SubjectLineBuilder
 
-Standalone entry point for the existing RRS subject-line workflow. The main
-application and this runner execute the same implementation in this folder.
+The standalone accepts **Excel input or manual entry**. It operates on the intended RRS
+Email Display / Subject Line Builder already opened by the operator. It does not
+select RRS referral rows, read PDF attachments, call AI, connect to CMS or
+run reopen-check. Main application behavior is unchanged.
 
-## Layout
+## Manual standalone flow
 
-- `Deploy-Ready/legacy_steps.py`: moved original UI implementation, with its
-  function body unchanged. Debug the existing UI steps here.
-- `Deploy-Ready/subject_line_flow.py`: shared execution/result controller.
-- `Stand-Alone/run.py`: offline scenarios and explicit live CLI entry point.
-- `Stand-Alone/test_flow.py`: independent controller tests.
-- `src/fcm_intake/workflows/subject_line_builder.py`: thin application adapter.
+1. Open the intended referral's Email Display in RRS.
+2. Fill `Stand-Alone/SubjectLineBuilder-Input.xlsx` (also supplied in `dist`).
+   Use **Open Excel**, select a referral row, then **Load row** to populate the form.
+   Review or edit customer/claimant/provider data before starting.
+   Adjuster, nurse and attorney fields are available as optional groups.
+3. Start. The application opens Subject Line Builder and fills identity fields.
+4. It searches claimant, like items and provider; adjuster and attorney lookups
+   run when their names/contact details are supplied. Select the correct record
+   in RRS, or add the record there, close the lookup and Continue in this app.
+5. It fills supplied claimant, appointment and claim details. Search and manual
+   Add fields remain visible for reference. It does not automatically create
+   provider/attorney master records or invent missing data.
+6. Review all builder fields, including the selected referral type. Medical or
+   Vocational is selected from the entered referral type; RRS determines the final
+   subject format. Click **Create in RRS** explicitly to submit.
+7. The app rechecks the claim number on the same builder window before Create.
+   Completion is reported only after that window closes. If it stays open, inspect
+   RRS before retrying because submission may already have happened.
 
-## Current boundary and inputs
+One provider per run. Data stays in session memory and is not automatically saved
+to disk. Stop/close prevents subsequent automation after the current UI call; it
+does not undo edits or master-record changes in RRS.
 
-Live input is the **first referral row (row 0)** in the open Referral Routing
-System window, not an arbitrary selected row. The original implementation opens
-Email Display and captures the matching PDF attachment. It validates the data,
-runs existing reopen/customer checks and provider/address searches when required,
-then opens and populates Subject Line Builder, runs the claimant/provider/attorney
-and referral-source lookups, and asks the operator to review before Create.
+## Excel input
 
-The standalone runner stops after creation and closing Email Display. It does
-not call CompleteTriageAndExportAttachment, OpenUnity or CompleteAssignment.
-The main app still continues to those stages when the builder completes.
+**Save template** creates another blank copy from the app. Enter one referral and
+one provider per row in **Subject Line Input**, starting at row 2. The Instructions
+sheet explains required fields, defaults and formatting. Keep the headers and
+sheet name; column order may change and unused optional columns may be omitted.
+The workbook includes 500 preformatted rows; import accepts up to 10,000 rows.
 
-This first extraction does **not** isolate the individual lookup stages or
-replace PDF capture with the daily AI workbook. Those dependencies remain in
-the moved implementation. Next, separate data acquisition and field population
-so daily workbook input can use `AI.daily_output.read_record` without rerunning
-PDF capture or reopen checks. Do not create a second copy of the UI rules.
+Dates need a year; use MM/DD/YYYY and optional appointment time such as 08:30 AM.
+Keep identifiers and ZIP codes as text to preserve zeros. Formulas are rejected;
+paste values instead. Incomplete rows load with validation guidance. Loading a row
+replaces all form values and never starts automation. Unsaved form edits are not
+written back to Excel. Blank market, referral type and source use the documented
+defaults, which the operator must review. This template has its own schema;
+AI PDF Reader daily output workbooks are not supported by this importer.
 
-## Run from the repository root
+## UI and executable
+
+React + TypeScript + Tailwind, compact shadcn-style controls, Lucide icons and
+pywebview. Uses AI PDF Reader's light blue/slate theme, copied style baseline,
+and shared native width constraint: 480 x 900 logical pixels, fixed width and
+resizable height (minimum 600, monitor-aware). Bottom Fields / Review / Help
+navigation appends panels; progress and action buttons stay visible.
 
 ```powershell
-rtk proxy .venv-bedrock/Scripts/python.exe processes/SubjectLineBuilder/Stand-Alone/run.py
-rtk proxy .venv-bedrock/Scripts/python.exe processes/SubjectLineBuilder/Stand-Alone/run.py --scenario stopped
-rtk proxy .venv-bedrock/Scripts/python.exe processes/SubjectLineBuilder/Stand-Alone/run.py --scenario failure
-rtk proxy .venv-bedrock/Scripts/python.exe -m unittest discover -s processes/SubjectLineBuilder/Stand-Alone -p "test_*.py" -v
+rtk proxy .venv-bedrock/Scripts/python.exe Processes/SubjectLineBuilder/Stand-Alone/run.py
+rtk proxy powershell -NoProfile -File Processes/SubjectLineBuilder/Stand-Alone/build.ps1
 ```
 
-The default is a synthetic offline controller simulation, not a simulated RRS
-screen interaction. It needs no credentials or live applications.
+Output: `dist/SubjectLineBuilder.exe`. Windows and Microsoft Edge WebView2 Runtime
+are required; Python, React assets and pywinauto are bundled. RRS must be open in
+the same interactive Windows session at a compatible privilege level. No AWS,
+Selenium, database credentials or installed Python are needed by the EXE.
 
-To operate the real RRS interface:
+## Code boundaries
+
+- `Deploy-Ready/manual_flow.py`: standalone schema, validation and guided workflow.
+- `Deploy-Ready/excel_input.py`: Excel template and reusable workbook reader.
+- `Deploy-Ready/rrs_ui.py`: focused RRS controls and submission boundary.
+- `Stand-Alone/backend.py`: worker, progress, review gates and cancellation.
+- `Stand-Alone/frontend`: manual form; `launcher.py` hosts WebView2.
+- `Deploy-Ready/legacy_steps.py` and `subject_line_flow.py`: unchanged main-app
+  migration path with original upstream stages. Not imported by manual standalone.
+- `src/fcm_intake/workflows/subject_line_builder.py`: unchanged main-app adapter.
+  Do not switch the main workflow to the manual runner.
+
+## Verification
 
 ```powershell
-rtk proxy .venv-bedrock/Scripts/python.exe processes/SubjectLineBuilder/Stand-Alone/run.py --live
+rtk proxy .venv-bedrock/Scripts/python.exe -m unittest discover -s Processes/SubjectLineBuilder/Stand-Alone -p "test_*.py" -v
+rtk proxy npm --prefix Processes/SubjectLineBuilder/Stand-Alone/frontend run test:e2e
+rtk proxy .venv-bedrock/Scripts/python.exe Processes/SubjectLineBuilder/Stand-Alone/launcher.py --self-test --report Output/subject-line-smoke.txt
 ```
 
-Use the full application's configured Windows environment: RRS logged in with
-the intended referral at row 0, accessible PDF attachments, pywinauto/pywin32,
-the existing PDF and provider-search dependencies, and configured CMS/database
-access where required. Existing review dialogs remain interactive. This command
-changes live RRS records when you proceed through those dialogs.
-
-## Results and migration limits
-
-Results have `status` (`completed`, `stopped`, `failed`) and `stage`.
-The Python API also returns captured legacy `data` on normal return. The CLI
-omits that data from its JSON summary; existing legacy diagnostics/dialogs may
-still display referral details. Exit codes are 0 completed, 2 stopped, 1 failed.
-
-The adapter binds the moved function to the original legacy module dictionary
-with `FunctionType`, preserving helper resolution and global state for the main
-workflow. This is a transitional dependency bridge, not fully isolated business
-logic. Do not run concurrent sessions against the same desktop/runtime.
-The controller clears stale result data at entry and converts legacy SystemExit
-into a failed result, keeping `botStop=True` so downstream automation cannot run.
-
-Verification covers unchanged moved-function AST, offline completion/stop/error
-handling, shared runtime state, and the downstream boundary. Live RRS execution
-has not been performed. No EXE or release is built by this extraction.
+The EXE accepts the same `--self-test --report <path>` arguments. Tests use
+synthetic input and a fake RRS adapter. Native checks validate the real WebView2
+window and Python/React bridge. Live RRS execution still requires validation;
+offline tests do not establish live selector compatibility.
