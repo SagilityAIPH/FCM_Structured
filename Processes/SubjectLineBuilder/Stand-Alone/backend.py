@@ -9,6 +9,12 @@ from manual_flow import defaults, schema, validate, run_manual, Stopped
 from excel_input import create_template, read_workbook
 
 
+def _dialog(webview, kind):
+    # pywebview 6 added FileDialog; 5.x only has OPEN_DIALOG/SAVE_DIALOG.
+    enum = getattr(webview, 'FileDialog', None)
+    return getattr(enum, kind) if enum else getattr(webview, f'{kind}_DIALOG')
+
+
 class ManualAPI:
     def __init__(self, adapter_factory=None):
         self._lock = threading.RLock()
@@ -30,7 +36,7 @@ class ManualAPI:
         with self._lock:
             if self._state['busy']:
                 return {'ok': False, 'error': 'Stop the current run before importing.'}
-        paths = self._window.create_file_dialog(webview.FileDialog.OPEN, allow_multiple=False,
+        paths = self._window.create_file_dialog(_dialog(webview, 'OPEN'), allow_multiple=False,
                                                file_types=('Excel workbook (*.xlsx)',))
         if not paths:
             return {'ok': True, 'cancelled': True}
@@ -59,7 +65,7 @@ class ManualAPI:
 
     def save_excel_template(self):
         import webview
-        paths = self._window.create_file_dialog(webview.FileDialog.SAVE,
+        paths = self._window.create_file_dialog(_dialog(webview, 'SAVE'),
             save_filename='SubjectLineBuilder-Input.xlsx', file_types=('Excel workbook (*.xlsx)',))
         if not paths:
             return {'ok': True, 'cancelled': True}

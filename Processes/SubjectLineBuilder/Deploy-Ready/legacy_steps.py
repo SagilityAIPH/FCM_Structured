@@ -1050,7 +1050,7 @@ def CreateSubjectLineBuilder(app = None):
             while time.monotonic() < EndTime:
                 try:
                     lblStatus = lblStatusChecker.wrapper_object()
-                    if (lblStatus.is_visible()) or ((lblStatus.window_text() == "No Items Returned For Search Criteria")):
+                    if (lblStatus.is_visible()):
                         break
                 except Exception:
                     break
@@ -1075,9 +1075,34 @@ def CreateSubjectLineBuilder(app = None):
 
         CloseWindowIns = lis.child_window(auto_id="btnClose",control_type="Button").wrapper_object()
         safe_click(CloseWindowIns)
-        time.sleep(3)
-        send_keys('{SPACE}')
-        time.sleep(3)
+
+        # Closing Like Items raises a nested 'ReferralRoutingSystem' message box (#32770).
+        # Click its OK button instead of sending a blind SPACE to whatever has focus.
+        def DismissRRSMessageBox(timeout=10.0):
+            EndTime = time.monotonic() + timeout
+            while time.monotonic() < EndTime:
+                try:
+                    boxes = [w for w in owner.descendants(control_type="Window") if w.class_name() == "#32770"]
+                except Exception:
+                    boxes = []
+                for box in boxes:
+                    try:
+                        box.set_focus()
+                        okButtons = [b for b in box.descendants(control_type="Button")
+                                     if b.window_text().replace('&', '').strip().upper() == 'OK']
+                        if okButtons:
+                            okButtons[0].click_input()
+                        else:
+                            send_keys('{SPACE}')
+                        return True
+                    except Exception:
+                        continue
+                time.sleep(0.5)
+            return False
+
+        if not DismissRRSMessageBox():
+            print('Like Item Search: no RRS message box appeared after closing')
+        time.sleep(2)
 
         focus_control(dlg)
         time.sleep(3)

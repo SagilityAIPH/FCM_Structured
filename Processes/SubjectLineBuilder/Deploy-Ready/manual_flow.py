@@ -5,6 +5,7 @@ import re
 GROUPS = [
     ('Customer and claim', [('customer', 'Employer / customer', True), ('market', 'Company / market', True),
         ('claimNumber', 'Claim number', True), ('referralType', 'Referral type', True),
+        ('claimType', 'Line of insurance (e.g. Workers Comp)'),
         ('doi', 'Date of injury'), ('bodyPart', 'Body part'), ('injuryType', 'Injury type'), ('injuryCause', 'Injury cause')]),
     ('Claimant', [('claimantFirst', 'First name', True), ('claimantLast', 'Last name', True),
         ('dob', 'Date of birth'), ('gender', 'Gender'), ('addressLine1', 'Address line 1'),
@@ -14,7 +15,9 @@ GROUPS = [
         ('providerState', 'State'), ('providerZip', 'ZIP'), ('providerPhone', 'Phone'),
         ('nextApptDate', 'Appointment date'), ('nextApptTime', 'Appointment time')]),
     ('Case manager / adjuster', [('adjusterFirst', 'First name'), ('adjusterLast', 'Last name'),
-        ('adjEmail', 'Email'), ('adjPhone', 'Phone'), ('ncmContactName', 'Requested nurse'),
+        ('adjEmail', 'Email'), ('adjPhone', 'Phone'), ('adjOffice', 'Claims office number'),
+        ('adjAddr1', 'Address line 1'), ('adjAddr2', 'Address line 2'),
+        ('adjCity', 'City'), ('adjState', 'State'), ('adjZip', 'ZIP'), ('ncmContactName', 'Requested nurse'),
         ('refSource', 'Referral source')]),
     ('Attorney (optional)', [('attorneyFirst', 'First name'), ('attorneyLast', 'Last name'),
         ('attorneyFirm', 'Firm'), ('claimantAttyPhone', 'Phone'), ('claimantAttyAddr1', 'Address line 1'),
@@ -54,7 +57,7 @@ def validate(payload):
             raise ValueError(f'Choose a valid {key}.')
     if not any(result[k] for k in ('providerName', 'providerFirst', 'providerLast')):
         raise ValueError('Enter a provider facility or doctor name.')
-    for key in ('state', 'providerState', 'claimantAttyState'):
+    for key in ('state', 'providerState', 'adjState', 'claimantAttyState'):
         if result[key] and not re.fullmatch(r'[A-Za-z]{2}', result[key]):
             raise ValueError('Use a two-letter state abbreviation.')
     for key in ('dob', 'doi', 'nextApptDate'):
@@ -85,8 +88,16 @@ class Stopped(Exception):
     pass
 
 
+# Lookups the adapter can complete itself: (adapter flag, review shown when nothing matched).
+AUTO_LOOKUPS = {
+    'claimant': ('auto_claimant', 'Multiple EDI claimant results in RRS. Select the appropriate claimant, click Select, close the claimant search if still open, then Continue.'),
+    'provider': ('auto_provider', 'No matching provider was found in RRS. The bot filled Add New with the provider details: validate them, click Add Provider, select it, close the provider search, then Continue.'),
+    'adjuster': ('auto_adjuster', 'No matching adjuster was found in RRS. The bot filled Add New with the adjuster details: validate them, click Add Adjuster, set it, close the adjuster search, then Continue.'),
+}
+
+
 def run_manual(data, adapter, progress, review, check):
-    """Guided lookups select no candidate automatically. Create needs explicit review."""
+    """Guided lookups. Provider/adjuster may auto-select a strict match; Create needs explicit review."""
     check()
     progress('Opening Subject Line Builder', 5)
     adapter.open()
@@ -100,7 +111,19 @@ def run_manual(data, adapter, progress, review, check):
             continue
         check()
         progress(f'{kind.replace("_", " ").title()} lookup', percent)
-        adapter.lookup(kind, data)
+        result = adapter.lookup(kind, data)
+        if kind == 'like_items' and getattr(adapter, 'confirms_like_items', False):
+            adapter.ensure_lookup_closed()
+            continue
+        if kind in AUTO_LOOKUPS and getattr(adapter, AUTO_LOOKUPS[kind][0], False):
+            # True: selected. None: closed with nothing to select (legacy claimant behaviour).
+            if result or result is None:
+                adapter.ensure_lookup_closed()
+                continue
+            review(AUTO_LOOKUPS[kind][1], False)
+            check()
+            adapter.ensure_lookup_closed()
+            continue
         review(f'Review the {kind.replace("_", " ")} results in RRS. Select the correct result (or add the missing record), close the lookup dialog, then Continue.', False)
         check()
         adapter.ensure_lookup_closed()
