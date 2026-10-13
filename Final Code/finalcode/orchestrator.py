@@ -57,6 +57,16 @@ def run(*, capture, extract, review, cms, subject_line, on_stage=None,
         result.update(outcome=outcome, reason=reason)
         return result
 
+    def returned_error(response):
+        # Only supplied details: a sparse failure deliberately produces {}.
+        detail = {key: _snapshot(response[key]) for key in ("stage", "type", "exit_code")
+                  if key in response}
+        if "error" in response:
+            detail["message"] = _snapshot(response["error"])
+        elif "message" in response:
+            detail["message"] = _snapshot(response["message"])
+        result["error"] = detail
+
     def store(value):
         result["payloads"][stage] = _snapshot(value)
 
@@ -101,6 +111,7 @@ def run(*, capture, extract, review, cms, subject_line, on_stage=None,
         if response["status"] == "stopped":
             return finish("stopped", response.get("reason") or "cms_stopped")
         if response["status"] == "failed":
+            returned_error(response)
             return finish("failed", response.get("reason") or "cms_failed")
         if response["status"] != "completed":
             raise ValueError("Unexpected CMS status: " + str(response["status"]))
@@ -116,6 +127,8 @@ def run(*, capture, extract, review, cms, subject_line, on_stage=None,
         status = response["status"]
         if status not in ("completed", "stopped", "failed"):
             raise ValueError("Unexpected Subject Line Builder status: " + str(status))
+        if status == "failed":
+            returned_error(response)
         return finish(status, response.get("reason") or {
             "completed": "completed", "stopped": "subject_line_stopped",
             "failed": "subject_line_failed"}[status])

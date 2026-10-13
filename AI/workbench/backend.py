@@ -34,7 +34,11 @@ def response(method):
 
 
 class WorkbenchAPI:
-    def __init__(self, directory=None):
+    def __init__(self, directory=None, *, memory_only=False):
+        self._memory_only = memory_only
+        self._review = None
+        self._review_waiter = None
+        self._workflow_active = False
         self._window = None
         self._lock = threading.RLock()
         self._documents = {}
@@ -90,6 +94,8 @@ class WorkbenchAPI:
         with self._lock:
             return {"documents": [self._summary(d) for d in self._documents.values()],
                     "busy": self._busy, "compact": self._compact,
+                    "memory_only": self._memory_only,
+                    "pending_review": deepcopy(self._review),
                     "pending_prompt": deepcopy(self._pending_prompt),
                     "workflow_result": deepcopy(self._workflow_result),
                     "stage": self._external_stage if self._external_stage is not None else self._stage, "bedrock": self._bedrock,
@@ -187,6 +193,47 @@ class WorkbenchAPI:
             waiter = self._prompt_waiter
             waiter["answer"] = answer
             self._pending_prompt = self._prompt_waiter = None
+            waiter["event"].set()
+        return True
+
+    def wait_for_review(self, identifier):
+        """Worker-only wait. Polling, editing and bridge answers never wait here."""
+        waiter = {"event": threading.Event(), "fields": None}
+        with self._lock:
+            self._idle()
+            self._document(identifier, fields=True)
+            if self._review is not None:
+                raise RuntimeError("Another review is pending.")
+            self._review = {"id": str(uuid.uuid4()), "document_id": identifier}
+            self._review_waiter = waiter
+        try:
+            resized = self.set_compact(False)
+            if not resized["ok"]:
+                raise RuntimeError(resized["error"])
+            waiter["event"].wait()
+            return waiter["fields"]
+        finally:
+            with self._lock:
+                if self._review_waiter is waiter:
+                    self._review = self._review_waiter = None
+
+    @response
+    def answer_review(self, identifier, approve):
+        with self._lock:
+            if self._review is None or self._review["id"] != identifier:
+                raise ValueError("Review is no longer pending.")
+            if type(approve) is not bool:
+                raise ValueError("Review answer must be a boolean.")
+            if approve:
+                self._idle()
+                if self._unsaved:
+                    raise ValueError("Save field changes before approving.")
+                fields = deepcopy(self._document(self._review["document_id"], fields=True)["fields"])
+            else:
+                fields = None
+            waiter = self._review_waiter
+            waiter["fields"] = fields
+            self._review = self._review_waiter = None
             waiter["event"].set()
         return True
 
@@ -375,6 +422,8 @@ class WorkbenchAPI:
             return True
 
     def _save(self, doc):
+        if self._memory_only:
+            return
         try:
             path, _ = save_daily_output(doc["fields"], str(doc["path"]) if doc["path"] is not None else doc["name"], directory=self._directory,
                                        record_id=doc["record_id"], extracted_at=doc["extracted_at"], update_existing=True)
@@ -400,9 +449,16 @@ class WorkbenchAPI:
         return fields, report
 
     @response
-    def start_processing(self, identifiers):
+    def start_processing(self, identifiers, *, prepared_fields=None):
         with self._lock:
             self._idle()
+            if prepared_fields is not None:
+                if not self._memory_only or len(identifiers) != 1:
+                    raise ValueError("Prepared extraction requires one in-memory workflow document.")
+                doc = self._document(identifiers[0])
+                doc.update(fields=deepcopy(prepared_fields), error="")
+                self._assess(doc)
+                return True
             if not self._key:
                 raise ValueError("Add a Bedrock API key in Settings first.")
             docs = [self._document(i) for i in dict.fromkeys(identifiers)]

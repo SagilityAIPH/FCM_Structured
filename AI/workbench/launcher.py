@@ -10,6 +10,10 @@ def main():
         from AI.workbench.smoke import main as smoke_main
         smoke_main()
         return
+    launch_window()
+
+
+def launch_window(*, api=None, on_loaded=None, title="AI PDF Reader · FCM Workbench", index=None):
     import webview
     from AI.workbench.backend import WorkbenchAPI
     from AI.workbench.window_layout import WINDOW_WIDTH, WINDOW_HEIGHT, MIN_HEIGHT, constrain_window
@@ -17,22 +21,24 @@ def main():
     base = Path(sys.executable).parent if getattr(sys, "frozen", False) else Path(__file__).resolve().parents[2]
     load_dotenv(base / ".env")
     bundle = Path(getattr(sys, "_MEIPASS", Path(__file__).parent))
-    index = bundle / "frontend" / "dist" / "index.html"
+    index = Path(index) if index else bundle / "frontend" / "dist" / "index.html"
     if not index.exists():
         raise RuntimeError("Workbench frontend is missing. Run npm ci and npm run build in AI/workbench/frontend.")
-    api = WorkbenchAPI()
-    window = webview.create_window("AI PDF Reader · FCM Workbench", str(index), js_api=api,
+    api = api if api is not None else WorkbenchAPI()
+    window = webview.create_window(title, str(index), js_api=api,
                                     width=WINDOW_WIDTH, height=WINDOW_HEIGHT, min_size=(WINDOW_WIDTH, MIN_HEIGHT),
                                     resizable=True, on_top=True, background_color="#f8fafc")
     api._window = window
     window.events.before_show += lambda: constrain_window(window)
     def closing():
-        if api._busy:
+        if api._busy or api._workflow_active:
             return window.create_confirmation_dialog("Processing is active", "Exit and stop the current operation? Unsaved results may be lost.")
         if api._unsaved:
             return window.create_confirmation_dialog("Unsaved changes", "Exit and discard unsaved field edits?")
         return True
     window.events.closing += closing
+    if on_loaded is not None:
+        window.events.loaded += on_loaded
     webview.start(gui="edgechromium", http_server=True, private_mode=True)
 
 

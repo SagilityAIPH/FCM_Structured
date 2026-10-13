@@ -232,3 +232,48 @@ def test_extract_wiring(monkeypatch, fields):
                                        model_id="synthetic-model", max_tokens=100)
     assert extract("Synthetic text") is fields
     assert reasoning.call_args.kwargs["validation_source_text"] == "Synthetic text"
+
+
+def test_returned_subject_line_failure_carries_detail(callbacks):
+    """run_flow converts a legacy sys.exit() into a RETURNED dict, so this - not
+    a raised exception - is the usual production failure and must keep detail."""
+    callbacks["subject_line"].return_value = {"status": "failed", "stage": "subject_line_builder",
+                                              "error": "Synthetic bot stop", "exit_code": 3}
+    result = flow.run(**callbacks)
+    assert (result["outcome"], result["reason"]) == ("failed", "subject_line_failed")
+    assert result["error"] == {"stage": "subject_line_builder", "exit_code": 3,
+                               "message": "Synthetic bot stop"}
+
+
+def test_sparse_returned_failure_invents_nothing(callbacks):
+    callbacks["subject_line"].return_value = {"status": "failed"}
+    result = flow.run(**callbacks)
+    assert result["outcome"] == "failed"
+    assert result["error"] == {}
+
+
+def test_returned_cms_failure_carries_detail(callbacks):
+    callbacks["cms"].return_value = {"status": "failed", "stage": "customer_check",
+                                     "error": "Synthetic CMS failure"}
+    result = flow.run(**callbacks)
+    assert result["outcome"] == "failed"
+    assert result["error"]["stage"] == "customer_check"
+    assert result["error"]["message"] == "Synthetic CMS failure"
+    callbacks["subject_line"].assert_not_called()
+
+
+def test_raised_failure_detail_is_unchanged(callbacks):
+    callbacks["subject_line"].side_effect = RuntimeError("Synthetic raise")
+    assert flow.run(**callbacks)["error"] == {"stage": "SUBJECT LINE BUILDER",
+                                              "type": "RuntimeError", "message": "Synthetic raise"}
+
+
+def test_every_failed_outcome_carries_an_error_object(callbacks):
+    """A red panel with no detail is the bug this guards against."""
+    for mutate in (lambda: callbacks["subject_line"].__setattr__("return_value", {"status": "failed"}),
+                   lambda: callbacks["cms"].__setattr__("return_value", {"status": "failed"}),
+                   lambda: callbacks["extract"].__setattr__("side_effect", RuntimeError("Synthetic"))):
+        mutate()
+        result = flow.run(**callbacks)
+        assert result["outcome"] == "failed"
+        assert result["error"] is not None, result["reason"]

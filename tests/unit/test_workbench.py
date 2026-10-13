@@ -2,6 +2,7 @@ from contextlib import nullcontext
 import json
 import sys
 import threading
+import time
 from types import SimpleNamespace
 
 import fitz
@@ -452,3 +453,98 @@ def test_workflow_result_snapshot_and_clear(workbench):
     assert not api.set_workflow_result({'outcome': 'unknown'})['ok']
     assert api.set_workflow_result(None)['ok']
     assert api.get_state()['value']['workflow_result'] is None
+
+
+def _await_review(api, timeout=5):
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        review = api.get_state()['value']['pending_review']
+        if review:
+            return review
+        time.sleep(0.01)
+    raise AssertionError('No review became pending.')
+
+
+def _extracted(api, identifier, monkeypatch):
+    """Give a document fields, which wait_for_review requires."""
+    extract(monkeypatch, complete_payload())
+    api.start_processing([identifier])
+    finish(api)
+
+
+def test_pending_review_is_visible_and_approval_returns_edited_fields(workbench, monkeypatch):
+    api, identifier, _ = workbench
+    _extracted(api, identifier, monkeypatch)
+    answer = {}
+
+    def worker():
+        answer['fields'] = api.wait_for_review(identifier)
+
+    thread = threading.Thread(target=worker, daemon=True)
+    thread.start()
+    review = _await_review(api)
+    assert review['document_id'] == identifier
+    assert api.answer_review(review['id'], True)['ok']
+    thread.join(5)
+    assert not thread.is_alive()
+    assert answer['fields']['Claim Number'] == complete_payload()['Claim Number']
+    assert api.get_state()['value']['pending_review'] is None
+
+
+def test_review_cancel_returns_none(workbench, monkeypatch):
+    api, identifier, _ = workbench
+    _extracted(api, identifier, monkeypatch)
+    answer = {}
+    thread = threading.Thread(target=lambda: answer.update(fields=api.wait_for_review(identifier)),
+                              daemon=True)
+    thread.start()
+    review = _await_review(api)
+    assert api.answer_review(review['id'], False)['ok']
+    thread.join(5)
+    assert answer['fields'] is None
+
+
+def test_polling_and_editing_survive_a_parked_review_worker(workbench, monkeypatch):
+    """The worker blocks with the state lock released, or the operator could
+    never reach the button that unblocks it."""
+    api, identifier, _ = workbench
+    _extracted(api, identifier, monkeypatch)
+    thread = threading.Thread(target=lambda: api.wait_for_review(identifier), daemon=True)
+    thread.start()
+    review = _await_review(api)
+    for _ in range(5):
+        assert api.get_state()['ok']
+    assert api.get_state()['value']['documents']
+    assert api.answer_review(review['id'], True)['ok']
+    thread.join(5)
+    assert not thread.is_alive()
+
+
+@pytest.mark.parametrize('answer', [1, 'yes', None, 0])
+def test_review_answer_must_be_a_real_boolean(workbench, monkeypatch, answer):
+    api, identifier, _ = workbench
+    _extracted(api, identifier, monkeypatch)
+    thread = threading.Thread(target=lambda: api.wait_for_review(identifier), daemon=True)
+    thread.start()
+    review = _await_review(api)
+    assert not api.answer_review(review['id'], answer)['ok']
+    assert api.answer_review(review['id'], True)['ok']
+    thread.join(5)
+
+
+def test_stale_or_unknown_review_identifier_is_rejected(workbench, monkeypatch):
+    api, identifier, _ = workbench
+    _extracted(api, identifier, monkeypatch)
+    assert not api.answer_review('no-such-review', True)['ok']
+    thread = threading.Thread(target=lambda: api.wait_for_review(identifier), daemon=True)
+    thread.start()
+    review = _await_review(api)
+    assert api.answer_review(review['id'], True)['ok']
+    thread.join(5)
+    assert not api.answer_review(review['id'], True)['ok']
+
+
+def test_review_requires_an_extracted_document(workbench):
+    api, identifier, _ = workbench
+    with pytest.raises(ValueError, match='Extract this document first'):
+        api.wait_for_review(identifier)
