@@ -10,6 +10,7 @@ class FakeAdapter:
     def __init__(self, check):
         self.check = check
         self.created = False
+        self.triaged = False
 
     def open(self): pass
     def identity(self, data): pass
@@ -17,6 +18,10 @@ class FakeAdapter:
     def ensure_lookup_closed(self): pass
     def details(self, data): pass
     def create(self, data): self.created = True
+    def complete_triage(self, data):
+        assert self.created, 'Triage must run after Create'
+        self.triaged = True
+        return []
 
 
 def main():
@@ -95,10 +100,10 @@ def main():
                     assert api.proceed(state['review_id'], state['status'] == 'review')['ok']
                     reviews += 1
                 time.sleep(.1)
-            assert adapter.created and reviews == 4
+            assert adapter.created and adapter.triaged and reviews == 4
             assert api.get_state()['status'] == 'completed'
             passed.append(True)
-            args.report.write_text('PASS: native WebView2, fixed 480 width, vertical resize, 5 manual groups, Excel template generation/import/row selection, bridge, progress, guided lookup and explicit Create gates. Synthetic adapter only; no live RRS, CMS or PDFs.', encoding='utf8')
+            args.report.write_text('PASS: native WebView2, fixed 480 width, vertical resize, 5 manual groups, Excel template generation/import/row selection, bridge, progress, guided lookup, explicit Create gate and Complete Triage step. Synthetic adapter only; no live RRS, CMS or PDFs.', encoding='utf8')
         except Exception:
             args.report.write_text(traceback.format_exc(), encoding='utf8')
         finally:

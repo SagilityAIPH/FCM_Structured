@@ -2,8 +2,9 @@
 
 The standalone accepts **Excel input or manual entry**. It operates on the intended RRS
 Email Display / Subject Line Builder already opened by the operator. It does not
-select RRS referral rows, read PDF attachments, call AI, connect to CMS or
-run reopen-check. Main application behavior is unchanged.
+read PDF attachments, call AI, connect to CMS or run reopen-check. The only
+referral row it selects is the one for Complete Triage after Create. Main
+application behavior is unchanged.
 
 ## Manual standalone flow
 
@@ -25,6 +26,18 @@ run reopen-check. Main application behavior is unchanged.
 7. The app rechecks the claim number on the same builder window before Create.
    Completion is reported only after that window closes. If it stays open, inspect
    RRS before retrying because submission may already have happened.
+8. Complete Triage (ported from legacy `CompleteTriageAndExportAttachment`): the
+   app exits the Email Display and ticks only the work-window row whose Subject
+   contains the claim number. It then clicks **Complete Triage** and answers the
+   prompts as legacy did:
+   - Zip Code?: provider ZIP for Full Case Management / One-Time RN Visit,
+     otherwise the claimant ZIP.
+   - Information Complete?, Unity ReTrigger and Customer Check: Yes.
+   - ReferralRoutingSystem: OK.
+
+   It then exports the attachment in Unity Entry and exits it. If no row (or more
+   than one) matches the claim, it stops and you finish triage manually. Unity
+   assignment (CMS case id) and Complete Assignment remain manual.
 
 One provider per run. Data stays in session memory and is not automatically saved
 to disk. Stop/close prevents subsequent automation after the current UI call; it

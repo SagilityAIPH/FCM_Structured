@@ -132,6 +132,12 @@ def run_manual(data, adapter, progress, review, check):
     adapter.details(data)
     review('Review every field in the RRS Subject Line Builder, including referral type and lookup selections. Click Create only when the subject line is correct.', True)
     check()
-    progress('Creating subject line', 95)
+    progress('Creating subject line', 90)
     adapter.create(data)
+    if hasattr(adapter, 'complete_triage'):
+        check()
+        progress('Completing triage and exporting attachment', 95)
+        answered = '; '.join(adapter.complete_triage(data) or [])
+        progress('Subject line created and triage completed' + (f' ({answered})' if answered else ''), 100)
+        return
     progress('Subject line created', 100)

@@ -477,6 +477,54 @@ class ManualTests(unittest.TestCase):
             self.assertEqual(adapter.injury_cause(text), expected, (current, text))
             self.assertEqual(combo.selected, [expected] if selected else [])
 
+    def test_complete_triage_after_create(self):
+        spec = importlib.util.spec_from_file_location('rrs_ui_triage', HERE.parent / 'Deploy-Ready' / 'rrs_ui.py')
+        rrs = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(rrs)
+        base = {'zip': '95023-0000', 'providerZip': '95024'}
+        self.assertEqual(rrs.triage_zip(base | {'referralType': 'Full Case Management'}), '95024')
+        self.assertEqual(rrs.triage_zip(base | {'referralType': 'One-Time RN Visit - Provider'}), '95024')
+        self.assertEqual(rrs.triage_zip(base | {'referralType': 'Vocational'}), '95023')
+        self.assertEqual(rrs.triage_zip({'referralType': 'Full Case Management', 'zip': '95023'}), '95023')
+        self.assertEqual(rrs.triage_answer('Information Complete?'), 'Yes')
+        self.assertEqual(rrs.triage_answer('Unity ReTrigger'), 'Yes')
+        self.assertEqual(rrs.triage_answer('Customer Check'), 'Yes')
+        self.assertEqual(rrs.triage_answer('ReferralRoutingSystem'), 'OK')
+        self.assertIsNone(rrs.triage_answer('Referral Routing System'))
+
+        class Cell:
+            def __init__(self, name, value='', ticked=False): self.name, self.value, self.ticked = name, value, ticked
+            def window_text(self): return self.name
+            @property
+            def iface_value(self): return type('V', (), {'CurrentValue': self.value})()
+            def get_toggle_state(self): return int(self.ticked)
+            def click_input(self): self.ticked = not self.ticked
+        cells = [Cell('Select Row 0', ticked=True), Cell('Subject Row 0', '... - WC111 - ...'),
+                 Cell('Select Row 1'), Cell('Subject Row 1', '... - WC617C21727 - MEDICAL TASK')]
+        grid = type('G', (), {'descendants': lambda self: cells})()
+        adapter = rrs.RRSAdapter.__new__(rrs.RRSAdapter)
+        adapter.check = lambda: None
+        adapter.control = lambda parent, ident, kind: grid
+        self.assertEqual(adapter.select_work_row(None, 'wc617c21727'), 1)
+        self.assertEqual([c.ticked for c in cells[::2]], [False, True])
+        ticks = iter(range(0, 10000, 30))
+        rrs.time = type('T', (), {'monotonic': staticmethod(lambda: next(ticks)), 'sleep': staticmethod(lambda s: None)})
+        with self.assertRaises(RuntimeError):
+            adapter.select_work_row(None, 'NOT-THERE')
+
+        a = Adapter()
+        a.complete_triage = lambda data: a.events.append('triage') or ['Customer Check -> Yes']
+        stages = []
+        run_manual(validate(payload()), a, lambda stage, pct: stages.append(stage), lambda *_: None, lambda: None)
+        self.assertEqual(a.events[-2:], ['create', 'triage'])
+        self.assertIn('Customer Check -> Yes', stages[-1])
+
+        a = Adapter()
+        a.complete_triage = lambda data: a.events.append('triage')
+        def stop(*_): raise Stopped()
+        with self.assertRaises(Stopped): run_manual(validate(payload()), a, lambda *_: None, stop, lambda: None)
+        self.assertNotIn('triage', a.events)
+
     def test_no_legacy_or_upstream_imports(self):
         for file in ('manual_flow.py', 'rrs_ui.py', 'provider_match.py', 'office_matrix.py', 'body_part.py', 'injury_match.py'):
             tree = ast.parse((HERE.parent/'Deploy-Ready'/file).read_text())

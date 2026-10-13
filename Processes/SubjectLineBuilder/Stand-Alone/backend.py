@@ -137,7 +137,21 @@ class ManualAPI:
         except Stopped as error:
             self._update(status='stopped', stage=str(error), prompt='')
         except Exception as error:
-            self._update(status='failed', stage='Action stopped', error=str(error), prompt='')
+            # Keep the stage and the failing adapter line so live failures can be located.
+            import traceback
+            frames = traceback.extract_tb(error.__traceback__)
+            where = next((f for f in reversed(frames) if f.filename.endswith(('rrs_ui.py', 'manual_flow.py'))), None)
+            stage = self._state.get('stage') or ''
+            detail = f'{stage}: {error}' + (f' [{where.name} line {where.lineno}]' if where else '')
+            try:
+                import tempfile
+                from pathlib import Path
+                log = Path(tempfile.gettempdir()) / 'SubjectLineBuilder-error.log'
+                with log.open('a', encoding='utf8') as handle:
+                    handle.write(f'--- {time.strftime("%Y-%m-%d %H:%M:%S")} {detail}\n{traceback.format_exc()}\n')
+            except Exception:
+                pass
+            self._update(status='failed', stage='Action stopped', error=detail, prompt='')
         finally:
             if com:
                 com.CoUninitialize()

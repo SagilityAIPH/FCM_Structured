@@ -1,6 +1,29 @@
 """Focused UIA adapter. Uses the existing RRS control IDs; no legacy imports."""
 from datetime import datetime
+import re
 import time
+
+
+# Complete Triage prompts answered by the legacy bot (legacy_fcm.CompleteTriageAndExportAttachment).
+TRIAGE_ANSWERS = [('information complete', 'Yes'), ('unity retrigger', 'Yes'),
+                  ('customer check', 'Yes'), ('referralroutingsystem', 'OK')]
+
+
+def triage_zip(data):
+    """Legacy correctZipCode: provider ZIP for Full Case Management / One-Time RN Visit, else claimant ZIP."""
+    kind = (data.get('referralType') or '').lower()
+    first, second = (('providerZip', 'zip') if 'full case management' in kind or 'one-time rn visit' in kind
+                     else ('zip', 'providerZip'))
+    for key in (first, second):
+        digits = re.sub(r'\D', '', data.get(key) or '')
+        if len(digits) >= 5:
+            return digits[:5]
+    return ''
+
+
+def triage_answer(title):
+    text = (title or '').lower()
+    return next((answer for key, answer in TRIAGE_ANSWERS if key in text), None)
 
 
 def _mmddyyyy(value):
@@ -115,6 +138,15 @@ class RRSAdapter:
             self.desktop.window(title_re=r'^Subject Line Builder Email Display.*').wait('exists visible', timeout=25)
         self.builder = self.unique(r'^Subject Line Builder Email Display.*')
         self.builder.set_focus()
+        self.builder_handle = self.builder.wrapper_object().handle
+
+    @staticmethod
+    def window_gone(handle):
+        """True once a window handle is destroyed or hidden. Uses Win32 directly: UIA lookups of a
+        just-destroyed handle raise COMError -2147220991 ('unable to invoke any of the subscribers')."""
+        import ctypes
+        user32 = ctypes.windll.user32
+        return not user32.IsWindow(handle) or not user32.IsWindowVisible(handle)
 
     def builder_value(self, ident):
         try:
@@ -556,9 +588,7 @@ class RRSAdapter:
         self.checked('cbAppointment', bool(data['nextApptDate']))
         if data['nextApptDate']:
             self.checked('cbDateOnly', not data['nextApptTime'])
-            self.set(self.builder, 'DatePicker', data['nextApptDate'], 'ComboBox')
-            if data['nextApptTime']:
-                self.set(self.builder, 'TimePicker', data['nextApptTime'], 'ComboBox')
+            self.appointment(data['nextApptDate'], data['nextApptTime'])
         if data['bodyPart']:
             self.body_part(data['bodyPart'])
         if data['injuryType']:
@@ -577,6 +607,23 @@ class RRSAdapter:
                 self.set(dialog, ident, data[key])
             self.click(dialog, 'btnOK')
             self.radio('rbRefSource')
+
+    def appointment(self, date, time_text):
+        """Legacy_steps ~line 1255: SetValue + typed date on DatePicker. TimePicker only accepts typed
+        24-hour keys; UIA SetValue on it raises COMError -2147220991 ('unable to invoke any of the
+        subscribers')."""
+        from pywinauto.keyboard import send_keys
+        picker = self.control(self.builder, 'DatePicker', 'ComboBox')
+        try:
+            picker.iface_value.SetValue(date)
+        except Exception:
+            pass
+        picker.set_focus()
+        picker.type_keys(date, with_spaces=True)
+        if time_text:
+            clock = self.control(self.builder, 'TimePicker', 'ComboBox')
+            clock.set_focus()
+            send_keys(datetime.strptime(time_text, '%I:%M %p').strftime('%H:%M'))
 
     def _combo_options(self, combo):
         """Dropdown items. combo.texts() only returns the child names ('Provider Info', 'Open') on
@@ -669,9 +716,158 @@ class RRSAdapter:
         if value.strip() != data['claimNumber']:
             raise RuntimeError('The RRS claim number changed. Submission stopped; review the intended claim.')
         self.click(self.builder, 'btnCreate')
+        handle = getattr(self, 'builder_handle', None) or self.builder.wrapper_object().handle
         deadline = time.monotonic() + 30
         while time.monotonic() < deadline:
-            if not self.builder.exists(timeout=.2) or not self.builder.is_visible():
+            if self.window_gone(handle):
                 return
             time.sleep(.2)
         raise RuntimeError('Create was clicked, but completion could not be confirmed. Check RRS before retrying to avoid a duplicate.')
+
+    # ---------- Complete Triage + Export Attachment (ported from legacy_fcm.CompleteTriageAndExportAttachment) ----------
+    def _windows_of(self, pid, *owners):
+        """Visible windows of the RRS process, including owned dialogs nested under the given owners."""
+        found = []
+        try:
+            found += self.desktop.windows(process=pid, visible_only=True)
+        except Exception:
+            pass
+        for owner in owners:
+            try:
+                found += owner.descendants(control_type='Window')
+            except Exception:
+                pass
+        unique = {}
+        for window in found:
+            unique.setdefault(window.handle, window)
+        return list(unique.values())
+
+    @staticmethod
+    def _press(window, label):
+        buttons = [b for b in window.descendants(control_type='Button')
+                   if b.window_text().replace('&', '').strip().upper() == label.upper()]
+        if not buttons:
+            return False
+        window.set_focus()
+        buttons[0].click_input()
+        time.sleep(.5)
+        return True
+
+    @staticmethod
+    def _message_text(window):
+        try:
+            return ' '.join(t.window_text() for t in window.descendants(control_type='Text')).strip()
+        except Exception:
+            return ''
+
+    def close_email_display(self):
+        """Legacy exits the Email Display after Create, so the work window is free for triage."""
+        for window in self.desktop.windows(title_re=r'^Email Display.*', control_type='Window', visible_only=True):
+            display = self.desktop.window(handle=window.handle)
+            self.click(display, 'btnExit')
+            deadline = time.monotonic() + 15
+            while not self.window_gone(window.handle) and time.monotonic() < deadline:
+                time.sleep(.3)
+
+    def select_work_row(self, main, claim_number):
+        """Tick only the work-window row whose Subject contains the claim (legacy assumed row 0)."""
+        grid = self.control(main, 'dgWorkWindow', 'Table')
+        deadline = time.monotonic() + 20
+        while True:
+            self.check()
+            rows, ticked = [], []
+            for cell in grid.descendants():
+                name = cell.window_text()
+                subject = re.fullmatch(r'Subject Row (\d+)', name)
+                if subject:
+                    try:
+                        value = cell.iface_value.CurrentValue or ''
+                    except Exception:
+                        value = ''
+                    if claim_number.upper() in value.upper():
+                        rows.append(int(subject.group(1)))
+                elif re.fullmatch(r'Select Row \d+', name):
+                    ticked.append(cell)
+            if len(rows) == 1 or time.monotonic() > deadline:
+                break
+            time.sleep(1)
+        if len(rows) != 1:
+            raise RuntimeError(f'Expected one RRS work row for claim {claim_number}; found {len(rows)}. '
+                               'Select the referral and click Complete Triage in RRS manually.')
+        for box in ticked:
+            wanted = box.window_text() == f'Select Row {rows[0]}'
+            if bool(box.get_toggle_state()) != wanted:
+                box.click_input()
+                time.sleep(.3)
+        return rows[0]
+
+    def answer_triage_prompts(self, pid, owners, zip_code, messages):
+        """Answer one Complete Triage prompt the way the legacy bot did. Returns True if one was handled."""
+        for window in self._windows_of(pid, *owners):
+            title = window.window_text()
+            if re.search(r'zip code', title, re.I):
+                if not zip_code:
+                    raise RuntimeError('RRS asked for the ZIP code during triage but none was entered. Enter it in RRS, then finish triage manually.')
+                edits = window.descendants(control_type='Edit')
+                if not edits:
+                    continue
+                edits[0].iface_value.SetValue(zip_code)
+                time.sleep(.5)
+                if self._press(window, 'OK'):
+                    messages.append(f'Zip Code? -> {zip_code}')
+                    return True
+                continue
+            answer = triage_answer(title) if window.class_name() == '#32770' else None
+            if answer:
+                text = self._message_text(window)
+                if self._press(window, answer):
+                    messages.append(f'{title}: {text} -> {answer}' if text else f'{title} -> {answer}')
+                    return True
+        return False
+
+    def complete_triage(self, data):
+        """Select the referral, click Complete Triage, answer the prompts, then export the attachment in Unity Entry."""
+        self.close_email_display()
+        main = self.unique(r'^Referral Routing System.*')
+        main.set_focus()
+        pid = main.element_info.process_id
+        self.select_work_row(main, data['claimNumber'])
+        self.click(main, 'btnTriage')
+        zip_code, messages = triage_zip(data), []
+        deadline = time.monotonic() + 120
+        entry = None
+        while entry is None:
+            self.check()
+            found = self.desktop.windows(title_re=r'^Unity Entry.*', control_type='Window', visible_only=True)
+            if found:
+                entry = self.desktop.window(handle=found[0].handle)
+            elif self.answer_triage_prompts(pid, [main], zip_code, messages):
+                deadline = max(deadline, time.monotonic() + 60)
+            elif time.monotonic() > deadline:
+                raise RuntimeError('Complete Triage did not open Unity Entry. Check RRS and finish triage manually.')
+            else:
+                time.sleep(.5)
+        entry.wait('visible ready', timeout=15)
+        entry.set_focus()
+        download = self.control(entry, 'btnDownload', 'Button')
+        download.set_focus()
+        # Legacy presses SPACE on the focused Export button instead of clicking it.
+        from pywinauto.keyboard import send_keys
+        send_keys('{SPACE}')
+        deadline = time.monotonic() + 300
+        while True:
+            self.check()
+            boxes = [w for w in self._windows_of(pid, entry, main)
+                     if w.class_name() == '#32770' and 'referralroutingsystem' in w.window_text().lower()]
+            if boxes:
+                text = self._message_text(boxes[0])
+                if self._press(boxes[0], 'OK'):
+                    messages.append(f'Export: {text}' if text else 'Export -> OK')
+                    break
+            if time.monotonic() > deadline:
+                raise RuntimeError('Attachment export did not confirm within 5 minutes. Check Unity Entry.')
+            time.sleep(1)
+        time.sleep(2)
+        entry.set_focus()
+        self.click(entry, 'btnExit')
+        return messages
