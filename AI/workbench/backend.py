@@ -41,6 +41,9 @@ class WorkbenchAPI:
         self._busy = False
         self._unsaved = False
         self._compact = False
+        self._pending_prompt = None
+        self._prompt_waiter = None
+        self._workflow_result = None
         self._compact_lock = threading.Lock()
         self._external_stage = None
         self._external_progress = None
@@ -87,6 +90,8 @@ class WorkbenchAPI:
         with self._lock:
             return {"documents": [self._summary(d) for d in self._documents.values()],
                     "busy": self._busy, "compact": self._compact,
+                    "pending_prompt": deepcopy(self._pending_prompt),
+                    "workflow_result": deepcopy(self._workflow_result),
                     "stage": self._external_stage if self._external_stage is not None else self._stage, "bedrock": self._bedrock,
                     "elapsed": round(time.monotonic() - self._started, 1) if self._busy and self._started else self._elapsed,
                     "progress": dict(self._external_progress if self._external_progress is not None else self._progress), "settings": dict(self._settings),
@@ -100,6 +105,9 @@ class WorkbenchAPI:
         from AI.workbench.window_layout import set_compact
         # Serialize resize requests, but let the UI and poller acquire _lock.
         with self._compact_lock:
+            with self._lock:
+                if value and self._pending_prompt is not None:
+                    raise ValueError("Answer the pending prompt before entering compact mode.")
             set_compact(self._window, value)
             with self._lock:
                 self._compact = value
@@ -122,6 +130,64 @@ class WorkbenchAPI:
         with self._lock:
             self._external_stage = stage
             self._external_progress = None if done is None else {"done": done, "total": total}
+        return True
+
+    @response
+    def set_workflow_result(self, result):
+        """Publish the unchanged orchestrator result; pass None at a new run."""
+        if result is not None and (not isinstance(result, dict) or result.get("outcome") not in
+                                   ("completed", "ended", "stopped", "failed")):
+            raise ValueError("Invalid workflow outcome.")
+        snapshot = json.loads(json.dumps(result, allow_nan=False))
+        with self._lock:
+            self._workflow_result = snapshot
+        return True
+
+    def _ask_prompt(self, kind, title, message):
+        """In-process worker callback. Never wait or resize with _lock held.
+
+        A second concurrent prompt is rejected, not allowed to replace a waiter.
+        notify also waits for acknowledgement so instructions cannot be lost.
+        """
+        waiter = {"event": threading.Event(), "answer": False}
+        prompt = {"id": str(uuid.uuid4()), "kind": kind,
+                  "title": str(title), "message": str(message)}
+        with self._lock:
+            if self._pending_prompt is not None:
+                raise RuntimeError("Another operator prompt is already pending.")
+            self._pending_prompt, self._prompt_waiter = prompt, waiter
+        try:
+            resized = self.set_compact(False)
+            if not resized["ok"]:
+                raise RuntimeError(resized["error"])
+            waiter["event"].wait()
+            return waiter["answer"]
+        finally:
+            with self._lock:
+                if self._pending_prompt and self._pending_prompt["id"] == prompt["id"]:
+                    self._pending_prompt = self._prompt_waiter = None
+
+    def notify(self, title, message):
+        """Pass directly as run_live(notify=api.notify) from a worker thread."""
+        self._ask_prompt("notify", title, message)
+
+    def confirm(self, title, message):
+        """Raw boolean callback, deliberately not a bridge response envelope."""
+        return self._ask_prompt("confirm", title, message)
+
+    @response
+    def answer_prompt(self, identifier, answer):
+        with self._lock:
+            if self._pending_prompt is None or self._pending_prompt["id"] != identifier:
+                raise ValueError("Prompt is no longer pending.")
+            if type(answer) is not bool:
+                raise ValueError("Prompt answer must be a boolean.")
+            if self._pending_prompt["kind"] == "notify" and not answer:
+                raise ValueError("Acknowledge the notification.")
+            waiter = self._prompt_waiter
+            waiter["answer"] = answer
+            self._pending_prompt = self._prompt_waiter = None
+            waiter["event"].set()
         return True
 
     def _import_paths(self, paths):

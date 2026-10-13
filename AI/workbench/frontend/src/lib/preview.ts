@@ -27,6 +27,12 @@ function example(id: string, name: string, claimant: string, review: boolean): D
 function sync() { state.documents = Array.from(records.values()).map(copy) }
 export const previewAPI: API = {
   async get_state() { return copy(state) },
+  async set_workflow_result(result) { state.workflow_result = copy(result); return true },
+  async answer_prompt(id, answer) {
+    if (!state.pending_prompt || state.pending_prompt.id !== id) throw new Error('Prompt is no longer pending.')
+    if (state.pending_prompt.kind === 'notify' && !answer) throw new Error('Acknowledge the notification.')
+    state.pending_prompt = null; return true
+  },
   async set_compact(value) { state.compact = value; return value },
   async set_stage(stage, done, total) {
     state.stage = stage

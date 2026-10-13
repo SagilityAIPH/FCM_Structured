@@ -380,3 +380,75 @@ def test_external_stage_invalid_input_is_atomic(workbench, args):
     state = api.get_state()['value']
     assert state['stage'] == 'Valid synthetic stage'
     assert state['progress'] == {'done': 0, 'total': 2}
+
+
+@pytest.mark.parametrize('kind,answer', [('confirm', True), ('confirm', False), ('notify', True)])
+def test_live_prompt_roundtrip_without_deadlock(workbench, monkeypatch, kind, answer):
+    from AI.workbench import window_layout
+    api, _, _ = workbench
+    api._compact = True
+    ready = threading.Event()
+    def resize(window, compact):
+        # A native UI Invoke may poll from a different thread. No state lock held.
+        poll = threading.Thread(target=lambda: (api.get_state(), ready.set()), daemon=True)
+        poll.start()
+        assert ready.wait(2), 'Resize deadlocked against get_state'
+        assert compact is False
+    monkeypatch.setattr(window_layout, 'set_compact', resize)
+    returned = []
+    worker = threading.Thread(target=lambda: returned.append(getattr(api, kind)('Synthetic prompt', 'Synthetic instruction')), daemon=True)
+    worker.start()
+    assert ready.wait(2)
+    prompt = api.get_state()['value']['pending_prompt']
+    try:
+        assert prompt['kind'] == kind
+        assert prompt['title'] == 'Synthetic prompt'
+        assert worker.is_alive()
+        assert not api.answer_prompt('stale-id', True)['ok']
+        assert not api.answer_prompt(prompt['id'], 'yes')['ok']
+        assert not api.set_compact(True)['ok']
+        with pytest.raises(RuntimeError, match='already pending'):
+            api.confirm('Other prompt', 'Must not overwrite')
+        if kind == 'notify':
+            assert not api.answer_prompt(prompt['id'], False)['ok']
+        assert api.answer_prompt(prompt['id'], answer)['ok']
+    finally:
+        api.answer_prompt(prompt['id'], True)
+    worker.join(2)
+    assert not worker.is_alive()
+    assert returned == ([answer] if kind == 'confirm' else [None])
+    assert api.get_state()['value']['pending_prompt'] is None
+    assert api.get_state()['value']['compact'] is False
+    assert not api.answer_prompt(prompt['id'], answer)['ok']
+
+
+def test_answer_without_pending_prompt_is_rejected(workbench):
+    api, _, _ = workbench
+    assert api.get_state()['value']['pending_prompt'] is None
+    assert api.answer_prompt('not-pending', True) == {'ok': False, 'error': 'Prompt is no longer pending.'}
+
+
+def test_prompt_resize_failure_cleans_up(workbench, monkeypatch):
+    from AI.workbench import window_layout
+    api, _, _ = workbench
+    def fail(*args):
+        raise RuntimeError('Synthetic resize failure')
+    monkeypatch.setattr(window_layout, 'set_compact', fail)
+    with pytest.raises(RuntimeError, match='Synthetic resize failure'):
+        api.confirm('Synthetic prompt', 'Synthetic instruction')
+    assert api.get_state()['value']['pending_prompt'] is None
+
+
+def test_workflow_result_snapshot_and_clear(workbench):
+    api, _, _ = workbench
+    result = {'outcome': 'stopped', 'reason': 'tire_customer_open_tcm', 'customer': 'SYNTHETIC EMPLOYER',
+              'cases': [{'cms_caseNum': 'SYNTHETIC-CASE'}], 'missing_fields': [], 'stages': ['CMS'], 'payloads': {}}
+    assert api.set_workflow_result(result)['ok']
+    result['cases'].clear()
+    state = api.get_state()['value']
+    assert state['workflow_result']['cases'] == [{'cms_caseNum': 'SYNTHETIC-CASE'}]
+    state['workflow_result']['cases'].clear()
+    assert api.get_state()['value']['workflow_result']['cases']
+    assert not api.set_workflow_result({'outcome': 'unknown'})['ok']
+    assert api.set_workflow_result(None)['ok']
+    assert api.get_state()['value']['workflow_result'] is None

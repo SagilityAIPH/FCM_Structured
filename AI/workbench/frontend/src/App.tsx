@@ -13,6 +13,9 @@ import type { API, DocumentDetail, Edit, State } from './types'
 type Panel = 'Documents' | 'PDF' | 'Output' | 'Settings'
 const navigation = [{name: 'Documents', icon: Files}, {name: 'PDF', icon: FileText}, {name: 'Output', icon: FileSpreadsheet}, {name: 'Settings', icon: Settings2}] as const
 
+import { CmsSection } from '@/components/CmsSection'
+import { LivePrompt } from '@/components/LivePrompt'
+
 export default function App() {
   const [state, setState] = useState<State | null>(null)
   const [selected, setSelected] = useState('')
@@ -44,7 +47,13 @@ export default function App() {
   const mounted = useRef(true)
   const busy = pending || !!state?.busy
   const refresh = useCallback(async () => {
-    const next = await (await getAPI()).get_state()
+    const api = await getAPI()
+    const next = await api.get_state()
+    // Defensive fallback for a prompt published while a compact resize was in flight.
+    if (next.pending_prompt && next.compact) {
+      await api.set_compact(false)
+      next.compact = false
+    }
     if (mounted.current) { setState(next); setSelected(value => value || next.documents[0]?.id || '') }
   }, [])
   useEffect(() => {
@@ -119,6 +128,7 @@ export default function App() {
       {error ? <div className="message error" role="alert"><CircleAlert size={15} /><span>{error}</span><button aria-label="Dismiss error" onClick={() => setError('')}><X size={14} /></button></div> : null}
       {notice ? <div className="message success" role="status"><CheckCheck size={15} /><span>{notice}</span><button aria-label="Dismiss message" onClick={() => setNotice('')}><X size={14} /></button></div> : null}
       {!state?.key_configured && state ? <div className="setup-banner"><span>Configure Bedrock to start automatic extraction.</span><button onClick={() => show('Settings')}>Open settings</button></div> : null}
+      <CmsSection result={state?.workflow_result} />
       <FieldForm key={`${shownDetail?.id}-${shownDetail?.revision}`} doc={shownDetail} busy={busy} draft={draft} onDraft={setDraft}
         onConfirm={index => { if (window.confirm(`Confirm that Provider ${index}'s appointment is correct despite the displayed warnings?`)) void act(api => api.confirm_appointment(selected, index), 'Appointment confirmed and Excel updated.') }}
         onRetrySave={() => void act(api => api.retry_save(selected), 'Daily Excel saved.')} />
@@ -140,6 +150,10 @@ export default function App() {
           {shownDetail.save_error ? <div className="note warning"><p>{shownDetail.save_error}</p><Button variant="outline" size="sm" disabled={busy} onClick={() => void act(api => api.retry_save(selected), 'Daily Excel saved.')}>Retry Excel save</Button></div> : null}</> : <p className="empty-text">Extracted output will be available here.</p>}</div> : null}
       </section>)}
     </main>
+    {state?.pending_prompt && <LivePrompt key={state.pending_prompt.id} prompt={state.pending_prompt} answer={async (id, value) => {
+      await (await getAPI()).answer_prompt(id, value)
+      await refresh()
+    }} />}
     <footer className="bottom-dock">
       <div className="save-row"><Button size="sm" disabled={busy || !dirty || !shownDetail} onClick={() => void act(api => api.save_fields(selected, edits, shownDetail!.revision), 'Changes saved. Address checks and validation run automatically.')}><Save />Save field changes{dirty ? ` (${edits.length})` : ''}</Button><span>{dirty ? 'Unsaved edits' : shownDetail?.save_error ? 'Excel save failed' : shownDetail?.workbook ? 'Saved to daily Excel' : 'Awaiting extraction'}</span></div>
       <div className="processing-status" role="status"><span title={state?.stage}>{busy ? <LoaderCircle size={12} className="animate-spin" /> : null}{state?.stage || 'Connecting to desktop…'}</span><small>{progress.total ? `${progress.done}/${progress.total} complete · ` : ''}{state?.elapsed.toFixed(1) || '0.0'}s</small></div>
