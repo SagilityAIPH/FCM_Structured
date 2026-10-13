@@ -9,13 +9,19 @@ from functools import lru_cache
 import importlib.util
 from pathlib import Path
 import re
+import sys
 
 
 @lru_cache(maxsize=1)
 def _load_office_matrix():
-    """Load only the shared lookup module, never the live automation entry point."""
-    path = (Path(__file__).resolve().parents[2]
-            / "Processes/SubjectLineBuilder/Deploy-Ready/office_matrix.py")
+    """Load only the shared lookup module, never the live automation entry point.
+
+    Frozen builds put this module inside _MEIPASS, where parents[2] would climb
+    out of the bundle, so resolve the root the same way fcm_intake.config does.
+    """
+    root = (Path(sys._MEIPASS) if getattr(sys, "frozen", False)
+            else Path(__file__).resolve().parents[2])
+    path = root / "Processes/SubjectLineBuilder/Deploy-Ready/office_matrix.py"
     spec = importlib.util.spec_from_file_location("_finalcode_office_matrix", path)
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)

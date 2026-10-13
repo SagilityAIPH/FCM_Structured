@@ -39,8 +39,15 @@ def bootstrap_paths(root=None):
 
     The legacy modules import each other by top-level name and fcm_intake lives
     under src, so all three entries are required before any live factory runs.
+    A frozen build unpacks the same layout into _MEIPASS, where __file__ would
+    otherwise resolve above the bundle.
     """
-    base = Path(root).resolve() if root else Path(__file__).resolve().parents[2]
+    if root is not None:
+        base = Path(root).resolve()
+    elif getattr(sys, "frozen", False):
+        base = Path(sys._MEIPASS)
+    else:
+        base = Path(__file__).resolve().parents[2]
     for path in (base, base / "src", base / "Final Code"):
         entry = str(path)
         if entry not in sys.path:
@@ -279,7 +286,9 @@ def self_test(report=None):
                "published": bool(published) and published["outcome"] == result["outcome"],
                "workflow_active_cleared": api._workflow_active is False}
     text = json.dumps(summary, indent=2)
-    print(text)
+    # A windowed PyInstaller build has no stdout, so printing would raise.
+    if sys.stdout is not None:
+        print(text)
     if report:
         Path(report).write_text(text, encoding="utf-8")
     return summary
