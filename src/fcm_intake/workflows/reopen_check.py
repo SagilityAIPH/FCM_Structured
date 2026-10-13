@@ -41,7 +41,10 @@ def MainReopenCheck(claim_number, claimant_name=None):
             os.getenv("FCM_CMS_DB_CONNECTION") or _orig.CMSconn_str,
         )
         if case.get("message", "").startswith("Error validating case:"):
-            raise RuntimeError("CMS database validation failed; check database access and connection settings.")
+            missing = [name for name in ("FCM_CMS_DB_CONNECTION", "FCM_RRS_DB_CONNECTION") if not os.getenv(name)]
+            hint = (f" {', '.join(missing)} not set; add it to .env beside the app (see PORTABLE.md)." if missing else "")
+            detail = case["message"].split(":", 1)[1].strip()[:300]
+            raise RuntimeError(f"CMS database validation failed; check database access and connection settings.{hint} ({detail})")
         results.append({"cms_caseNum": cms_case, "caseType": case_type, **case})
     return results
 

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react"
-import { FileSpreadsheet, FolderOpen, Play, RotateCcw, Save, PencilLine, Loader2, FlaskConical } from "lucide-react"
+import { FileSpreadsheet, FolderOpen, Play, RotateCcw, Save, PencilLine, Loader2, FlaskConical, Copy } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
@@ -8,8 +8,9 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { PromptModal } from "@/components/PromptModal"
+import { ResultOutput } from "@/components/ResultOutput"
 import { backend, whenReady } from "@/lib/backend"
-import type { Config, PendingPrompt } from "@/types"
+import type { Config, PendingPrompt, StartRequest } from "@/types"
 
 type Mode = "offline" | "live"
 
@@ -38,6 +39,7 @@ export default function App() {
   const [pendingPrompt, setPendingPrompt] = useState<PendingPrompt | null>(null)
   const [result, setResult] = useState<unknown>(null)
   const [formError, setFormError] = useState("")
+  const [copyStatus, setCopyStatus] = useState("")
 
   const pollTimer = useRef<number | null>(null)
 
@@ -56,14 +58,19 @@ export default function App() {
     if (!running) return
     let cancelled = false
     const poll = async () => {
-      const current = await backend.pollStatus()
-      if (cancelled) return
-      setStatus(current.status)
-      setPendingPrompt(current.pendingPrompt)
-      if (!current.running) {
-        setRunning(false)
-        setResult(current.result)
-        return
+      try {
+        const current = await backend.pollStatus()
+        if (cancelled) return
+        setStatus(current.status)
+        setPendingPrompt(current.pendingPrompt)
+        if (!current.running) {
+          setRunning(false)
+          setResult(current.result)
+          return
+        }
+      } catch (error) {
+        if (cancelled) return
+        setFormError("Cannot read process output: " + String(error))
       }
       pollTimer.current = window.setTimeout(poll, 400)
     }
@@ -107,6 +114,7 @@ export default function App() {
   }
 
   function handleManualInput() {
+    setCopyStatus("")
     setExcelPath("")
     setRecords([])
     setRecordId("")
@@ -129,23 +137,35 @@ export default function App() {
   async function handleRun() {
     if (!config) return
     setFormError("")
-    const request: Record<string, unknown> = { mode, stage: stageKey, scenario }
+    const request: StartRequest = { mode, stage: stageKey, scenario }
     if (mode === "live") {
       Object.assign(request, { input: inputs, username, password })
       if (excelPath) Object.assign(request, { excel: excelPath, record_id: recordId })
     }
-    const outcome = await backend.start(request as never)
+    const outcome = await backend.start(request)
     if (outcome.error) {
       setFormError(outcome.error)
       return
     }
     setResult(null)
     setRunning(true)
+    setCopyStatus("")
   }
 
   async function handleSave() {
     const outcome = await backend.saveResult("CMSCustomerSearch-result.json")
     if (outcome.error) setFormError(outcome.error)
+  }
+
+  async function handleCopy() {
+    if (!result) return
+    setCopyStatus("")
+    try {
+      await navigator.clipboard.writeText(JSON.stringify(result, null, 2))
+      setCopyStatus("Result copied, including extracted tables.")
+    } catch (error) {
+      setFormError("Cannot copy result to clipboard: " + String(error))
+    }
   }
 
   async function handlePromptAnswer(value: unknown) {
@@ -162,18 +182,19 @@ export default function App() {
   }
 
   return (
-    <div className="mx-auto flex h-full max-w-5xl flex-col gap-4 p-5">
-      <header>
+    <div className="mx-auto flex h-dvh max-w-5xl flex-col gap-3 overflow-hidden p-5">
+      <header className="shrink-0">
         <h1 className="text-xl font-semibold tracking-tight">CMSCustomerSearch</h1>
         <p className="text-sm text-(--color-ink-muted)">
           Test re-open checking and customer validation independently of the intake bot.
         </p>
       </header>
 
+      <fieldset aria-label="Process configuration" disabled={running} className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-1 [&>*]:shrink-0">
       <Card>
         <CardContent className="flex flex-wrap items-end gap-4 pt-3">
           <Field label="Mode">
-            <Select value={mode} onValueChange={(v) => setMode(v as Mode)}>
+            <Select disabled={running} value={mode} onValueChange={(v) => setMode(v as Mode)}>
               <SelectTrigger className="w-56"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="offline">Offline scenario</SelectItem>
@@ -182,7 +203,7 @@ export default function App() {
             </Select>
           </Field>
           <Field label="Stage">
-            <Select value={stageKey} onValueChange={setStageKey}>
+            <Select disabled={running} value={stageKey} onValueChange={setStageKey}>
               <SelectTrigger className="w-64"><SelectValue /></SelectTrigger>
               <SelectContent>
                 {config.stages.map((s) => <SelectItem key={s.key} value={s.key}>{s.label}</SelectItem>)}
@@ -191,7 +212,7 @@ export default function App() {
           </Field>
           {mode === "offline" && (
             <Field label="Scenario">
-              <Select value={scenario} onValueChange={setScenario}>
+              <Select disabled={running} value={scenario} onValueChange={setScenario}>
                 <SelectTrigger className="w-56"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {config.scenarios.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
@@ -217,7 +238,7 @@ export default function App() {
                 <FolderOpen /> Choose daily Excel
               </Button>
               {records.length > 0 && (
-                <Select value={recordId} onValueChange={(v) => { setRecordId(v); handleLoadRecord(excelPath, v) }}>
+                <Select disabled={running} value={recordId} onValueChange={(v) => { setRecordId(v); handleLoadRecord(excelPath, v) }}>
                   <SelectTrigger className="w-56"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     {records.map((r) => <SelectItem key={r} value={r}>{r}</SelectItem>)}
@@ -270,25 +291,30 @@ export default function App() {
           </Card>
         </>
       )}
+      </fieldset>
 
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="flex shrink-0 flex-wrap items-center gap-2">
         <Button onClick={handleRun} disabled={running}>
           {running ? <Loader2 className="animate-spin" /> : <Play />} Run selected process
         </Button>
         <Button variant="secondary" onClick={handleSave} disabled={!result}>
           <Save /> Save result JSON
         </Button>
+        <Button variant="secondary" onClick={handleCopy} disabled={!result}>
+          <Copy /> Copy result
+        </Button>
+        <span role="status" className="text-xs text-(--color-ink-muted)">{copyStatus}</span>
       </div>
 
-      {formError && <p className="text-sm text-(--color-danger)">{formError}</p>}
-      <p className="text-sm text-(--color-ink-muted)">{status}</p>
+      {formError && <p role="alert" className="max-h-16 shrink-0 overflow-y-auto text-sm text-(--color-danger)">{formError}</p>}
+      <p role="status" className="max-h-12 shrink-0 overflow-y-auto text-sm text-(--color-ink-muted)">{status}</p>
 
-      <Card className="flex min-h-0 flex-1 flex-col">
+      <Card aria-label="Process output" className="flex h-[32vh] min-h-[180px] shrink-0 flex-col overflow-hidden">
         <CardHeader><CardTitle>Output</CardTitle></CardHeader>
         <ScrollArea className="min-h-0 flex-1 border-t border-(--color-border)">
-          <pre className="whitespace-pre-wrap p-4 font-(family-name:--font-mono) text-xs leading-relaxed text-(--color-ink)">
-            {result ? JSON.stringify(result, null, 2) : "(no result yet)"}
-          </pre>
+          {result ? <ResultOutput value={result} /> : (
+            <pre className="whitespace-pre-wrap p-4 text-xs">{running ? status : "(no result yet)"}</pre>
+          )}
         </ScrollArea>
       </Card>
 

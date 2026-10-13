@@ -405,6 +405,21 @@ def _name_tokens(value):
     return frozenset(re.findall(r"[A-Z0-9]+", str(value or "").upper()))
 
 
+def _names_match(row_name, target):
+    """Compare token sets, ignoring middle initials ("Alexandria M. Cordova" vs
+    "Cordova, Alexandria") and tolerating a full middle name on only one side
+    ("Jane Marie Doe" vs "Doe, Jane"). Needs at least first + last name in common."""
+    row = _name_tokens(row_name)
+    if row == target:
+        return True
+    row_core = frozenset(t for t in row if len(t) > 1)
+    target_core = frozenset(t for t in target if len(t) > 1)
+    if row_core == target_core and len(row_core) >= 2:
+        return True
+    common = row_core & target_core
+    return len(common) >= 2 and common in (row_core, target_core)
+
+
 def ValidateCaseNumber(ClaimNumber, ClaimantName=None):
     """
     Uses the already-logged-in driver to validate a case number via CMS UI.
@@ -474,7 +489,7 @@ def ValidateCaseNumber(ClaimNumber, ClaimantName=None):
             if target_claimant:
                 cells = row.find_elements(By.TAG_NAME, "td")
                 row_name = cells[0].text.strip() if cells else ""
-                if _name_tokens(row_name) != target_claimant:
+                if not _names_match(row_name, target_claimant):
                     continue
 
             claimLink = row.find_element(By.TAG_NAME, "a")

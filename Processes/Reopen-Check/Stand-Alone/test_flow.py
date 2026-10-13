@@ -143,6 +143,18 @@ class IntegrationTests(unittest.TestCase):
             with self.assertRaisesRegex(RuntimeError, "database validation failed"):
                 wrapper.MainReopenCheck("DEMO")
         fake_legacy.validate_cms_case.assert_called_once_with("DEMO01", "fake-rrs", "fake-cms")
+    def test_claimant_name_match_ignores_middle_initial(self):
+        spec = importlib.util.spec_from_file_location(
+            "legacy_reopencheck_names", ROOT / "src/fcm_intake/legacy/legacy_reopencheck.py")
+        legacy = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(legacy)
+        match = lambda row, target: legacy._names_match(row, legacy._name_tokens(target))
+        self.assertTrue(match("Cordova, Alexandria", "Alexandria M Cordova"))
+        self.assertTrue(match("Cordova, Alexandria M.", "Alexandria Cordova"))
+        self.assertTrue(match("Doe, Jane", "Jane Marie Doe"))
+        self.assertTrue(match("Engelen, Garan", "Garan Engelen"))
+        self.assertFalse(match("Cordova, Maria", "Alexandria M Cordova"))
+        self.assertFalse(match("Cordova, A", "Alexandria Cordova"))
 
 
 if __name__ == "__main__":

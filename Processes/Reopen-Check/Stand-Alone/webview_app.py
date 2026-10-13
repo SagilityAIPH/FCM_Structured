@@ -19,6 +19,7 @@ import webview
 
 import desktop
 from run import HERE
+from fcm_intake import config  # Load external settings before exposing UI defaults.
 
 UI_DIST = HERE / "ui" / "dist" / "index.html"
 UI_DEV_SERVER = os.environ.get("CMSCUSTOMERSEARCH_UI_DEV_URL")  # e.g. http://localhost:5173
@@ -44,29 +45,15 @@ def _json_safe(value):
 
 
 def _load_sample_data():
-    """Read optional .env sample/test values for the UI's "Load sample data" button.
-
-    This mirrors the values desktop.App already defaults from FCM_CMS_USERNAME/
-    FCM_CMS_PASSWORD; it only adds the claim/customer sample fields and reads
-    them from a local .env file (never committed) so testers don't retype them.
-    """
-    values = {}
-    env_path = HERE / ".env"
-    if env_path.is_file():
-        for line in env_path.read_text(encoding="utf-8").splitlines():
-            line = line.strip()
-            if not line or line.startswith("#") or "=" not in line:
-                continue
-            key, _, value = line.partition("=")
-            values[key.strip()] = value.strip().strip('"')
+    """Use the shared external settings loader, including in portable builds."""
     sample = {
-        "username": values.get("CMS_USER") or os.getenv("FCM_CMS_USERNAME", ""),
-        "password": values.get("CMS_PASSWORD") or os.getenv("FCM_CMS_PASSWORD", ""),
-        "claimNumber": values.get("CLAIM_NUMBER", ""),
-        "customer": values.get("CUSTOMER_NAME", ""),
-        "claimID": values.get("CLAIM_ID", ""),
-        "claimantFull": values.get("CLAIMANT_NAME", ""),
-        "referralType": values.get("REFERRAL_TYPE", ""),
+        "username": os.getenv("FCM_CMS_USERNAME") or os.getenv("CMS_USER", ""),
+        "password": os.getenv("FCM_CMS_PASSWORD") or os.getenv("CMS_PASSWORD", ""),
+        "claimNumber": os.getenv("CLAIM_NUMBER", ""),
+        "customer": os.getenv("CUSTOMER_NAME", ""),
+        "claimID": os.getenv("CLAIM_ID", ""),
+        "claimantFull": os.getenv("CLAIMANT_NAME", ""),
+        "referralType": os.getenv("REFERRAL_TYPE", ""),
     }
     return sample if any(sample.values()) else None
 
@@ -92,6 +79,12 @@ class PipePrompts:
     def notify(self, title, message):
         self._ask("notify", title, message)
 
+    def show_info(self, title, message):
+        self.notify(title, message)
+
+    def capture_results_table(self, title, rows):
+        self.connection.send({"extracted_table": {"title": title, "rows": rows}})
+
     def destroy(self):
         pass
 
@@ -112,6 +105,7 @@ class Api:
         self.status_text = "Ready \u2014 choose offline testing or configure live CMS."
         self.pending_prompt = None
         self.result = None
+        self.extracted_tables = []
 
     def set_window(self, window):
         self._window = window
@@ -166,6 +160,7 @@ class Api:
             child_conn.close()
             self.running = True
             self.result = None
+            self.extracted_tables = []
             self.pending_prompt = None
             self.status_text = f"Running {request['mode']} process. Respond to any CMS prompts that appear."
             threading.Thread(target=self._poll_loop, daemon=True).start()
@@ -206,6 +201,10 @@ class Api:
                     with self._lock:
                         self.pending_prompt = message["prompt"]
                     continue
+                if "extracted_table" in message:
+                    with self._lock:
+                        self.extracted_tables.append(message["extracted_table"])
+                    continue
                 self._finish(message)
                 return
             elif self.worker is not None and not self.worker.is_alive():
@@ -222,7 +221,7 @@ class Api:
             self.worker = None
             self.running = False
             self.pending_prompt = None
-            self.result = _json_safe(response)
+            self.result = _json_safe({**response, "extracted_tables": self.extracted_tables})
             self.status_text = (
                 "Error \u2014 see details below." if "error" in response
                 else "Process " + response.get("result", {}).get("status", "finished") + "."
@@ -259,18 +258,20 @@ class Api:
             return {"ok": False}
         try:
             from pathlib import Path
+            if isinstance(path, (list, tuple)):
+                path = path[0]
             Path(path).write_text(json.dumps(self.result, indent=2, default=str), encoding="utf-8")
             return {"ok": True, "path": path}
         except OSError as error:
             return {"error": str(error)}
 
 
-def main():
+def main(title="CMSCustomerSearch"):
     mp.freeze_support()
     api = Api()
     url = UI_DEV_SERVER or str(UI_DIST)
     window = webview.create_window(
-        "CMSCustomerSearch",
+        title,
         url,
         js_api=api,
         width=1080,

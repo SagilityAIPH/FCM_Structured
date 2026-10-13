@@ -8,7 +8,8 @@ from pathlib import Path
 PROJECT_ROOT = Path(sys._MEIPASS) if getattr(sys, "frozen", False) else Path(__file__).resolve().parents[2]
 BASE_DIR = PROJECT_ROOT / "src" / "fcm_intake" if getattr(sys, "frozen", False) else Path(__file__).resolve().parent
 LEGACY_DIR = BASE_DIR / "legacy"
-LOCAL_SETTINGS_PATH = (Path(sys.executable).parent if getattr(sys, "frozen", False) else PROJECT_ROOT) / "config" / "local_settings.ini"
+SETTINGS_ROOT = Path(sys.executable).resolve().parent if getattr(sys, "frozen", False) else PROJECT_ROOT
+LOCAL_SETTINGS_PATH = SETTINGS_ROOT / "config" / "local_settings.ini"
 
 
 def _load_dotenv_files() -> None:
@@ -23,9 +24,9 @@ def _load_dotenv_files() -> None:
         return
 
     for env_path in (
-        PROJECT_ROOT / ".env",
-        PROJECT_ROOT / "AI" / ".env",
-        PROJECT_ROOT / "Processes" / "Reopen-Check" / "Stand-Alone" / ".env",
+        SETTINGS_ROOT / ".env",
+        SETTINGS_ROOT / "AI" / ".env",
+        SETTINGS_ROOT / "Processes" / "Reopen-Check" / "Stand-Alone" / ".env",
     ):
         if env_path.is_file():
             load_dotenv(env_path, override=False)
@@ -85,4 +86,3 @@ EDGE_PATH = get_local_setting("browser", "edge_path", "FCM_EDGE_PATH", "EDGE_PAT
 IE_DRIVER_PATH = get_local_setting("browser", "ie_driver_path", "FCM_IE_DRIVER_PATH", "IE_DRIVER_PATH")
 EDGE_DRIVER_PATH = get_local_setting("browser", "edge_driver_path", "FCM_EDGE_DRIVER_PATH", "EDGE_DRIVER_PATH")
 ATTACHMENT_FOLDER = get_local_setting("folders", "attachment_folder", "FCM_ATTACHMENT_FOLDER")
-

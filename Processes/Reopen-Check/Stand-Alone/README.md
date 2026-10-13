@@ -29,6 +29,25 @@ Selenium/CMS session code); the frontend only calls into it through
 
 ## Windows desktop application
 
+For the portable ZIP and external `.env` setup, see [PORTABLE.md](PORTABLE.md).
+Run `.\Processes\Reopen-Check\Stand-Alone\build.ps1` from the repository root
+after installing `requirements-build.txt` and the UI dependencies (`npm ci`
+inside `ui`). The script rebuilds the UI, builds and checks the EXE, and creates
+`dist\CMSCustomerSearch-portable.zip` with only the EXE, blank configuration
+template, and setup instructions. Pass `-PythonPath` to select a build interpreter.
+
+In Live CMS mode the form scrolls independently; Run/Save, status, and output
+remain visible at the bottom. While running, the output shows the current
+automation stage; after completion it displays the result JSON.
+
+Output includes a status/customer summary, each captured customer-search table,
+and expandable full JSON. **Copy result** copies the complete JSON, including
+`extracted_tables` (titles and all extracted rows/cells); **Save result JSON**
+exports the same data. Tables captured before a stop or error are retained.
+An empty table list means the run did not capture a customer-search table,
+for example an offline or re-open-only run. Copied results may contain private
+claim information; paste them only into approved destinations.
+
 Open `dist/CMSCustomerSearch.exe` from the repository build output, or run
 `CMSCustomerSearch.py` with the configured Python environment. Python is bundled
 in the EXE. No console window is required.

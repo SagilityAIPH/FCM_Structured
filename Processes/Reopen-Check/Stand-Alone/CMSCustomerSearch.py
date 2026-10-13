@@ -3,9 +3,12 @@ import multiprocessing
 from pathlib import Path
 import sys
 
+__version__ = "1.1.0"
+
 
 def self_test(report):
     import json
+    import os
     import tempfile
     import time
     import tkinter as tk
@@ -13,6 +16,9 @@ def self_test(report):
     from AI import referral_schema as schema
     from AI.daily_output import save_daily_output
     from fcm_intake import config
+    if os.getenv("CMS_EXPECT_PORTABLE_ENV") == "1":
+        assert config.SETTINGS_ROOT == Path(sys.executable).resolve().parent
+        assert os.getenv("CMS_PORTABLE_SMOKE_VALUE") == "external-file", "External .env was not loaded"
     from fcm_intake.workflows import reopen_check, customer_checker
     from fcm_intake.cms.security_warning import snapshot_browser_windows
     assert isinstance(snapshot_browser_windows(), set), 'UI Automation initialization failed'
@@ -81,6 +87,9 @@ def self_test(report):
 
 def main():
     multiprocessing.freeze_support()
+    if "--version" in sys.argv:
+        print(__version__)
+        return 0
     if "--self-test-report" in sys.argv:
         index = sys.argv.index("--self-test-report")
         report = sys.argv[index + 1]
@@ -99,7 +108,7 @@ def main():
         root.mainloop()
         return 0
     import webview_app
-    return webview_app.main() or 0
+    return webview_app.main(title=f"CMSCustomerSearch v{__version__}") or 0
 
 
 if __name__ == "__main__":

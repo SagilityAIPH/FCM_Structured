@@ -910,6 +910,8 @@ def ValidateCustomer(CustomerName: str,ClaimID,ClaimantName,app=None):
     # Capture the whole results table and show it to the user in a modal.
     results_table = extract_results_table(drv)
     results_table_text = format_results_table(results_table)
+    if app is not None and hasattr(app, "capture_results_table"):
+        app.capture_results_table("Customer Search Results", results_table)
     show_results_table(results_table_text, app=app)
 
     # Optional: some apps show a "no records found" row as 1 row
@@ -965,6 +967,5 @@ def MainCustomerCheck(CustomerName: str,ClaimID,ClaimantName,app=None):
 
 if __name__ == "__main__":
     print(MainCustomerCheck("CARROLS CORPORATION","123456","Test Name"))
-
 
 
