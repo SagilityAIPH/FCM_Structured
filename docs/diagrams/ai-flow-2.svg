@@ -1,0 +1,86 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="1280" viewBox="0 0 960 1280">
+<defs><marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#40556B"/></marker></defs>
+<rect width="960" height="1280" fill="white"/>
+<polyline points="360.0,182.0 360.0,224.0" fill="none" stroke="#40556B" stroke-width="1.4"/>
+<polygon points="360.0,224.0 356.0,215.0 364.0,215.0" fill="#40556B"/>
+<polyline points="512.0,268.0 624.0,268.0" fill="none" stroke="#40556B" stroke-width="1.4"/>
+<polygon points="624.0,268.0 615.0,272.0 615.0,264.0" fill="#40556B"/>
+<polyline points="360.0,312.0 360.0,360.0" fill="none" stroke="#40556B" stroke-width="1.4"/>
+<polygon points="360.0,360.0 356.0,351.0 364.0,351.0" fill="#40556B"/>
+<polyline points="512.0,412.0 624.0,412.0" fill="none" stroke="#40556B" stroke-width="1.4"/>
+<polygon points="624.0,412.0 615.0,416.0 615.0,408.0" fill="#40556B"/>
+<polyline points="360.0,464.00000000000006 360.0,516.0" fill="none" stroke="#40556B" stroke-width="1.4"/>
+<polygon points="360.0,516.0 356.0,507.0 364.0,507.0" fill="#40556B"/>
+<polyline points="360.0,604.0 360.0,661.9999999999999" fill="none" stroke="#40556B" stroke-width="1.4"/>
+<polygon points="360.0,661.9999999999999 356.0,652.9999999999999 364.0,652.9999999999999" fill="#40556B"/>
+<polyline points="512.0,560 568.0,560 760.0,560 760.0,446.0" fill="none" stroke="#40556B" stroke-width="1.4"/>
+<polygon points="760.0,446.0 764.0,455.0 756.0,455.0" fill="#40556B"/>
+<polyline points="360.0,730.0 360.0,780.0" fill="none" stroke="#40556B" stroke-width="1.4"/>
+<polygon points="360.0,780.0 356.0,771.0 364.0,771.0" fill="#40556B"/>
+<polyline points="896.0,268.0 928.0,268.0 928.0,896.0 152.0,896.0 152.0,824.0 208.0,824.0" fill="none" stroke="#40556B" stroke-width="1.4"/>
+<polygon points="208.0,824.0 199.0,828.0 199.0,820.0" fill="#40556B"/>
+<polyline points="896.0,412.0 912.0,412.0 912.0,824.0 512.0,824.0" fill="none" stroke="#40556B" stroke-width="1.4"/>
+<polygon points="512.0,824.0 521.0,820.0 521.0,828.0" fill="#40556B"/>
+<rect x="208.0" y="114.0" width="304.0" height="68.0" rx="3" fill="#EAF2FB" stroke="#40556B"/>
+<text x="360.0" y="145.0" text-anchor="middle" font-family="Arial,sans-serif" font-size="12" fill="#142B42">For each scalar field: read named-</text>
+<text x="360.0" y="159.0" text-anchor="middle" font-family="Arial,sans-serif" font-size="12" fill="#142B42">section value from model JSON.</text>
+<polygon points="360.0,224.0 512.0,268.0 360.0,312.0 208.0,268.0" fill="#FFF2CC" stroke="#40556B"/>
+<text x="360.0" y="272.0" text-anchor="middle" font-family="Arial,sans-serif" font-size="12" fill="#142B42">Primary value present?</text>
+<rect x="624.0" y="234.0" width="272.0" height="68.0" rx="3" fill="#DFF2E5" stroke="#40556B"/>
+<text x="760.0" y="258.0" text-anchor="middle" font-family="Arial,sans-serif" font-size="12" fill="#142B42">Keep primary value. Never</text>
+<text x="760.0" y="272.0" text-anchor="middle" font-family="Arial,sans-serif" font-size="12" fill="#142B42">overwrite it with Special</text>
+<text x="760.0" y="286.0" text-anchor="middle" font-family="Arial,sans-serif" font-size="12" fill="#142B42">Instructions.</text>
+<polygon points="360.0,360.0 512.0,412.0 360.0,464.0 208.0,412.0" fill="#FFF2CC" stroke="#40556B"/>
+<text x="360.0" y="409.0" text-anchor="middle" font-family="Arial,sans-serif" font-size="12" fill="#142B42">Special Instructions fallback allowed</text>
+<text x="360.0" y="423.0" text-anchor="middle" font-family="Arial,sans-serif" font-size="12" fill="#142B42">for this field?</text>
+<rect x="624.0" y="378.0" width="272.0" height="68.0" rx="3" fill="#F4F6F8" stroke="#40556B"/>
+<text x="760.0" y="416.0" text-anchor="middle" font-family="Arial,sans-serif" font-size="11" fill="#142B42">Use Not found</text>
+<polygon points="360.0,516.0 512.0,560 360.0,604.0 208.0,560" fill="#FFF2CC" stroke="#40556B"/>
+<text x="360.0" y="564.0" text-anchor="middle" font-family="Arial,sans-serif" font-size="12" fill="#142B42">Special Instructions value present?</text>
+<rect x="208.0" y="662.0" width="304.0" height="68.0" rx="3" fill="#EAF2FB" stroke="#40556B"/>
+<text x="360.0" y="700.0" text-anchor="middle" font-family="Arial,sans-serif" font-size="12" fill="#142B42">Use Special Instructions value</text>
+<rect x="208.0" y="780.0" width="304.0" height="88.0" rx="3" fill="#EAF2FB" stroke="#40556B"/>
+<text x="360.0" y="814.0" text-anchor="middle" font-family="Arial,sans-serif" font-size="12" fill="#142B42">Keep role-specific fields separate;</text>
+<text x="360.0" y="828.0" text-anchor="middle" font-family="Arial,sans-serif" font-size="12" fill="#142B42">reject emails used as phone numbers.</text>
+<text x="360.0" y="842.0" text-anchor="middle" font-family="Arial,sans-serif" font-size="12" fill="#142B42">Continue to next field.</text>
+<rect x="88.0" y="964.0" width="368.0" height="120.0" rx="3" fill="#F4F6F8" stroke="#40556B"/>
+<text x="272.0" y="1014.0" text-anchor="middle" font-family="Arial,sans-serif" font-size="11" fill="#142B42">NO FALLBACK</text>
+<text x="272.0" y="1028.0" text-anchor="middle" font-family="Arial,sans-serif" font-size="11" fill="#142B42">All claimant/customer fields</text>
+<text x="272.0" y="1042.0" text-anchor="middle" font-family="Arial,sans-serif" font-size="11" fill="#142B42">Claim Number, Claim ID, Claim Type</text>
+<rect x="528.0" y="936.0" width="384.0" height="176.0" rx="3" fill="#F4F6F8" stroke="#40556B"/>
+<text x="720" y="993.0" text-anchor="middle" font-family="Arial,sans-serif" font-size="11" fill="#142B42">FALLBACK ALLOWED</text>
+<text x="720" y="1007.0" text-anchor="middle" font-family="Arial,sans-serif" font-size="11" fill="#142B42">Injury date, jurisdiction, accident description,</text>
+<text x="720" y="1021.0" text-anchor="middle" font-family="Arial,sans-serif" font-size="11" fill="#142B42">injury description, diagnosis code</text>
+<text x="720" y="1035.0" text-anchor="middle" font-family="Arial,sans-serif" font-size="11" fill="#142B42">All case manager fields</text>
+<text x="720" y="1049.0" text-anchor="middle" font-family="Arial,sans-serif" font-size="11" fill="#142B42">Attorney + referral metadata</text>
+<text x="720" y="1063.0" text-anchor="middle" font-family="Arial,sans-serif" font-size="11" fill="#142B42">Providers: see page 3</text>
+<rect x="624.0" y="620.0" width="272.0" height="184.0" rx="3" fill="#F4F6F8" stroke="#40556B"/>
+<text x="760.0" y="681.0" text-anchor="middle" font-family="Arial,sans-serif" font-size="11" fill="#142B42">Optional does not mean fallback is</text>
+<text x="760.0" y="695.0" text-anchor="middle" font-family="Arial,sans-serif" font-size="11" fill="#142B42">allowed: claimant Address-line-2</text>
+<text x="760.0" y="709.0" text-anchor="middle" font-family="Arial,sans-serif" font-size="11" fill="#142B42">is optional but never uses Special</text>
+<text x="760.0" y="723.0" text-anchor="middle" font-family="Arial,sans-serif" font-size="11" fill="#142B42">Instructions. Missing/null/unknown</text>
+<text x="760.0" y="737.0" text-anchor="middle" font-family="Arial,sans-serif" font-size="11" fill="#142B42">values normalize to Not found.</text>
+<text x="760.0" y="751.0" text-anchor="middle" font-family="Arial,sans-serif" font-size="11" fill="#142B42">Identifiers remain strings.</text>
+<rect x="40.0" y="18.4" width="880" height="40.0" rx="3" fill="#FFFFFF" stroke="none"/>
+<text x="480" y="42.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="24" fill="#142B42">02 Section priority</text>
+<rect x="40.0" y="61.19999999999999" width="880" height="28.0" rx="3" fill="#FFFFFF" stroke="none"/>
+<text x="480" y="79.19999999999999" text-anchor="middle" font-family="Arial,sans-serif" font-size="11" fill="#142B42">Scalar fields | Model separates sources; Python resolves permitted missing values</text>
+<rect x="40.0" y="1238.0" width="880" height="28.0" rx="3" fill="#FFFFFF" stroke="none"/>
+<text x="480" y="1256.0" text-anchor="middle" font-family="Arial,sans-serif" font-size="11" fill="#142B42">FCM Structured | AI/referral_schema.py + AI/bedrock_core.py | Page 2 of 4</text>
+<rect x="511.2" y="258.4" width="62.400000000000006" height="19.2" rx="3" fill="#FFFFFF" stroke="none"/>
+<text x="542.4" y="272.0" text-anchor="middle" font-family="Arial,sans-serif" font-size="11" fill="#142B42">Yes</text>
+<rect x="328.8" y="326.4" width="62.400000000000006" height="19.2" rx="3" fill="#FFFFFF" stroke="none"/>
+<text x="360.0" y="340.0" text-anchor="middle" font-family="Arial,sans-serif" font-size="11" fill="#142B42">No</text>
+<rect x="511.2" y="402.4" width="62.400000000000006" height="19.2" rx="3" fill="#FFFFFF" stroke="none"/>
+<text x="542.4" y="416.0" text-anchor="middle" font-family="Arial,sans-serif" font-size="11" fill="#142B42">No</text>
+<rect x="328.8" y="480.4" width="62.400000000000006" height="19.2" rx="3" fill="#FFFFFF" stroke="none"/>
+<text x="360.0" y="494.0" text-anchor="middle" font-family="Arial,sans-serif" font-size="11" fill="#142B42">Yes</text>
+<rect x="328.8" y="623.4" width="62.400000000000006" height="19.2" rx="3" fill="#FFFFFF" stroke="none"/>
+<text x="360.0" y="637.0" text-anchor="middle" font-family="Arial,sans-serif" font-size="11" fill="#142B42">Yes</text>
+<rect x="508.8" y="550.4" width="62.400000000000006" height="19.2" rx="3" fill="#FFFFFF" stroke="none"/>
+<text x="540.0" y="564.0" text-anchor="middle" font-family="Arial,sans-serif" font-size="11" fill="#142B42">No</text>
+<rect x="880.7999999999998" y="258.4" width="62.400000000000006" height="19.2" rx="3" fill="#FFFFFF" stroke="none"/>
+<text x="911.9999999999999" y="272.0" text-anchor="middle" font-family="Arial,sans-serif" font-size="11" fill="#142B42">Next field</text>
+<rect x="872.8" y="402.4" width="62.400000000000006" height="19.2" rx="3" fill="#FFFFFF" stroke="none"/>
+<text x="904.0" y="416.0" text-anchor="middle" font-family="Arial,sans-serif" font-size="11" fill="#142B42">Next field</text>
+</svg>

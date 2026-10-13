@@ -1,0 +1,81 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="1280" viewBox="0 0 960 1280">
+<defs><marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#40556B"/></marker></defs>
+<rect width="960" height="1280" fill="white"/>
+<polyline points="360.0,178.0 360.0,218.0" fill="none" stroke="#40556B" stroke-width="1.4"/>
+<polygon points="360.0,218.0 356.0,209.0 364.0,209.0" fill="#40556B"/>
+<polyline points="360.0,286.0 360.0,330.0" fill="none" stroke="#40556B" stroke-width="1.4"/>
+<polygon points="360.0,330.0 356.0,321.0 364.0,321.0" fill="#40556B"/>
+<polyline points="512.0,380.0 628.0,380.0" fill="none" stroke="#40556B" stroke-width="1.4"/>
+<polygon points="628.0,380.0 619.0,384.0 619.0,376.0" fill="#40556B"/>
+<polyline points="360.0,430.0 360.0,484.00000000000006" fill="none" stroke="#40556B" stroke-width="1.4"/>
+<polygon points="360.0,484.00000000000006 356.0,475.00000000000006 364.0,475.00000000000006" fill="#40556B"/>
+<polyline points="760.0,432.0 760.0,532.0 512.0,532.0" fill="none" stroke="#40556B" stroke-width="1.4"/>
+<polygon points="512.0,532.0 521.0,528.0 521.0,536.0" fill="#40556B"/>
+<polyline points="208.0,532.0 168.0,532.0 168.0,604.0 272.0,604.0 272.0,638.0" fill="none" stroke="#40556B" stroke-width="1.4"/>
+<polygon points="272.0,638.0 268.0,629.0 276.0,629.0" fill="#40556B"/>
+<polyline points="360.0,580.0 360.0,600.0 696.0,600.0 696.0,638.0" fill="none" stroke="#40556B" stroke-width="1.4"/>
+<polygon points="696.0,638.0 692.0,629.0 700.0,629.0" fill="#40556B"/>
+<polyline points="272.0,722.0 272.0,764.0 480,764.0 480,783.9999999999999" fill="none" stroke="#40556B" stroke-width="1.4"/>
+<polygon points="480,783.9999999999999 476.0,774.9999999999999 484.0,774.9999999999999" fill="#40556B"/>
+<polyline points="696.0,722.0 696.0,780.0 480,780.0 480,783.9999999999999" fill="none" stroke="#40556B" stroke-width="1.4"/>
+<polygon points="480,783.9999999999999 476.0,774.9999999999999 484.0,774.9999999999999" fill="#40556B"/>
+<rect x="208.0" y="110.0" width="304.0" height="68.0" rx="16" fill="#DDE8F0" stroke="#40556B"/>
+<text x="360.0" y="148.0" text-anchor="middle" font-family="Arial,sans-serif" font-size="12" fill="#142B42">Evaluate normalized extraction results</text>
+<rect x="208.0" y="218.0" width="304.0" height="68.0" rx="3" fill="#EAF2FB" stroke="#40556B"/>
+<text x="360.0" y="249.0" text-anchor="middle" font-family="Arial,sans-serif" font-size="12" fill="#142B42">List every missing non-optional scalar</text>
+<text x="360.0" y="263.0" text-anchor="middle" font-family="Arial,sans-serif" font-size="12" fill="#142B42">field.</text>
+<polygon points="360.0,330.0 512.0,380.0 360.0,430.0 208.0,380.0" fill="#FFF2CC" stroke="#40556B"/>
+<text x="360.0" y="377.0" text-anchor="middle" font-family="Arial,sans-serif" font-size="12" fill="#142B42">At least one provider has all seven</text>
+<text x="360.0" y="391.0" text-anchor="middle" font-family="Arial,sans-serif" font-size="12" fill="#142B42">requested fields?</text>
+<rect x="628.0" y="328.0" width="264.0" height="104.0" rx="3" fill="#EAF2FB" stroke="#40556B"/>
+<text x="760.0" y="370.0" text-anchor="middle" font-family="Arial,sans-serif" font-size="12" fill="#142B42">Add missing fields from the</text>
+<text x="760.0" y="384.0" text-anchor="middle" font-family="Arial,sans-serif" font-size="12" fill="#142B42">provider with the fewest gaps. If</text>
+<text x="760.0" y="398.0" text-anchor="middle" font-family="Arial,sans-serif" font-size="12" fill="#142B42">none: add all seven.</text>
+<polygon points="360.0,484.0 512.0,532.0 360.0,580.0 208.0,532.0" fill="#FFF2CC" stroke="#40556B"/>
+<text x="360.0" y="536.0" text-anchor="middle" font-family="Arial,sans-serif" font-size="12" fill="#142B42">Missing required-field list empty?</text>
+<rect x="128.0" y="638.0" width="288.0" height="84.0" rx="3" fill="#DFF2E5" stroke="#40556B"/>
+<text x="272.0" y="677.0" text-anchor="middle" font-family="Arial,sans-serif" font-size="12" fill="#142B42">NEXT STEP: Passed</text>
+<text x="272.0" y="691.0" text-anchor="middle" font-family="Arial,sans-serif" font-size="12" fill="#142B42">Required information complete</text>
+<rect x="552.0" y="638.0" width="288.0" height="84.0" rx="3" fill="#FCE4E4" stroke="#40556B"/>
+<text x="696.0" y="677.0" text-anchor="middle" font-family="Arial,sans-serif" font-size="12" fill="#142B42">NEXT STEP: Failed</text>
+<text x="696.0" y="691.0" text-anchor="middle" font-family="Arial,sans-serif" font-size="12" fill="#142B42">Display missing required fields</text>
+<rect x="248.0" y="784.0" width="464.0" height="88.0" rx="3" fill="#EAF2FB" stroke="#40556B"/>
+<text x="480" y="825.0" text-anchor="middle" font-family="Arial,sans-serif" font-size="12" fill="#142B42">Keep results available for review/export in either case.</text>
+<text x="480" y="839.0" text-anchor="middle" font-family="Arial,sans-serif" font-size="12" fill="#142B42">JSON also lists gaps for every provider.</text>
+<rect x="90.0" y="936.0" width="372.0" height="208.0" rx="3" fill="#F4F6F8" stroke="#40556B"/>
+<text x="276.0" y="995.0" text-anchor="middle" font-family="Arial,sans-serif" font-size="11" fill="#142B42">OPTIONAL / NOT GATING</text>
+<text x="276.0" y="1009.0" text-anchor="middle" font-family="Arial,sans-serif" font-size="11" fill="#142B42">Claimant Address-line-2</text>
+<text x="276.0" y="1023.0" text-anchor="middle" font-family="Arial,sans-serif" font-size="11" fill="#142B42">Office Phone Number</text>
+<text x="276.0" y="1037.0" text-anchor="middle" font-family="Arial,sans-serif" font-size="11" fill="#142B42">Nurse Case Manager E-mail Address</text>
+<text x="276.0" y="1051.0" text-anchor="middle" font-family="Arial,sans-serif" font-size="11" fill="#142B42">All attorney + referral metadata</text>
+<text x="276.0" y="1065.0" text-anchor="middle" font-family="Arial,sans-serif" font-size="11" fill="#142B42">Four legacy extras: nurse name, employer</text>
+<text x="276.0" y="1079.0" text-anchor="middle" font-family="Arial,sans-serif" font-size="11" fill="#142B42">email, provider street address,</text>
+<text x="276.0" y="1093.0" text-anchor="middle" font-family="Arial,sans-serif" font-size="11" fill="#142B42">Doctor/Facility classification</text>
+<rect x="534.0" y="936.0" width="372.0" height="208.0" rx="3" fill="#F4F6F8" stroke="#40556B"/>
+<text x="720" y="981.0" text-anchor="middle" font-family="Arial,sans-serif" font-size="11" fill="#142B42">PROVIDER: ALL SEVEN IN ONE RECORD</text>
+<text x="720" y="995.0" text-anchor="middle" font-family="Arial,sans-serif" font-size="11" fill="#142B42">Provider / Facility Name</text>
+<text x="720" y="1009.0" text-anchor="middle" font-family="Arial,sans-serif" font-size="11" fill="#142B42">Phone Number</text>
+<text x="720" y="1023.0" text-anchor="middle" font-family="Arial,sans-serif" font-size="11" fill="#142B42">City, State, Zip</text>
+<text x="720" y="1037.0" text-anchor="middle" font-family="Arial,sans-serif" font-size="11" fill="#142B42">Appointment Date, Appointment Time</text>
+<text x="720" y="1051.0" text-anchor="middle" font-family="Arial,sans-serif" font-size="11" fill="#142B42"></text>
+<text x="720" y="1065.0" text-anchor="middle" font-family="Arial,sans-serif" font-size="11" fill="#142B42">Separate partial records cannot collectively</text>
+<text x="720" y="1079.0" text-anchor="middle" font-family="Arial,sans-serif" font-size="11" fill="#142B42">satisfy this requirement. Other incomplete</text>
+<text x="720" y="1093.0" text-anchor="middle" font-family="Arial,sans-serif" font-size="11" fill="#142B42">providers do not fail a referral if one is</text>
+<text x="720" y="1107.0" text-anchor="middle" font-family="Arial,sans-serif" font-size="11" fill="#142B42">complete.</text>
+<rect x="40.0" y="18.4" width="880" height="40.0" rx="3" fill="#FFFFFF" stroke="none"/>
+<text x="480" y="42.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="24" fill="#142B42">04 NEXT STEP</text>
+<rect x="40.0" y="61.19999999999999" width="880" height="28.0" rx="3" fill="#FFFFFF" stroke="none"/>
+<text x="480" y="79.19999999999999" text-anchor="middle" font-family="Arial,sans-serif" font-size="11" fill="#142B42">Completeness of extracted information | Not a confidence score or factual verification</text>
+<rect x="40.0" y="1238.0" width="880" height="28.0" rx="3" fill="#FFFFFF" stroke="none"/>
+<text x="480" y="1256.0" text-anchor="middle" font-family="Arial,sans-serif" font-size="11" fill="#142B42">FCM Structured | AI/referral_schema.py + AI/bedrock_core.py | Page 4 of 4</text>
+<rect x="511.2" y="370.4" width="62.400000000000006" height="19.2" rx="3" fill="#FFFFFF" stroke="none"/>
+<text x="542.4" y="384.0" text-anchor="middle" font-family="Arial,sans-serif" font-size="11" fill="#142B42">No</text>
+<rect x="328.8" y="447.4" width="62.400000000000006" height="19.2" rx="3" fill="#FFFFFF" stroke="none"/>
+<text x="360.0" y="461.0" text-anchor="middle" font-family="Arial,sans-serif" font-size="11" fill="#142B42">Yes</text>
+<rect x="728.8" y="452.8" width="62.400000000000006" height="19.2" rx="3" fill="#FFFFFF" stroke="none"/>
+<text x="760.0" y="466.40000000000003" text-anchor="middle" font-family="Arial,sans-serif" font-size="11" fill="#142B42">Continue</text>
+<rect x="156.8" y="522.4" width="62.400000000000006" height="19.2" rx="3" fill="#FFFFFF" stroke="none"/>
+<text x="188.0" y="536.0" text-anchor="middle" font-family="Arial,sans-serif" font-size="11" fill="#142B42">Yes</text>
+<rect x="328.8" y="580.4" width="62.400000000000006" height="19.2" rx="3" fill="#FFFFFF" stroke="none"/>
+<text x="360.0" y="594.0" text-anchor="middle" font-family="Arial,sans-serif" font-size="11" fill="#142B42">No</text>
+</svg>

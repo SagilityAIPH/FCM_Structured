@@ -1,0 +1,94 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="1280" viewBox="0 0 960 1280">
+<defs><marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#40556B"/></marker></defs>
+<rect width="960" height="1280" fill="white"/>
+<polyline points="368.0,182.0 368.0,222.00000000000003" fill="none" stroke="#40556B" stroke-width="1.4"/>
+<polygon points="368.0,222.00000000000003 364.0,213.00000000000003 372.0,213.00000000000003" fill="#40556B"/>
+<polyline points="368.0,290.0 368.0,330.0" fill="none" stroke="#40556B" stroke-width="1.4"/>
+<polygon points="368.0,330.0 364.0,321.0 372.0,321.0" fill="#40556B"/>
+<polyline points="520.0,380.0 632.0,380.0" fill="none" stroke="#40556B" stroke-width="1.4"/>
+<polygon points="632.0,380.0 623.0,384.0 623.0,376.0" fill="#40556B"/>
+<polyline points="368.0,430.0 368.0,480.0" fill="none" stroke="#40556B" stroke-width="1.4"/>
+<polygon points="368.0,480.0 364.0,471.0 372.0,471.0" fill="#40556B"/>
+<polyline points="520.0,532.0 632.0,532.0" fill="none" stroke="#40556B" stroke-width="1.4"/>
+<polygon points="632.0,532.0 623.0,536.0 623.0,528.0" fill="#40556B"/>
+<polyline points="368.0,584.0 368.0,636.0" fill="none" stroke="#40556B" stroke-width="1.4"/>
+<polygon points="368.0,636.0 364.0,627.0 372.0,627.0" fill="#40556B"/>
+<polyline points="368.0,716.0 368.0,760.0" fill="none" stroke="#40556B" stroke-width="1.4"/>
+<polygon points="368.0,760.0 364.0,751.0 372.0,751.0" fill="#40556B"/>
+<polyline points="888.0,380.0 920.0,380.0 920.0,732.0 560,732.0 560,804.0 520.0,804.0" fill="none" stroke="#40556B" stroke-width="1.4"/>
+<polygon points="520.0,804.0 529.0,800.0 529.0,808.0" fill="#40556B"/>
+<polyline points="760.0,578.0 760.0,752.0 568.0,752.0 568.0,804.0 520.0,804.0" fill="none" stroke="#40556B" stroke-width="1.4"/>
+<polygon points="520.0,804.0 529.0,800.0 529.0,808.0" fill="#40556B"/>
+<polyline points="215.99999999999997,804.0 120.0,804.0 120.0,256.0 215.99999999999997,256.0" fill="none" stroke="#40556B" stroke-width="1.4"/>
+<polygon points="215.99999999999997,256.0 206.99999999999997,260.0 206.99999999999997,252.0" fill="#40556B"/>
+<polyline points="368.0,848.0000000000001 368.0,898.0" fill="none" stroke="#40556B" stroke-width="1.4"/>
+<polygon points="368.0,898.0 364.0,889.0 372.0,889.0" fill="#40556B"/>
+<polyline points="368.0,966.0000000000001 368.0,1004.0" fill="none" stroke="#40556B" stroke-width="1.4"/>
+<polygon points="368.0,1004.0 364.0,995.0 372.0,995.0" fill="#40556B"/>
+<rect x="216.0" y="114.0" width="304.0" height="68.0" rx="3" fill="#EAF2FB" stroke="#40556B"/>
+<text x="368.0" y="145.0" text-anchor="middle" font-family="Arial,sans-serif" font-size="12" fill="#142B42">For each provider record: validate</text>
+<text x="368.0" y="159.0" text-anchor="middle" font-family="Arial,sans-serif" font-size="12" fill="#142B42">required keys and normalize values.</text>
+<rect x="216.0" y="222.0" width="304.0" height="68.0" rx="3" fill="#EAF2FB" stroke="#40556B"/>
+<text x="368.0" y="246.0" text-anchor="middle" font-family="Arial,sans-serif" font-size="12" fill="#142B42">Phone contains @? Replace with Not</text>
+<text x="368.0" y="260.0" text-anchor="middle" font-family="Arial,sans-serif" font-size="12" fill="#142B42">found. Keep dates/times tied to their</text>
+<text x="368.0" y="274.0" text-anchor="middle" font-family="Arial,sans-serif" font-size="12" fill="#142B42">provider.</text>
+<polygon points="368.0,330.0 520.0,380.0 368.0,430.0 216.0,380.0" fill="#FFF2CC" stroke="#40556B"/>
+<text x="368.0" y="377.0" text-anchor="middle" font-family="Arial,sans-serif" font-size="12" fill="#142B42">All values missing OR exact duplicate</text>
+<text x="368.0" y="391.0" text-anchor="middle" font-family="Arial,sans-serif" font-size="12" fill="#142B42">of a retained record?</text>
+<rect x="632.0" y="346.0" width="256.0" height="68.0" rx="3" fill="#F4F6F8" stroke="#40556B"/>
+<text x="760.0" y="384.0" text-anchor="middle" font-family="Arial,sans-serif" font-size="11" fill="#142B42">Skip this record</text>
+<polygon points="368.0,480.0 520.0,532.0 368.0,584.0 216.0,532.0" fill="#FFF2CC" stroke="#40556B"/>
+<text x="368.0" y="529.0" text-anchor="middle" font-family="Arial,sans-serif" font-size="12" fill="#142B42">Exactly one compatible retained record</text>
+<text x="368.0" y="543.0" text-anchor="middle" font-family="Arial,sans-serif" font-size="12" fill="#142B42">with the same name?</text>
+<rect x="632.0" y="486.0" width="256.0" height="92.0" rx="3" fill="#EAF2FB" stroke="#40556B"/>
+<text x="760.0" y="522.0" text-anchor="middle" font-family="Arial,sans-serif" font-size="12" fill="#142B42">Keep as separate record. Do not</text>
+<text x="760.0" y="536.0" text-anchor="middle" font-family="Arial,sans-serif" font-size="12" fill="#142B42">merge ambiguous or conflicting</text>
+<text x="760.0" y="550.0" text-anchor="middle" font-family="Arial,sans-serif" font-size="12" fill="#142B42">records.</text>
+<rect x="216.0" y="636.0" width="304.0" height="80" rx="3" fill="#EAF2FB" stroke="#40556B"/>
+<text x="368.0" y="673.0" text-anchor="middle" font-family="Arial,sans-serif" font-size="12" fill="#142B42">Fill only missing values in the</text>
+<text x="368.0" y="687.0" text-anchor="middle" font-family="Arial,sans-serif" font-size="12" fill="#142B42">retained record. Keep existing values.</text>
+<polygon points="368.0,760.0 520.0,804.0 368.0,848.0 216.0,804.0" fill="#FFF2CC" stroke="#40556B"/>
+<text x="368.0" y="808.0" text-anchor="middle" font-family="Arial,sans-serif" font-size="12" fill="#142B42">More input records?</text>
+<rect x="216.0" y="898.0" width="304.0" height="68.0" rx="3" fill="#EAF2FB" stroke="#40556B"/>
+<text x="368.0" y="929.0" text-anchor="middle" font-family="Arial,sans-serif" font-size="12" fill="#142B42">Sort retained records by populated</text>
+<text x="368.0" y="943.0" text-anchor="middle" font-family="Arial,sans-serif" font-size="12" fill="#142B42">requested fields, most complete first.</text>
+<rect x="216.0" y="1004.0" width="304.0" height="80" rx="16" fill="#DDE8F0" stroke="#40556B"/>
+<text x="368.0" y="1034.0" text-anchor="middle" font-family="Arial,sans-serif" font-size="12" fill="#142B42">Keep all retained providers. Preserve</text>
+<text x="368.0" y="1048.0" text-anchor="middle" font-family="Arial,sans-serif" font-size="12" fill="#142B42">records in JSON and aligned slots in</text>
+<text x="368.0" y="1062.0" text-anchor="middle" font-family="Arial,sans-serif" font-size="12" fill="#142B42">CSV/TXT.</text>
+<rect x="632.0" y="812.0" width="272.0" height="248.0" rx="3" fill="#F4F6F8" stroke="#40556B"/>
+<text x="768.0" y="863.0" text-anchor="middle" font-family="Arial,sans-serif" font-size="11" fill="#142B42">COMPATIBLE means:</text>
+<text x="768.0" y="877.0" text-anchor="middle" font-family="Arial,sans-serif" font-size="11" fill="#142B42">Non-missing names match, ignoring</text>
+<text x="768.0" y="891.0" text-anchor="middle" font-family="Arial,sans-serif" font-size="11" fill="#142B42">case.</text>
+<text x="768.0" y="905.0" text-anchor="middle" font-family="Arial,sans-serif" font-size="11" fill="#142B42">Every provider value either</text>
+<text x="768.0" y="919.0" text-anchor="middle" font-family="Arial,sans-serif" font-size="11" fill="#142B42">matches or is missing on one side.</text>
+<text x="768.0" y="933.0" text-anchor="middle" font-family="Arial,sans-serif" font-size="11" fill="#142B42">Conflicting phone, location or</text>
+<text x="768.0" y="947.0" text-anchor="middle" font-family="Arial,sans-serif" font-size="11" fill="#142B42">appointment data prevents merging.</text>
+<text x="768.0" y="961.0" text-anchor="middle" font-family="Arial,sans-serif" font-size="11" fill="#142B42"></text>
+<text x="768.0" y="975.0" text-anchor="middle" font-family="Arial,sans-serif" font-size="11" fill="#142B42">Completeness uses seven requested</text>
+<text x="768.0" y="989.0" text-anchor="middle" font-family="Arial,sans-serif" font-size="11" fill="#142B42">fields; provider street address</text>
+<text x="768.0" y="1003.0" text-anchor="middle" font-family="Arial,sans-serif" font-size="11" fill="#142B42">and Doctor/Facility classification</text>
+<text x="768.0" y="1017.0" text-anchor="middle" font-family="Arial,sans-serif" font-size="11" fill="#142B42">do not add to the score.</text>
+<rect x="40.0" y="18.4" width="880" height="40.0" rx="3" fill="#FFFFFF" stroke="none"/>
+<text x="480" y="42.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="24" fill="#142B42">03 Provider processing</text>
+<rect x="40.0" y="61.19999999999999" width="880" height="28.0" rx="3" fill="#FFFFFF" stroke="none"/>
+<text x="480" y="79.19999999999999" text-anchor="middle" font-family="Arial,sans-serif" font-size="11" fill="#142B42">Primary-section records first, followed by Special Instructions records</text>
+<rect x="40.0" y="1238.0" width="880" height="28.0" rx="3" fill="#FFFFFF" stroke="none"/>
+<text x="480" y="1256.0" text-anchor="middle" font-family="Arial,sans-serif" font-size="11" fill="#142B42">FCM Structured | AI/referral_schema.py + AI/bedrock_core.py | Page 3 of 4</text>
+<rect x="519.1999999999999" y="370.4" width="62.400000000000006" height="19.2" rx="3" fill="#FFFFFF" stroke="none"/>
+<text x="550.4" y="384.0" text-anchor="middle" font-family="Arial,sans-serif" font-size="11" fill="#142B42">Yes</text>
+<rect x="336.8" y="445.4" width="62.400000000000006" height="19.2" rx="3" fill="#FFFFFF" stroke="none"/>
+<text x="368.0" y="459.0" text-anchor="middle" font-family="Arial,sans-serif" font-size="11" fill="#142B42">No</text>
+<rect x="519.1999999999999" y="522.4" width="62.400000000000006" height="19.2" rx="3" fill="#FFFFFF" stroke="none"/>
+<text x="550.4" y="536.0" text-anchor="middle" font-family="Arial,sans-serif" font-size="11" fill="#142B42">No</text>
+<rect x="336.8" y="600.4" width="62.400000000000006" height="19.2" rx="3" fill="#FFFFFF" stroke="none"/>
+<text x="368.0" y="614.0" text-anchor="middle" font-family="Arial,sans-serif" font-size="11" fill="#142B42">Yes</text>
+<rect x="872.8" y="370.4" width="62.400000000000006" height="19.2" rx="3" fill="#FFFFFF" stroke="none"/>
+<text x="904.0" y="384.0" text-anchor="middle" font-family="Arial,sans-serif" font-size="11" fill="#142B42">Next</text>
+<rect x="728.8" y="598.8000000000001" width="62.400000000000006" height="19.2" rx="3" fill="#FFFFFF" stroke="none"/>
+<text x="760.0" y="612.4000000000001" text-anchor="middle" font-family="Arial,sans-serif" font-size="11" fill="#142B42">Next</text>
+<rect x="154.39999999999998" y="794.4" width="62.400000000000006" height="19.2" rx="3" fill="#FFFFFF" stroke="none"/>
+<text x="185.6" y="808.0" text-anchor="middle" font-family="Arial,sans-serif" font-size="11" fill="#142B42">Yes</text>
+<rect x="336.8" y="863.4000000000001" width="62.400000000000006" height="19.2" rx="3" fill="#FFFFFF" stroke="none"/>
+<text x="368.0" y="877.0000000000001" text-anchor="middle" font-family="Arial,sans-serif" font-size="11" fill="#142B42">No</text>
+</svg>

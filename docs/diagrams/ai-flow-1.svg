@@ -1,0 +1,104 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="1280" viewBox="0 0 960 1280">
+<defs><marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#40556B"/></marker></defs>
+<rect width="960" height="1280" fill="white"/>
+<polyline points="400,165.99999999999997 400,202.00000000000003" fill="none" stroke="#40556B" stroke-width="1.4"/>
+<polygon points="400,202.00000000000003 396.0,193.00000000000003 404.0,193.00000000000003" fill="#40556B"/>
+<polyline points="400,270.0 400,300.0" fill="none" stroke="#40556B" stroke-width="1.4"/>
+<polygon points="400,300.0 396.0,291.0 404.0,291.0" fill="#40556B"/>
+<polyline points="400,494.0 400,526.0" fill="none" stroke="#40556B" stroke-width="1.4"/>
+<polygon points="400,526.0 396.0,517.0 404.0,517.0" fill="#40556B"/>
+<polyline points="400,610.0 400,644.0" fill="none" stroke="#40556B" stroke-width="1.4"/>
+<polygon points="400,644.0 396.0,635.0 404.0,635.0" fill="#40556B"/>
+<polyline points="400,878.0 400,918.0" fill="none" stroke="#40556B" stroke-width="1.4"/>
+<polygon points="400,918.0 396.0,909.0 404.0,909.0" fill="#40556B"/>
+<polyline points="400,1002.0 400,1050.0" fill="none" stroke="#40556B" stroke-width="1.4"/>
+<polygon points="400,1050.0 396.0,1041.0 404.0,1041.0" fill="#40556B"/>
+<polyline points="400,388.0 400,426.0" fill="none" stroke="#40556B" stroke-width="1.4"/>
+<polygon points="400,426.0 396.0,417.0 404.0,417.0" fill="#40556B"/>
+<polyline points="552.0,344.0 680.0,344.0" fill="none" stroke="#40556B" stroke-width="1.4"/>
+<polygon points="680.0,344.0 671.0,348.0 671.0,340.0" fill="#40556B"/>
+<polyline points="400,740.0 400,793.9999999999999" fill="none" stroke="#40556B" stroke-width="1.4"/>
+<polygon points="400,793.9999999999999 396.0,784.9999999999999 404.0,784.9999999999999" fill="#40556B"/>
+<polyline points="552.0,692.0 680.0,692.0" fill="none" stroke="#40556B" stroke-width="1.4"/>
+<polygon points="680.0,692.0 671.0,696.0 671.0,688.0" fill="#40556B"/>
+<polyline points="800,648.0 800,554.0" fill="none" stroke="#40556B" stroke-width="1.4"/>
+<polygon points="800,554.0 804.0,563.0 796.0,563.0" fill="#40556B"/>
+<polyline points="680.0,520.0 608.0,520.0 608.0,568.0 552.0,568.0" fill="none" stroke="#40556B" stroke-width="1.4"/>
+<polygon points="552.0,568.0 561.0,564.0 561.0,572.0" fill="#40556B"/>
+<polyline points="800,736.0000000000001 800,801.9999999999999" fill="none" stroke="#40556B" stroke-width="1.4"/>
+<polygon points="800,801.9999999999999 796.0,792.9999999999999 804.0,792.9999999999999" fill="#40556B"/>
+<rect x="248.0" y="98.0" width="304.0" height="68.0" rx="16" fill="#DDE8F0" stroke="#40556B"/>
+<text x="400" y="136.0" text-anchor="middle" font-family="Arial,sans-serif" font-size="12" fill="#142B42">START: Select PDF, DOCX or TXT</text>
+<rect x="248.0" y="202.0" width="304.0" height="68.0" rx="3" fill="#EAF2FB" stroke="#40556B"/>
+<text x="400" y="233.0" text-anchor="middle" font-family="Arial,sans-serif" font-size="12" fill="#142B42">Extract embedded text; preserve page</text>
+<text x="400" y="247.0" text-anchor="middle" font-family="Arial,sans-serif" font-size="12" fill="#142B42">markers. Apply configured text limit.</text>
+<polygon points="400,300.0 552.0,344.0 400,388.0 248.0,344.0" fill="#FFF2CC" stroke="#40556B"/>
+<text x="400" y="341.0" text-anchor="middle" font-family="Arial,sans-serif" font-size="12" fill="#142B42">Readable text and connection settings</text>
+<text x="400" y="355.0" text-anchor="middle" font-family="Arial,sans-serif" font-size="12" fill="#142B42">ready?</text>
+<rect x="680.0" y="310.0" width="240" height="68.0" rx="3" fill="#FCE4E4" stroke="#40556B"/>
+<text x="800" y="334.0" text-anchor="middle" font-family="Arial,sans-serif" font-size="12" fill="#142B42">Show input/configuration</text>
+<text x="800" y="348.0" text-anchor="middle" font-family="Arial,sans-serif" font-size="12" fill="#142B42">error. Correct input and try</text>
+<text x="800" y="362.0" text-anchor="middle" font-family="Arial,sans-serif" font-size="12" fill="#142B42">again.</text>
+<rect x="248.0" y="426.0" width="304.0" height="68.0" rx="3" fill="#EAF2FB" stroke="#40556B"/>
+<text x="400" y="450.0" text-anchor="middle" font-family="Arial,sans-serif" font-size="12" fill="#142B42">User selects Extract fields. Send text</text>
+<text x="400" y="464.0" text-anchor="middle" font-family="Arial,sans-serif" font-size="12" fill="#142B42">and shared extraction prompt to</text>
+<text x="400" y="478.0" text-anchor="middle" font-family="Arial,sans-serif" font-size="12" fill="#142B42">Bedrock.</text>
+<rect x="248.0" y="526.0" width="304.0" height="84.0" rx="3" fill="#EDE7FA" stroke="#40556B"/>
+<text x="400" y="558.0" text-anchor="middle" font-family="Arial,sans-serif" font-size="12" fill="#142B42">AI returns section values, separate</text>
+<text x="400" y="572.0" text-anchor="middle" font-family="Arial,sans-serif" font-size="12" fill="#142B42">Special Instructions, and provider</text>
+<text x="400" y="586.0" text-anchor="middle" font-family="Arial,sans-serif" font-size="12" fill="#142B42">records as JSON.</text>
+<polygon points="400,644.0 552.0,692.0 400,740.0 248.0,692.0" fill="#FFF2CC" stroke="#40556B"/>
+<text x="400" y="689.0" text-anchor="middle" font-family="Arial,sans-serif" font-size="12" fill="#142B42">Parse and normalize output (pages</text>
+<text x="400" y="703.0" text-anchor="middle" font-family="Arial,sans-serif" font-size="12" fill="#142B42">2-3). Accepted JSON and field types?</text>
+<polygon points="800,648.0 920.0,692.0 800,736.0 680.0,692.0" fill="#FFF2CC" stroke="#40556B"/>
+<text x="800" y="696.0" text-anchor="middle" font-family="Arial,sans-serif" font-size="12" fill="#142B42">First invalid response?</text>
+<rect x="680.0" y="486.0" width="240" height="68.0" rx="3" fill="#EAF2FB" stroke="#40556B"/>
+<text x="800" y="517.0" text-anchor="middle" font-family="Arial,sans-serif" font-size="12" fill="#142B42">Retry once with a complete-</text>
+<text x="800" y="531.0" text-anchor="middle" font-family="Arial,sans-serif" font-size="12" fill="#142B42">JSON reminder.</text>
+<rect x="680.0" y="802.0" width="240" height="68.0" rx="3" fill="#FCE4E4" stroke="#40556B"/>
+<text x="800" y="833.0" text-anchor="middle" font-family="Arial,sans-serif" font-size="12" fill="#142B42">Show extraction error. No</text>
+<text x="800" y="847.0" text-anchor="middle" font-family="Arial,sans-serif" font-size="12" fill="#142B42">completed result.</text>
+<rect x="248.0" y="794.0" width="304.0" height="84.0" rx="3" fill="#EAF2FB" stroke="#40556B"/>
+<text x="400" y="826.0" text-anchor="middle" font-family="Arial,sans-serif" font-size="12" fill="#142B42">Compute completeness and NEXT STEP</text>
+<text x="400" y="840.0" text-anchor="middle" font-family="Arial,sans-serif" font-size="12" fill="#142B42">(page 4). Missing facts do not trigger</text>
+<text x="400" y="854.0" text-anchor="middle" font-family="Arial,sans-serif" font-size="12" fill="#142B42">a retry.</text>
+<rect x="248.0" y="918.0" width="304.0" height="84.0" rx="3" fill="#EAF2FB" stroke="#40556B"/>
+<text x="400" y="950.0" text-anchor="middle" font-family="Arial,sans-serif" font-size="12" fill="#142B42">Display five sections + four optional</text>
+<text x="400" y="964.0" text-anchor="middle" font-family="Arial,sans-serif" font-size="12" fill="#142B42">extras. Export grouped JSON, CSV or</text>
+<text x="400" y="978.0" text-anchor="middle" font-family="Arial,sans-serif" font-size="12" fill="#142B42">TXT.</text>
+<rect x="248.0" y="1050.0" width="304.0" height="76.0" rx="16" fill="#DDE8F0" stroke="#40556B"/>
+<text x="400" y="1085.0" text-anchor="middle" font-family="Arial,sans-serif" font-size="12" fill="#142B42">END: Human reviews results. No</text>
+<text x="400" y="1099.0" text-anchor="middle" font-family="Arial,sans-serif" font-size="12" fill="#142B42">automatic CMS handoff.</text>
+<rect x="676.0" y="940.0" width="248.0" height="200.0" rx="3" fill="#F4F6F8" stroke="#40556B"/>
+<text x="800" y="974.0" text-anchor="middle" font-family="Arial,sans-serif" font-size="11" fill="#142B42">AI interprets document context;</text>
+<text x="800" y="988.0" text-anchor="middle" font-family="Arial,sans-serif" font-size="11" fill="#142B42">Python validates structure,</text>
+<text x="800" y="1002.0" text-anchor="middle" font-family="Arial,sans-serif" font-size="11" fill="#142B42">applies fallback and checks</text>
+<text x="800" y="1016.0" text-anchor="middle" font-family="Arial,sans-serif" font-size="11" fill="#142B42">completeness.</text>
+<text x="800" y="1030.0" text-anchor="middle" font-family="Arial,sans-serif" font-size="11" fill="#142B42"></text>
+<text x="800" y="1044.0" text-anchor="middle" font-family="Arial,sans-serif" font-size="11" fill="#142B42">PDF extraction uses embedded</text>
+<text x="800" y="1058.0" text-anchor="middle" font-family="Arial,sans-serif" font-size="11" fill="#142B42">text, not OCR. API/transport</text>
+<text x="800" y="1072.0" text-anchor="middle" font-family="Arial,sans-serif" font-size="11" fill="#142B42">failures surface as errors;</text>
+<text x="800" y="1086.0" text-anchor="middle" font-family="Arial,sans-serif" font-size="11" fill="#142B42">malformed-output retry is</text>
+<text x="800" y="1100.0" text-anchor="middle" font-family="Arial,sans-serif" font-size="11" fill="#142B42">separate from client transport</text>
+<text x="800" y="1114.0" text-anchor="middle" font-family="Arial,sans-serif" font-size="11" fill="#142B42">retries.</text>
+<rect x="40.0" y="18.4" width="880" height="40.0" rx="3" fill="#FFFFFF" stroke="none"/>
+<text x="480" y="42.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="24" fill="#142B42">01 Overall flow</text>
+<rect x="40.0" y="61.19999999999999" width="880" height="28.0" rx="3" fill="#FFFFFF" stroke="none"/>
+<text x="480" y="79.19999999999999" text-anchor="middle" font-family="Arial,sans-serif" font-size="11" fill="#142B42">AI-FCM Bedrock v1.3.0 | Current implementation | 28 September 2026</text>
+<rect x="40.0" y="1238.0" width="880" height="28.0" rx="3" fill="#FFFFFF" stroke="none"/>
+<text x="480" y="1256.0" text-anchor="middle" font-family="Arial,sans-serif" font-size="11" fill="#142B42">FCM Structured | AI/referral_schema.py + AI/bedrock_core.py | Page 1 of 4</text>
+<rect x="368.8" y="397.4" width="62.400000000000006" height="19.2" rx="3" fill="#FFFFFF" stroke="none"/>
+<text x="400.0" y="411.0" text-anchor="middle" font-family="Arial,sans-serif" font-size="11" fill="#142B42">Yes</text>
+<rect x="551.1999999999999" y="334.4" width="62.400000000000006" height="19.2" rx="3" fill="#FFFFFF" stroke="none"/>
+<text x="582.4" y="348.0" text-anchor="middle" font-family="Arial,sans-serif" font-size="11" fill="#142B42">No</text>
+<rect x="368.8" y="757.3999999999999" width="62.400000000000006" height="19.2" rx="3" fill="#FFFFFF" stroke="none"/>
+<text x="400.0" y="770.9999999999999" text-anchor="middle" font-family="Arial,sans-serif" font-size="11" fill="#142B42">Yes</text>
+<rect x="551.1999999999999" y="682.4" width="62.400000000000006" height="19.2" rx="3" fill="#FFFFFF" stroke="none"/>
+<text x="582.4" y="696.0" text-anchor="middle" font-family="Arial,sans-serif" font-size="11" fill="#142B42">No</text>
+<rect x="768.8" y="608.0" width="62.400000000000006" height="19.2" rx="3" fill="#FFFFFF" stroke="none"/>
+<text x="800.0" y="621.6" text-anchor="middle" font-family="Arial,sans-serif" font-size="11" fill="#142B42">Yes</text>
+<rect x="618.3999999999999" y="510.4" width="62.400000000000006" height="19.2" rx="3" fill="#FFFFFF" stroke="none"/>
+<text x="649.5999999999999" y="524.0" text-anchor="middle" font-family="Arial,sans-serif" font-size="11" fill="#142B42">Re-send</text>
+<rect x="768.8" y="756.8000000000001" width="62.400000000000006" height="19.2" rx="3" fill="#FFFFFF" stroke="none"/>
+<text x="800.0" y="770.4000000000001" text-anchor="middle" font-family="Arial,sans-serif" font-size="11" fill="#142B42">No</text>
+</svg>

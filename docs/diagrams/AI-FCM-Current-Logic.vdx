@@ -1,0 +1,6370 @@
+<?xml version='1.0' encoding='utf-8'?>
+<VisioDocument xmlns="http://schemas.microsoft.com/visio/2003/core" start="190" metric="0" DocLangID="1033">
+  <DocumentProperties>
+    <Title>AI-FCM extraction logic v1.3.0</Title>
+    <Creator>FCM Structured</Creator>
+  </DocumentProperties>
+  <FaceNames>
+    <FaceName ID="0" Name="Arial" UnicodeRanges="-1 -1 -1 -1" CharSets="0 0" Panose="2 11 6 4 2 2 2 2 2 4" />
+  </FaceNames>
+  <Pages>
+    <Page ID="0" NameU="01 Overall flow" Name="01 Overall flow">
+      <PageSheet>
+        <PageProps>
+          <PageWidth>12</PageWidth>
+          <PageHeight>16</PageHeight>
+        </PageProps>
+      </PageSheet>
+      <Shapes>
+        <Shape ID="100" NameU="Connector.0" Type="Shape">
+          <XForm>
+            <PinX>6</PinX>
+            <PinY>8</PinY>
+            <Width>12</Width>
+            <Height>16</Height>
+            <LocPinX>6</LocPinX>
+            <LocPinY>8</LocPinY>
+            <Angle>0</Angle>
+          </XForm>
+          <Line>
+            <LineColor>#40556B</LineColor>
+            <LineWeight>0.014</LineWeight>
+            <EndArrow>4</EndArrow>
+          </Line>
+          <Geom IX="0">
+            <NoFill>1</NoFill>
+            <MoveTo IX="1">
+              <X>5</X>
+              <Y>13.925</Y>
+            </MoveTo>
+            <LineTo IX="2">
+              <X>5</X>
+              <Y>13.475</Y>
+            </LineTo>
+          </Geom>
+        </Shape>
+        <Shape ID="101" NameU="Connector.1" Type="Shape">
+          <XForm>
+            <PinX>6</PinX>
+            <PinY>8</PinY>
+            <Width>12</Width>
+            <Height>16</Height>
+            <LocPinX>6</LocPinX>
+            <LocPinY>8</LocPinY>
+            <Angle>0</Angle>
+          </XForm>
+          <Line>
+            <LineColor>#40556B</LineColor>
+            <LineWeight>0.014</LineWeight>
+            <EndArrow>4</EndArrow>
+          </Line>
+          <Geom IX="0">
+            <NoFill>1</NoFill>
+            <MoveTo IX="1">
+              <X>5</X>
+              <Y>12.625</Y>
+            </MoveTo>
+            <LineTo IX="2">
+              <X>5</X>
+              <Y>12.25</Y>
+            </LineTo>
+          </Geom>
+        </Shape>
+        <Shape ID="102" NameU="Connector.2" Type="Shape">
+          <XForm>
+            <PinX>6</PinX>
+            <PinY>8</PinY>
+            <Width>12</Width>
+            <Height>16</Height>
+            <LocPinX>6</LocPinX>
+            <LocPinY>8</LocPinY>
+            <Angle>0</Angle>
+          </XForm>
+          <Line>
+            <LineColor>#40556B</LineColor>
+            <LineWeight>0.014</LineWeight>
+            <EndArrow>4</EndArrow>
+          </Line>
+          <Geom IX="0">
+            <NoFill>1</NoFill>
+            <MoveTo IX="1">
+              <X>5</X>
+              <Y>9.825</Y>
+            </MoveTo>
+            <LineTo IX="2">
+              <X>5</X>
+              <Y>9.425</Y>
+            </LineTo>
+          </Geom>
+        </Shape>
+        <Shape ID="103" NameU="Connector.3" Type="Shape">
+          <XForm>
+            <PinX>6</PinX>
+            <PinY>8</PinY>
+            <Width>12</Width>
+            <Height>16</Height>
+            <LocPinX>6</LocPinX>
+            <LocPinY>8</LocPinY>
+            <Angle>0</Angle>
+          </XForm>
+          <Line>
+            <LineColor>#40556B</LineColor>
+            <LineWeight>0.014</LineWeight>
+            <EndArrow>4</EndArrow>
+          </Line>
+          <Geom IX="0">
+            <NoFill>1</NoFill>
+            <MoveTo IX="1">
+              <X>5</X>
+              <Y>8.375</Y>
+            </MoveTo>
+            <LineTo IX="2">
+              <X>5</X>
+              <Y>7.949999999999999</Y>
+            </LineTo>
+          </Geom>
+        </Shape>
+        <Shape ID="104" NameU="Connector.4" Type="Shape">
+          <XForm>
+            <PinX>6</PinX>
+            <PinY>8</PinY>
+            <Width>12</Width>
+            <Height>16</Height>
+            <LocPinX>6</LocPinX>
+            <LocPinY>8</LocPinY>
+            <Angle>0</Angle>
+          </XForm>
+          <Line>
+            <LineColor>#40556B</LineColor>
+            <LineWeight>0.014</LineWeight>
+            <EndArrow>4</EndArrow>
+          </Line>
+          <Geom IX="0">
+            <NoFill>1</NoFill>
+            <MoveTo IX="1">
+              <X>5</X>
+              <Y>5.025</Y>
+            </MoveTo>
+            <LineTo IX="2">
+              <X>5</X>
+              <Y>4.525</Y>
+            </LineTo>
+          </Geom>
+        </Shape>
+        <Shape ID="105" NameU="Connector.5" Type="Shape">
+          <XForm>
+            <PinX>6</PinX>
+            <PinY>8</PinY>
+            <Width>12</Width>
+            <Height>16</Height>
+            <LocPinX>6</LocPinX>
+            <LocPinY>8</LocPinY>
+            <Angle>0</Angle>
+          </XForm>
+          <Line>
+            <LineColor>#40556B</LineColor>
+            <LineWeight>0.014</LineWeight>
+            <EndArrow>4</EndArrow>
+          </Line>
+          <Geom IX="0">
+            <NoFill>1</NoFill>
+            <MoveTo IX="1">
+              <X>5</X>
+              <Y>3.4749999999999996</Y>
+            </MoveTo>
+            <LineTo IX="2">
+              <X>5</X>
+              <Y>2.875</Y>
+            </LineTo>
+          </Geom>
+        </Shape>
+        <Shape ID="106" NameU="Connector.6" Type="Shape">
+          <XForm>
+            <PinX>6</PinX>
+            <PinY>8</PinY>
+            <Width>12</Width>
+            <Height>16</Height>
+            <LocPinX>6</LocPinX>
+            <LocPinY>8</LocPinY>
+            <Angle>0</Angle>
+          </XForm>
+          <Line>
+            <LineColor>#40556B</LineColor>
+            <LineWeight>0.014</LineWeight>
+            <EndArrow>4</EndArrow>
+          </Line>
+          <Geom IX="0">
+            <NoFill>1</NoFill>
+            <MoveTo IX="1">
+              <X>5</X>
+              <Y>11.15</Y>
+            </MoveTo>
+            <LineTo IX="2">
+              <X>5</X>
+              <Y>10.675</Y>
+            </LineTo>
+          </Geom>
+        </Shape>
+        <Shape ID="107" NameU="Connector.7" Type="Shape">
+          <XForm>
+            <PinX>6</PinX>
+            <PinY>8</PinY>
+            <Width>12</Width>
+            <Height>16</Height>
+            <LocPinX>6</LocPinX>
+            <LocPinY>8</LocPinY>
+            <Angle>0</Angle>
+          </XForm>
+          <Line>
+            <LineColor>#40556B</LineColor>
+            <LineWeight>0.014</LineWeight>
+            <EndArrow>4</EndArrow>
+          </Line>
+          <Geom IX="0">
+            <NoFill>1</NoFill>
+            <MoveTo IX="1">
+              <X>6.9</X>
+              <Y>11.7</Y>
+            </MoveTo>
+            <LineTo IX="2">
+              <X>8.5</X>
+              <Y>11.7</Y>
+            </LineTo>
+          </Geom>
+        </Shape>
+        <Shape ID="108" NameU="Connector.8" Type="Shape">
+          <XForm>
+            <PinX>6</PinX>
+            <PinY>8</PinY>
+            <Width>12</Width>
+            <Height>16</Height>
+            <LocPinX>6</LocPinX>
+            <LocPinY>8</LocPinY>
+            <Angle>0</Angle>
+          </XForm>
+          <Line>
+            <LineColor>#40556B</LineColor>
+            <LineWeight>0.014</LineWeight>
+            <EndArrow>4</EndArrow>
+          </Line>
+          <Geom IX="0">
+            <NoFill>1</NoFill>
+            <MoveTo IX="1">
+              <X>5</X>
+              <Y>6.75</Y>
+            </MoveTo>
+            <LineTo IX="2">
+              <X>5</X>
+              <Y>6.075000000000001</Y>
+            </LineTo>
+          </Geom>
+        </Shape>
+        <Shape ID="109" NameU="Connector.9" Type="Shape">
+          <XForm>
+            <PinX>6</PinX>
+            <PinY>8</PinY>
+            <Width>12</Width>
+            <Height>16</Height>
+            <LocPinX>6</LocPinX>
+            <LocPinY>8</LocPinY>
+            <Angle>0</Angle>
+          </XForm>
+          <Line>
+            <LineColor>#40556B</LineColor>
+            <LineWeight>0.014</LineWeight>
+            <EndArrow>4</EndArrow>
+          </Line>
+          <Geom IX="0">
+            <NoFill>1</NoFill>
+            <MoveTo IX="1">
+              <X>6.9</X>
+              <Y>7.35</Y>
+            </MoveTo>
+            <LineTo IX="2">
+              <X>8.5</X>
+              <Y>7.35</Y>
+            </LineTo>
+          </Geom>
+        </Shape>
+        <Shape ID="110" NameU="Connector.10" Type="Shape">
+          <XForm>
+            <PinX>6</PinX>
+            <PinY>8</PinY>
+            <Width>12</Width>
+            <Height>16</Height>
+            <LocPinX>6</LocPinX>
+            <LocPinY>8</LocPinY>
+            <Angle>0</Angle>
+          </XForm>
+          <Line>
+            <LineColor>#40556B</LineColor>
+            <LineWeight>0.014</LineWeight>
+            <EndArrow>4</EndArrow>
+          </Line>
+          <Geom IX="0">
+            <NoFill>1</NoFill>
+            <MoveTo IX="1">
+              <X>10</X>
+              <Y>7.9</Y>
+            </MoveTo>
+            <LineTo IX="2">
+              <X>10</X>
+              <Y>9.075</Y>
+            </LineTo>
+          </Geom>
+        </Shape>
+        <Shape ID="111" NameU="Connector.11" Type="Shape">
+          <XForm>
+            <PinX>6</PinX>
+            <PinY>8</PinY>
+            <Width>12</Width>
+            <Height>16</Height>
+            <LocPinX>6</LocPinX>
+            <LocPinY>8</LocPinY>
+            <Angle>0</Angle>
+          </XForm>
+          <Line>
+            <LineColor>#40556B</LineColor>
+            <LineWeight>0.014</LineWeight>
+            <EndArrow>4</EndArrow>
+          </Line>
+          <Geom IX="0">
+            <NoFill>1</NoFill>
+            <MoveTo IX="1">
+              <X>8.5</X>
+              <Y>9.5</Y>
+            </MoveTo>
+            <LineTo IX="2">
+              <X>7.6</X>
+              <Y>9.5</Y>
+            </LineTo>
+            <LineTo IX="3">
+              <X>7.6</X>
+              <Y>8.9</Y>
+            </LineTo>
+            <LineTo IX="4">
+              <X>6.9</X>
+              <Y>8.9</Y>
+            </LineTo>
+          </Geom>
+        </Shape>
+        <Shape ID="112" NameU="Connector.12" Type="Shape">
+          <XForm>
+            <PinX>6</PinX>
+            <PinY>8</PinY>
+            <Width>12</Width>
+            <Height>16</Height>
+            <LocPinX>6</LocPinX>
+            <LocPinY>8</LocPinY>
+            <Angle>0</Angle>
+          </XForm>
+          <Line>
+            <LineColor>#40556B</LineColor>
+            <LineWeight>0.014</LineWeight>
+            <EndArrow>4</EndArrow>
+          </Line>
+          <Geom IX="0">
+            <NoFill>1</NoFill>
+            <MoveTo IX="1">
+              <X>10</X>
+              <Y>6.799999999999999</Y>
+            </MoveTo>
+            <LineTo IX="2">
+              <X>10</X>
+              <Y>5.975000000000001</Y>
+            </LineTo>
+          </Geom>
+        </Shape>
+        <Shape ID="1" NameU="start" Type="Shape">
+          <XForm>
+            <PinX>5</PinX>
+            <PinY>14.35</PinY>
+            <Width>3.8</Width>
+            <Height>0.85</Height>
+            <LocPinX>1.9</LocPinX>
+            <LocPinY>0.425</LocPinY>
+            <Angle>0</Angle>
+          </XForm>
+          <Line>
+            <LineWeight>0.012</LineWeight>
+            <LineColor>#40556B</LineColor>
+            <LinePattern>1</LinePattern>
+          </Line>
+          <Fill>
+            <FillForegnd>#DDE8F0</FillForegnd>
+            <FillPattern>1</FillPattern>
+          </Fill>
+          <TextBlock>
+            <VerticalAlign>1</VerticalAlign>
+            <LeftMargin>0.07</LeftMargin>
+            <RightMargin>0.07</RightMargin>
+            <TopMargin>0.07</TopMargin>
+            <BottomMargin>0.07</BottomMargin>
+          </TextBlock>
+          <Char IX="0">
+            <Font>0</Font>
+            <Size>0.15</Size>
+            <Color>#142B42</Color>
+          </Char>
+          <Para IX="0">
+            <HorzAlign>1</HorzAlign>
+          </Para>
+          <Geom IX="0">
+            <MoveTo IX="1">
+              <X>0</X>
+              <Y>0</Y>
+            </MoveTo>
+            <LineTo IX="2">
+              <X>3.8</X>
+              <Y>0</Y>
+            </LineTo>
+            <LineTo IX="3">
+              <X>3.8</X>
+              <Y>0.85</Y>
+            </LineTo>
+            <LineTo IX="4">
+              <X>0</X>
+              <Y>0.85</Y>
+            </LineTo>
+            <LineTo IX="5">
+              <X>0</X>
+              <Y>0</Y>
+            </LineTo>
+          </Geom>
+          <Text>START: Select PDF, DOCX or TXT</Text>
+        </Shape>
+        <Shape ID="2" NameU="read" Type="Shape">
+          <XForm>
+            <PinX>5</PinX>
+            <PinY>13.05</PinY>
+            <Width>3.8</Width>
+            <Height>0.85</Height>
+            <LocPinX>1.9</LocPinX>
+            <LocPinY>0.425</LocPinY>
+            <Angle>0</Angle>
+          </XForm>
+          <Line>
+            <LineWeight>0.012</LineWeight>
+            <LineColor>#40556B</LineColor>
+            <LinePattern>1</LinePattern>
+          </Line>
+          <Fill>
+            <FillForegnd>#EAF2FB</FillForegnd>
+            <FillPattern>1</FillPattern>
+          </Fill>
+          <TextBlock>
+            <VerticalAlign>1</VerticalAlign>
+            <LeftMargin>0.07</LeftMargin>
+            <RightMargin>0.07</RightMargin>
+            <TopMargin>0.07</TopMargin>
+            <BottomMargin>0.07</BottomMargin>
+          </TextBlock>
+          <Char IX="0">
+            <Font>0</Font>
+            <Size>0.15</Size>
+            <Color>#142B42</Color>
+          </Char>
+          <Para IX="0">
+            <HorzAlign>1</HorzAlign>
+          </Para>
+          <Geom IX="0">
+            <MoveTo IX="1">
+              <X>0</X>
+              <Y>0</Y>
+            </MoveTo>
+            <LineTo IX="2">
+              <X>3.8</X>
+              <Y>0</Y>
+            </LineTo>
+            <LineTo IX="3">
+              <X>3.8</X>
+              <Y>0.85</Y>
+            </LineTo>
+            <LineTo IX="4">
+              <X>0</X>
+              <Y>0.85</Y>
+            </LineTo>
+            <LineTo IX="5">
+              <X>0</X>
+              <Y>0</Y>
+            </LineTo>
+          </Geom>
+          <Text>Extract embedded text; preserve page markers. Apply configured text limit.</Text>
+        </Shape>
+        <Shape ID="3" NameU="ready" Type="Shape">
+          <XForm>
+            <PinX>5</PinX>
+            <PinY>11.7</PinY>
+            <Width>3.8</Width>
+            <Height>1.1</Height>
+            <LocPinX>1.9</LocPinX>
+            <LocPinY>0.55</LocPinY>
+            <Angle>0</Angle>
+          </XForm>
+          <Line>
+            <LineWeight>0.012</LineWeight>
+            <LineColor>#40556B</LineColor>
+            <LinePattern>1</LinePattern>
+          </Line>
+          <Fill>
+            <FillForegnd>#FFF2CC</FillForegnd>
+            <FillPattern>1</FillPattern>
+          </Fill>
+          <TextBlock>
+            <VerticalAlign>1</VerticalAlign>
+            <LeftMargin>0.07</LeftMargin>
+            <RightMargin>0.07</RightMargin>
+            <TopMargin>0.07</TopMargin>
+            <BottomMargin>0.07</BottomMargin>
+          </TextBlock>
+          <Char IX="0">
+            <Font>0</Font>
+            <Size>0.15</Size>
+            <Color>#142B42</Color>
+          </Char>
+          <Para IX="0">
+            <HorzAlign>1</HorzAlign>
+          </Para>
+          <Geom IX="0">
+            <MoveTo IX="1">
+              <X>1.9</X>
+              <Y>1.1</Y>
+            </MoveTo>
+            <LineTo IX="2">
+              <X>3.8</X>
+              <Y>0.55</Y>
+            </LineTo>
+            <LineTo IX="3">
+              <X>1.9</X>
+              <Y>0</Y>
+            </LineTo>
+            <LineTo IX="4">
+              <X>0</X>
+              <Y>0.55</Y>
+            </LineTo>
+            <LineTo IX="5">
+              <X>1.9</X>
+              <Y>1.1</Y>
+            </LineTo>
+          </Geom>
+          <Text>Readable text and connection settings ready?</Text>
+        </Shape>
+        <Shape ID="4" NameU="input_error" Type="Shape">
+          <XForm>
+            <PinX>10</PinX>
+            <PinY>11.7</PinY>
+            <Width>3</Width>
+            <Height>0.85</Height>
+            <LocPinX>1.5</LocPinX>
+            <LocPinY>0.425</LocPinY>
+            <Angle>0</Angle>
+          </XForm>
+          <Line>
+            <LineWeight>0.012</LineWeight>
+            <LineColor>#40556B</LineColor>
+            <LinePattern>1</LinePattern>
+          </Line>
+          <Fill>
+            <FillForegnd>#FCE4E4</FillForegnd>
+            <FillPattern>1</FillPattern>
+          </Fill>
+          <TextBlock>
+            <VerticalAlign>1</VerticalAlign>
+            <LeftMargin>0.07</LeftMargin>
+            <RightMargin>0.07</RightMargin>
+            <TopMargin>0.07</TopMargin>
+            <BottomMargin>0.07</BottomMargin>
+          </TextBlock>
+          <Char IX="0">
+            <Font>0</Font>
+            <Size>0.15</Size>
+            <Color>#142B42</Color>
+          </Char>
+          <Para IX="0">
+            <HorzAlign>1</HorzAlign>
+          </Para>
+          <Geom IX="0">
+            <MoveTo IX="1">
+              <X>0</X>
+              <Y>0</Y>
+            </MoveTo>
+            <LineTo IX="2">
+              <X>3</X>
+              <Y>0</Y>
+            </LineTo>
+            <LineTo IX="3">
+              <X>3</X>
+              <Y>0.85</Y>
+            </LineTo>
+            <LineTo IX="4">
+              <X>0</X>
+              <Y>0.85</Y>
+            </LineTo>
+            <LineTo IX="5">
+              <X>0</X>
+              <Y>0</Y>
+            </LineTo>
+          </Geom>
+          <Text>Show input/configuration error. Correct input and try again.</Text>
+        </Shape>
+        <Shape ID="5" NameU="send" Type="Shape">
+          <XForm>
+            <PinX>5</PinX>
+            <PinY>10.25</PinY>
+            <Width>3.8</Width>
+            <Height>0.85</Height>
+            <LocPinX>1.9</LocPinX>
+            <LocPinY>0.425</LocPinY>
+            <Angle>0</Angle>
+          </XForm>
+          <Line>
+            <LineWeight>0.012</LineWeight>
+            <LineColor>#40556B</LineColor>
+            <LinePattern>1</LinePattern>
+          </Line>
+          <Fill>
+            <FillForegnd>#EAF2FB</FillForegnd>
+            <FillPattern>1</FillPattern>
+          </Fill>
+          <TextBlock>
+            <VerticalAlign>1</VerticalAlign>
+            <LeftMargin>0.07</LeftMargin>
+            <RightMargin>0.07</RightMargin>
+            <TopMargin>0.07</TopMargin>
+            <BottomMargin>0.07</BottomMargin>
+          </TextBlock>
+          <Char IX="0">
+            <Font>0</Font>
+            <Size>0.15</Size>
+            <Color>#142B42</Color>
+          </Char>
+          <Para IX="0">
+            <HorzAlign>1</HorzAlign>
+          </Para>
+          <Geom IX="0">
+            <MoveTo IX="1">
+              <X>0</X>
+              <Y>0</Y>
+            </MoveTo>
+            <LineTo IX="2">
+              <X>3.8</X>
+              <Y>0</Y>
+            </LineTo>
+            <LineTo IX="3">
+              <X>3.8</X>
+              <Y>0.85</Y>
+            </LineTo>
+            <LineTo IX="4">
+              <X>0</X>
+              <Y>0.85</Y>
+            </LineTo>
+            <LineTo IX="5">
+              <X>0</X>
+              <Y>0</Y>
+            </LineTo>
+          </Geom>
+          <Text>User selects Extract fields. Send text and shared extraction prompt to Bedrock.</Text>
+        </Shape>
+        <Shape ID="6" NameU="ai" Type="Shape">
+          <XForm>
+            <PinX>5</PinX>
+            <PinY>8.9</PinY>
+            <Width>3.8</Width>
+            <Height>1.05</Height>
+            <LocPinX>1.9</LocPinX>
+            <LocPinY>0.525</LocPinY>
+            <Angle>0</Angle>
+          </XForm>
+          <Line>
+            <LineWeight>0.012</LineWeight>
+            <LineColor>#40556B</LineColor>
+            <LinePattern>1</LinePattern>
+          </Line>
+          <Fill>
+            <FillForegnd>#EDE7FA</FillForegnd>
+            <FillPattern>1</FillPattern>
+          </Fill>
+          <TextBlock>
+            <VerticalAlign>1</VerticalAlign>
+            <LeftMargin>0.07</LeftMargin>
+            <RightMargin>0.07</RightMargin>
+            <TopMargin>0.07</TopMargin>
+            <BottomMargin>0.07</BottomMargin>
+          </TextBlock>
+          <Char IX="0">
+            <Font>0</Font>
+            <Size>0.15</Size>
+            <Color>#142B42</Color>
+          </Char>
+          <Para IX="0">
+            <HorzAlign>1</HorzAlign>
+          </Para>
+          <Geom IX="0">
+            <MoveTo IX="1">
+              <X>0</X>
+              <Y>0</Y>
+            </MoveTo>
+            <LineTo IX="2">
+              <X>3.8</X>
+              <Y>0</Y>
+            </LineTo>
+            <LineTo IX="3">
+              <X>3.8</X>
+              <Y>1.05</Y>
+            </LineTo>
+            <LineTo IX="4">
+              <X>0</X>
+              <Y>1.05</Y>
+            </LineTo>
+            <LineTo IX="5">
+              <X>0</X>
+              <Y>0</Y>
+            </LineTo>
+          </Geom>
+          <Text>AI returns section values, separate Special Instructions, and provider records as JSON.</Text>
+        </Shape>
+        <Shape ID="7" NameU="valid" Type="Shape">
+          <XForm>
+            <PinX>5</PinX>
+            <PinY>7.35</PinY>
+            <Width>3.8</Width>
+            <Height>1.2</Height>
+            <LocPinX>1.9</LocPinX>
+            <LocPinY>0.6</LocPinY>
+            <Angle>0</Angle>
+          </XForm>
+          <Line>
+            <LineWeight>0.012</LineWeight>
+            <LineColor>#40556B</LineColor>
+            <LinePattern>1</LinePattern>
+          </Line>
+          <Fill>
+            <FillForegnd>#FFF2CC</FillForegnd>
+            <FillPattern>1</FillPattern>
+          </Fill>
+          <TextBlock>
+            <VerticalAlign>1</VerticalAlign>
+            <LeftMargin>0.07</LeftMargin>
+            <RightMargin>0.07</RightMargin>
+            <TopMargin>0.07</TopMargin>
+            <BottomMargin>0.07</BottomMargin>
+          </TextBlock>
+          <Char IX="0">
+            <Font>0</Font>
+            <Size>0.15</Size>
+            <Color>#142B42</Color>
+          </Char>
+          <Para IX="0">
+            <HorzAlign>1</HorzAlign>
+          </Para>
+          <Geom IX="0">
+            <MoveTo IX="1">
+              <X>1.9</X>
+              <Y>1.2</Y>
+            </MoveTo>
+            <LineTo IX="2">
+              <X>3.8</X>
+              <Y>0.6</Y>
+            </LineTo>
+            <LineTo IX="3">
+              <X>1.9</X>
+              <Y>0</Y>
+            </LineTo>
+            <LineTo IX="4">
+              <X>0</X>
+              <Y>0.6</Y>
+            </LineTo>
+            <LineTo IX="5">
+              <X>1.9</X>
+              <Y>1.2</Y>
+            </LineTo>
+          </Geom>
+          <Text>Parse and normalize output (pages 2-3). Accepted JSON and field types?</Text>
+        </Shape>
+        <Shape ID="8" NameU="retry" Type="Shape">
+          <XForm>
+            <PinX>10</PinX>
+            <PinY>7.35</PinY>
+            <Width>3</Width>
+            <Height>1.1</Height>
+            <LocPinX>1.5</LocPinX>
+            <LocPinY>0.55</LocPinY>
+            <Angle>0</Angle>
+          </XForm>
+          <Line>
+            <LineWeight>0.012</LineWeight>
+            <LineColor>#40556B</LineColor>
+            <LinePattern>1</LinePattern>
+          </Line>
+          <Fill>
+            <FillForegnd>#FFF2CC</FillForegnd>
+            <FillPattern>1</FillPattern>
+          </Fill>
+          <TextBlock>
+            <VerticalAlign>1</VerticalAlign>
+            <LeftMargin>0.07</LeftMargin>
+            <RightMargin>0.07</RightMargin>
+            <TopMargin>0.07</TopMargin>
+            <BottomMargin>0.07</BottomMargin>
+          </TextBlock>
+          <Char IX="0">
+            <Font>0</Font>
+            <Size>0.15</Size>
+            <Color>#142B42</Color>
+          </Char>
+          <Para IX="0">
+            <HorzAlign>1</HorzAlign>
+          </Para>
+          <Geom IX="0">
+            <MoveTo IX="1">
+              <X>1.5</X>
+              <Y>1.1</Y>
+            </MoveTo>
+            <LineTo IX="2">
+              <X>3</X>
+              <Y>0.55</Y>
+            </LineTo>
+            <LineTo IX="3">
+              <X>1.5</X>
+              <Y>0</Y>
+            </LineTo>
+            <LineTo IX="4">
+              <X>0</X>
+              <Y>0.55</Y>
+            </LineTo>
+            <LineTo IX="5">
+              <X>1.5</X>
+              <Y>1.1</Y>
+            </LineTo>
+          </Geom>
+          <Text>First invalid response?</Text>
+        </Shape>
+        <Shape ID="9" NameU="again" Type="Shape">
+          <XForm>
+            <PinX>10</PinX>
+            <PinY>9.5</PinY>
+            <Width>3</Width>
+            <Height>0.85</Height>
+            <LocPinX>1.5</LocPinX>
+            <LocPinY>0.425</LocPinY>
+            <Angle>0</Angle>
+          </XForm>
+          <Line>
+            <LineWeight>0.012</LineWeight>
+            <LineColor>#40556B</LineColor>
+            <LinePattern>1</LinePattern>
+          </Line>
+          <Fill>
+            <FillForegnd>#EAF2FB</FillForegnd>
+            <FillPattern>1</FillPattern>
+          </Fill>
+          <TextBlock>
+            <VerticalAlign>1</VerticalAlign>
+            <LeftMargin>0.07</LeftMargin>
+            <RightMargin>0.07</RightMargin>
+            <TopMargin>0.07</TopMargin>
+            <BottomMargin>0.07</BottomMargin>
+          </TextBlock>
+          <Char IX="0">
+            <Font>0</Font>
+            <Size>0.15</Size>
+            <Color>#142B42</Color>
+          </Char>
+          <Para IX="0">
+            <HorzAlign>1</HorzAlign>
+          </Para>
+          <Geom IX="0">
+            <MoveTo IX="1">
+              <X>0</X>
+              <Y>0</Y>
+            </MoveTo>
+            <LineTo IX="2">
+              <X>3</X>
+              <Y>0</Y>
+            </LineTo>
+            <LineTo IX="3">
+              <X>3</X>
+              <Y>0.85</Y>
+            </LineTo>
+            <LineTo IX="4">
+              <X>0</X>
+              <Y>0.85</Y>
+            </LineTo>
+            <LineTo IX="5">
+              <X>0</X>
+              <Y>0</Y>
+            </LineTo>
+          </Geom>
+          <Text>Retry once with a complete-JSON reminder.</Text>
+        </Shape>
+        <Shape ID="10" NameU="error" Type="Shape">
+          <XForm>
+            <PinX>10</PinX>
+            <PinY>5.550000000000001</PinY>
+            <Width>3</Width>
+            <Height>0.85</Height>
+            <LocPinX>1.5</LocPinX>
+            <LocPinY>0.425</LocPinY>
+            <Angle>0</Angle>
+          </XForm>
+          <Line>
+            <LineWeight>0.012</LineWeight>
+            <LineColor>#40556B</LineColor>
+            <LinePattern>1</LinePattern>
+          </Line>
+          <Fill>
+            <FillForegnd>#FCE4E4</FillForegnd>
+            <FillPattern>1</FillPattern>
+          </Fill>
+          <TextBlock>
+            <VerticalAlign>1</VerticalAlign>
+            <LeftMargin>0.07</LeftMargin>
+            <RightMargin>0.07</RightMargin>
+            <TopMargin>0.07</TopMargin>
+            <BottomMargin>0.07</BottomMargin>
+          </TextBlock>
+          <Char IX="0">
+            <Font>0</Font>
+            <Size>0.15</Size>
+            <Color>#142B42</Color>
+          </Char>
+          <Para IX="0">
+            <HorzAlign>1</HorzAlign>
+          </Para>
+          <Geom IX="0">
+            <MoveTo IX="1">
+              <X>0</X>
+              <Y>0</Y>
+            </MoveTo>
+            <LineTo IX="2">
+              <X>3</X>
+              <Y>0</Y>
+            </LineTo>
+            <LineTo IX="3">
+              <X>3</X>
+              <Y>0.85</Y>
+            </LineTo>
+            <LineTo IX="4">
+              <X>0</X>
+              <Y>0.85</Y>
+            </LineTo>
+            <LineTo IX="5">
+              <X>0</X>
+              <Y>0</Y>
+            </LineTo>
+          </Geom>
+          <Text>Show extraction error. No completed result.</Text>
+        </Shape>
+        <Shape ID="11" NameU="check" Type="Shape">
+          <XForm>
+            <PinX>5</PinX>
+            <PinY>5.550000000000001</PinY>
+            <Width>3.8</Width>
+            <Height>1.05</Height>
+            <LocPinX>1.9</LocPinX>
+            <LocPinY>0.525</LocPinY>
+            <Angle>0</Angle>
+          </XForm>
+          <Line>
+            <LineWeight>0.012</LineWeight>
+            <LineColor>#40556B</LineColor>
+            <LinePattern>1</LinePattern>
+          </Line>
+          <Fill>
+            <FillForegnd>#EAF2FB</FillForegnd>
+            <FillPattern>1</FillPattern>
+          </Fill>
+          <TextBlock>
+            <VerticalAlign>1</VerticalAlign>
+            <LeftMargin>0.07</LeftMargin>
+            <RightMargin>0.07</RightMargin>
+            <TopMargin>0.07</TopMargin>
+            <BottomMargin>0.07</BottomMargin>
+          </TextBlock>
+          <Char IX="0">
+            <Font>0</Font>
+            <Size>0.15</Size>
+            <Color>#142B42</Color>
+          </Char>
+          <Para IX="0">
+            <HorzAlign>1</HorzAlign>
+          </Para>
+          <Geom IX="0">
+            <MoveTo IX="1">
+              <X>0</X>
+              <Y>0</Y>
+            </MoveTo>
+            <LineTo IX="2">
+              <X>3.8</X>
+              <Y>0</Y>
+            </LineTo>
+            <LineTo IX="3">
+              <X>3.8</X>
+              <Y>1.05</Y>
+            </LineTo>
+            <LineTo IX="4">
+              <X>0</X>
+              <Y>1.05</Y>
+            </LineTo>
+            <LineTo IX="5">
+              <X>0</X>
+              <Y>0</Y>
+            </LineTo>
+          </Geom>
+          <Text>Compute completeness and NEXT STEP (page 4). Missing facts do not trigger a retry.</Text>
+        </Shape>
+        <Shape ID="12" NameU="out" Type="Shape">
+          <XForm>
+            <PinX>5</PinX>
+            <PinY>4</PinY>
+            <Width>3.8</Width>
+            <Height>1.05</Height>
+            <LocPinX>1.9</LocPinX>
+            <LocPinY>0.525</LocPinY>
+            <Angle>0</Angle>
+          </XForm>
+          <Line>
+            <LineWeight>0.012</LineWeight>
+            <LineColor>#40556B</LineColor>
+            <LinePattern>1</LinePattern>
+          </Line>
+          <Fill>
+            <FillForegnd>#EAF2FB</FillForegnd>
+            <FillPattern>1</FillPattern>
+          </Fill>
+          <TextBlock>
+            <VerticalAlign>1</VerticalAlign>
+            <LeftMargin>0.07</LeftMargin>
+            <RightMargin>0.07</RightMargin>
+            <TopMargin>0.07</TopMargin>
+            <BottomMargin>0.07</BottomMargin>
+          </TextBlock>
+          <Char IX="0">
+            <Font>0</Font>
+            <Size>0.15</Size>
+            <Color>#142B42</Color>
+          </Char>
+          <Para IX="0">
+            <HorzAlign>1</HorzAlign>
+          </Para>
+          <Geom IX="0">
+            <MoveTo IX="1">
+              <X>0</X>
+              <Y>0</Y>
+            </MoveTo>
+            <LineTo IX="2">
+              <X>3.8</X>
+              <Y>0</Y>
+            </LineTo>
+            <LineTo IX="3">
+              <X>3.8</X>
+              <Y>1.05</Y>
+            </LineTo>
+            <LineTo IX="4">
+              <X>0</X>
+              <Y>1.05</Y>
+            </LineTo>
+            <LineTo IX="5">
+              <X>0</X>
+              <Y>0</Y>
+            </LineTo>
+          </Geom>
+          <Text>Display five sections + four optional extras. Export grouped JSON, CSV or TXT.</Text>
+        </Shape>
+        <Shape ID="13" NameU="end" Type="Shape">
+          <XForm>
+            <PinX>5</PinX>
+            <PinY>2.4000000000000004</PinY>
+            <Width>3.8</Width>
+            <Height>0.95</Height>
+            <LocPinX>1.9</LocPinX>
+            <LocPinY>0.475</LocPinY>
+            <Angle>0</Angle>
+          </XForm>
+          <Line>
+            <LineWeight>0.012</LineWeight>
+            <LineColor>#40556B</LineColor>
+            <LinePattern>1</LinePattern>
+          </Line>
+          <Fill>
+            <FillForegnd>#DDE8F0</FillForegnd>
+            <FillPattern>1</FillPattern>
+          </Fill>
+          <TextBlock>
+            <VerticalAlign>1</VerticalAlign>
+            <LeftMargin>0.07</LeftMargin>
+            <RightMargin>0.07</RightMargin>
+            <TopMargin>0.07</TopMargin>
+            <BottomMargin>0.07</BottomMargin>
+          </TextBlock>
+          <Char IX="0">
+            <Font>0</Font>
+            <Size>0.15</Size>
+            <Color>#142B42</Color>
+          </Char>
+          <Para IX="0">
+            <HorzAlign>1</HorzAlign>
+          </Para>
+          <Geom IX="0">
+            <MoveTo IX="1">
+              <X>0</X>
+              <Y>0</Y>
+            </MoveTo>
+            <LineTo IX="2">
+              <X>3.8</X>
+              <Y>0</Y>
+            </LineTo>
+            <LineTo IX="3">
+              <X>3.8</X>
+              <Y>0.95</Y>
+            </LineTo>
+            <LineTo IX="4">
+              <X>0</X>
+              <Y>0.95</Y>
+            </LineTo>
+            <LineTo IX="5">
+              <X>0</X>
+              <Y>0</Y>
+            </LineTo>
+          </Geom>
+          <Text>END: Human reviews results. No automatic CMS handoff.</Text>
+        </Shape>
+        <Shape ID="14" NameU="notes" Type="Shape">
+          <XForm>
+            <PinX>10</PinX>
+            <PinY>3</PinY>
+            <Width>3.1</Width>
+            <Height>2.5</Height>
+            <LocPinX>1.55</LocPinX>
+            <LocPinY>1.25</LocPinY>
+            <Angle>0</Angle>
+          </XForm>
+          <Line>
+            <LineWeight>0.012</LineWeight>
+            <LineColor>#40556B</LineColor>
+            <LinePattern>1</LinePattern>
+          </Line>
+          <Fill>
+            <FillForegnd>#F4F6F8</FillForegnd>
+            <FillPattern>1</FillPattern>
+          </Fill>
+          <TextBlock>
+            <VerticalAlign>1</VerticalAlign>
+            <LeftMargin>0.07</LeftMargin>
+            <RightMargin>0.07</RightMargin>
+            <TopMargin>0.07</TopMargin>
+            <BottomMargin>0.07</BottomMargin>
+          </TextBlock>
+          <Char IX="0">
+            <Font>0</Font>
+            <Size>0.135</Size>
+            <Color>#142B42</Color>
+          </Char>
+          <Para IX="0">
+            <HorzAlign>1</HorzAlign>
+          </Para>
+          <Geom IX="0">
+            <MoveTo IX="1">
+              <X>0</X>
+              <Y>0</Y>
+            </MoveTo>
+            <LineTo IX="2">
+              <X>3.1</X>
+              <Y>0</Y>
+            </LineTo>
+            <LineTo IX="3">
+              <X>3.1</X>
+              <Y>2.5</Y>
+            </LineTo>
+            <LineTo IX="4">
+              <X>0</X>
+              <Y>2.5</Y>
+            </LineTo>
+            <LineTo IX="5">
+              <X>0</X>
+              <Y>0</Y>
+            </LineTo>
+          </Geom>
+          <Text>AI interprets document context; Python validates structure, applies fallback and checks completeness.
+
+PDF extraction uses embedded text, not OCR. API/transport failures surface as errors; malformed-output retry is separate from client transport retries.</Text>
+        </Shape>
+        <Shape ID="15" NameU="title" Type="Shape">
+          <XForm>
+            <PinX>6</PinX>
+            <PinY>15.52</PinY>
+            <Width>11</Width>
+            <Height>0.5</Height>
+            <LocPinX>5.5</LocPinX>
+            <LocPinY>0.25</LocPinY>
+            <Angle>0</Angle>
+          </XForm>
+          <Line>
+            <LineWeight>0.012</LineWeight>
+            <LineColor>#40556B</LineColor>
+            <LinePattern>0</LinePattern>
+          </Line>
+          <Fill>
+            <FillForegnd>#FFFFFF</FillForegnd>
+            <FillPattern>1</FillPattern>
+          </Fill>
+          <TextBlock>
+            <VerticalAlign>1</VerticalAlign>
+            <LeftMargin>0.07</LeftMargin>
+            <RightMargin>0.07</RightMargin>
+            <TopMargin>0.07</TopMargin>
+            <BottomMargin>0.07</BottomMargin>
+          </TextBlock>
+          <Char IX="0">
+            <Font>0</Font>
+            <Size>0.15</Size>
+            <Color>#142B42</Color>
+          </Char>
+          <Para IX="0">
+            <HorzAlign>1</HorzAlign>
+          </Para>
+          <Geom IX="0">
+            <MoveTo IX="1">
+              <X>0</X>
+              <Y>0</Y>
+            </MoveTo>
+            <LineTo IX="2">
+              <X>11</X>
+              <Y>0</Y>
+            </LineTo>
+            <LineTo IX="3">
+              <X>11</X>
+              <Y>0.5</Y>
+            </LineTo>
+            <LineTo IX="4">
+              <X>0</X>
+              <Y>0.5</Y>
+            </LineTo>
+            <LineTo IX="5">
+              <X>0</X>
+              <Y>0</Y>
+            </LineTo>
+          </Geom>
+          <Text>01 Overall flow</Text>
+        </Shape>
+        <Shape ID="16" NameU="subtitle" Type="Shape">
+          <XForm>
+            <PinX>6</PinX>
+            <PinY>15.06</PinY>
+            <Width>11</Width>
+            <Height>0.35</Height>
+            <LocPinX>5.5</LocPinX>
+            <LocPinY>0.175</LocPinY>
+            <Angle>0</Angle>
+          </XForm>
+          <Line>
+            <LineWeight>0.012</LineWeight>
+            <LineColor>#40556B</LineColor>
+            <LinePattern>0</LinePattern>
+          </Line>
+          <Fill>
+            <FillForegnd>#FFFFFF</FillForegnd>
+            <FillPattern>1</FillPattern>
+          </Fill>
+          <TextBlock>
+            <VerticalAlign>1</VerticalAlign>
+            <LeftMargin>0.07</LeftMargin>
+            <RightMargin>0.07</RightMargin>
+            <TopMargin>0.07</TopMargin>
+            <BottomMargin>0.07</BottomMargin>
+          </TextBlock>
+          <Char IX="0">
+            <Font>0</Font>
+            <Size>0.15</Size>
+            <Color>#142B42</Color>
+          </Char>
+          <Para IX="0">
+            <HorzAlign>1</HorzAlign>
+          </Para>
+          <Geom IX="0">
+            <MoveTo IX="1">
+              <X>0</X>
+              <Y>0</Y>
+            </MoveTo>
+            <LineTo IX="2">
+              <X>11</X>
+              <Y>0</Y>
+            </LineTo>
+            <LineTo IX="3">
+              <X>11</X>
+              <Y>0.35</Y>
+            </LineTo>
+            <LineTo IX="4">
+              <X>0</X>
+              <Y>0.35</Y>
+            </LineTo>
+            <LineTo IX="5">
+              <X>0</X>
+              <Y>0</Y>
+            </LineTo>
+          </Geom>
+          <Text>AI-FCM Bedrock v1.3.0 | Current implementation | 28 September 2026</Text>
+        </Shape>
+        <Shape ID="17" NameU="footer" Type="Shape">
+          <XForm>
+            <PinX>6</PinX>
+            <PinY>0.34999999999999964</PinY>
+            <Width>11</Width>
+            <Height>0.35</Height>
+            <LocPinX>5.5</LocPinX>
+            <LocPinY>0.175</LocPinY>
+            <Angle>0</Angle>
+          </XForm>
+          <Line>
+            <LineWeight>0.012</LineWeight>
+            <LineColor>#40556B</LineColor>
+            <LinePattern>0</LinePattern>
+          </Line>
+          <Fill>
+            <FillForegnd>#FFFFFF</FillForegnd>
+            <FillPattern>1</FillPattern>
+          </Fill>
+          <TextBlock>
+            <VerticalAlign>1</VerticalAlign>
+            <LeftMargin>0.07</LeftMargin>
+            <RightMargin>0.07</RightMargin>
+            <TopMargin>0.07</TopMargin>
+            <BottomMargin>0.07</BottomMargin>
+          </TextBlock>
+          <Char IX="0">
+            <Font>0</Font>
+            <Size>0.15</Size>
+            <Color>#142B42</Color>
+          </Char>
+          <Para IX="0">
+            <HorzAlign>1</HorzAlign>
+          </Para>
+          <Geom IX="0">
+            <MoveTo IX="1">
+              <X>0</X>
+              <Y>0</Y>
+            </MoveTo>
+            <LineTo IX="2">
+              <X>11</X>
+              <Y>0</Y>
+            </LineTo>
+            <LineTo IX="3">
+              <X>11</X>
+              <Y>0.35</Y>
+            </LineTo>
+            <LineTo IX="4">
+              <X>0</X>
+              <Y>0.35</Y>
+            </LineTo>
+            <LineTo IX="5">
+              <X>0</X>
+              <Y>0</Y>
+            </LineTo>
+          </Geom>
+          <Text>FCM Structured | AI/referral_schema.py + AI/bedrock_core.py | Page 1 of 4</Text>
+        </Shape>
+        <Shape ID="18" NameU="label6" Type="Shape">
+          <XForm>
+            <PinX>5.0</PinX>
+            <PinY>10.9125</PinY>
+            <Width>0.78</Width>
+            <Height>0.24</Height>
+            <LocPinX>0.39</LocPinX>
+            <LocPinY>0.12</LocPinY>
+            <Angle>0</Angle>
+          </XForm>
+          <Line>
+            <LineWeight>0.012</LineWeight>
+            <LineColor>#40556B</LineColor>
+            <LinePattern>0</LinePattern>
+          </Line>
+          <Fill>
+            <FillForegnd>#FFFFFF</FillForegnd>
+            <FillPattern>1</FillPattern>
+          </Fill>
+          <TextBlock>
+            <VerticalAlign>1</VerticalAlign>
+            <LeftMargin>0.07</LeftMargin>
+            <RightMargin>0.07</RightMargin>
+            <TopMargin>0.07</TopMargin>
+            <BottomMargin>0.07</BottomMargin>
+          </TextBlock>
+          <Char IX="0">
+            <Font>0</Font>
+            <Size>0.15</Size>
+            <Color>#142B42</Color>
+          </Char>
+          <Para IX="0">
+            <HorzAlign>1</HorzAlign>
+          </Para>
+          <Geom IX="0">
+            <MoveTo IX="1">
+              <X>0</X>
+              <Y>0</Y>
+            </MoveTo>
+            <LineTo IX="2">
+              <X>0.78</X>
+              <Y>0</Y>
+            </LineTo>
+            <LineTo IX="3">
+              <X>0.78</X>
+              <Y>0.24</Y>
+            </LineTo>
+            <LineTo IX="4">
+              <X>0</X>
+              <Y>0.24</Y>
+            </LineTo>
+            <LineTo IX="5">
+              <X>0</X>
+              <Y>0</Y>
+            </LineTo>
+          </Geom>
+          <Text>Yes</Text>
+        </Shape>
+        <Shape ID="19" NameU="label7" Type="Shape">
+          <XForm>
+            <PinX>7.28</PinX>
+            <PinY>11.7</PinY>
+            <Width>0.78</Width>
+            <Height>0.24</Height>
+            <LocPinX>0.39</LocPinX>
+            <LocPinY>0.12</LocPinY>
+            <Angle>0</Angle>
+          </XForm>
+          <Line>
+            <LineWeight>0.012</LineWeight>
+            <LineColor>#40556B</LineColor>
+            <LinePattern>0</LinePattern>
+          </Line>
+          <Fill>
+            <FillForegnd>#FFFFFF</FillForegnd>
+            <FillPattern>1</FillPattern>
+          </Fill>
+          <TextBlock>
+            <VerticalAlign>1</VerticalAlign>
+            <LeftMargin>0.07</LeftMargin>
+            <RightMargin>0.07</RightMargin>
+            <TopMargin>0.07</TopMargin>
+            <BottomMargin>0.07</BottomMargin>
+          </TextBlock>
+          <Char IX="0">
+            <Font>0</Font>
+            <Size>0.15</Size>
+            <Color>#142B42</Color>
+          </Char>
+          <Para IX="0">
+            <HorzAlign>1</HorzAlign>
+          </Para>
+          <Geom IX="0">
+            <MoveTo IX="1">
+              <X>0</X>
+              <Y>0</Y>
+            </MoveTo>
+            <LineTo IX="2">
+              <X>0.78</X>
+              <Y>0</Y>
+            </LineTo>
+            <LineTo IX="3">
+              <X>0.78</X>
+              <Y>0.24</Y>
+            </LineTo>
+            <LineTo IX="4">
+              <X>0</X>
+              <Y>0.24</Y>
+            </LineTo>
+            <LineTo IX="5">
+              <X>0</X>
+              <Y>0</Y>
+            </LineTo>
+          </Geom>
+          <Text>No</Text>
+        </Shape>
+        <Shape ID="20" NameU="label8" Type="Shape">
+          <XForm>
+            <PinX>5.0</PinX>
+            <PinY>6.412500000000001</PinY>
+            <Width>0.78</Width>
+            <Height>0.24</Height>
+            <LocPinX>0.39</LocPinX>
+            <LocPinY>0.12</LocPinY>
+            <Angle>0</Angle>
+          </XForm>
+          <Line>
+            <LineWeight>0.012</LineWeight>
+            <LineColor>#40556B</LineColor>
+            <LinePattern>0</LinePattern>
+          </Line>
+          <Fill>
+            <FillForegnd>#FFFFFF</FillForegnd>
+            <FillPattern>1</FillPattern>
+          </Fill>
+          <TextBlock>
+            <VerticalAlign>1</VerticalAlign>
+            <LeftMargin>0.07</LeftMargin>
+            <RightMargin>0.07</RightMargin>
+            <TopMargin>0.07</TopMargin>
+            <BottomMargin>0.07</BottomMargin>
+          </TextBlock>
+          <Char IX="0">
+            <Font>0</Font>
+            <Size>0.15</Size>
+            <Color>#142B42</Color>
+          </Char>
+          <Para IX="0">
+            <HorzAlign>1</HorzAlign>
+          </Para>
+          <Geom IX="0">
+            <MoveTo IX="1">
+              <X>0</X>
+              <Y>0</Y>
+            </MoveTo>
+            <LineTo IX="2">
+              <X>0.78</X>
+              <Y>0</Y>
+            </LineTo>
+            <LineTo IX="3">
+              <X>0.78</X>
+              <Y>0.24</Y>
+            </LineTo>
+            <LineTo IX="4">
+              <X>0</X>
+              <Y>0.24</Y>
+            </LineTo>
+            <LineTo IX="5">
+              <X>0</X>
+              <Y>0</Y>
+            </LineTo>
+          </Geom>
+          <Text>Yes</Text>
+        </Shape>
+        <Shape ID="21" NameU="label9" Type="Shape">
+          <XForm>
+            <PinX>7.28</PinX>
+            <PinY>7.35</PinY>
+            <Width>0.78</Width>
+            <Height>0.24</Height>
+            <LocPinX>0.39</LocPinX>
+            <LocPinY>0.12</LocPinY>
+            <Angle>0</Angle>
+          </XForm>
+          <Line>
+            <LineWeight>0.012</LineWeight>
+            <LineColor>#40556B</LineColor>
+            <LinePattern>0</LinePattern>
+          </Line>
+          <Fill>
+            <FillForegnd>#FFFFFF</FillForegnd>
+            <FillPattern>1</FillPattern>
+          </Fill>
+          <TextBlock>
+            <VerticalAlign>1</VerticalAlign>
+            <LeftMargin>0.07</LeftMargin>
+            <RightMargin>0.07</RightMargin>
+            <TopMargin>0.07</TopMargin>
+            <BottomMargin>0.07</BottomMargin>
+          </TextBlock>
+          <Char IX="0">
+            <Font>0</Font>
+            <Size>0.15</Size>
+            <Color>#142B42</Color>
+          </Char>
+          <Para IX="0">
+            <HorzAlign>1</HorzAlign>
+          </Para>
+          <Geom IX="0">
+            <MoveTo IX="1">
+              <X>0</X>
+              <Y>0</Y>
+            </MoveTo>
+            <LineTo IX="2">
+              <X>0.78</X>
+              <Y>0</Y>
+            </LineTo>
+            <LineTo IX="3">
+              <X>0.78</X>
+              <Y>0.24</Y>
+            </LineTo>
+            <LineTo IX="4">
+              <X>0</X>
+              <Y>0.24</Y>
+            </LineTo>
+            <LineTo IX="5">
+              <X>0</X>
+              <Y>0</Y>
+            </LineTo>
+          </Geom>
+          <Text>No</Text>
+        </Shape>
+        <Shape ID="22" NameU="label10" Type="Shape">
+          <XForm>
+            <PinX>10.0</PinX>
+            <PinY>8.280000000000001</PinY>
+            <Width>0.78</Width>
+            <Height>0.24</Height>
+            <LocPinX>0.39</LocPinX>
+            <LocPinY>0.12</LocPinY>
+            <Angle>0</Angle>
+          </XForm>
+          <Line>
+            <LineWeight>0.012</LineWeight>
+            <LineColor>#40556B</LineColor>
+            <LinePattern>0</LinePattern>
+          </Line>
+          <Fill>
+            <FillForegnd>#FFFFFF</FillForegnd>
+            <FillPattern>1</FillPattern>
+          </Fill>
+          <TextBlock>
+            <VerticalAlign>1</VerticalAlign>
+            <LeftMargin>0.07</LeftMargin>
+            <RightMargin>0.07</RightMargin>
+            <TopMargin>0.07</TopMargin>
+            <BottomMargin>0.07</BottomMargin>
+          </TextBlock>
+          <Char IX="0">
+            <Font>0</Font>
+            <Size>0.15</Size>
+            <Color>#142B42</Color>
+          </Char>
+          <Para IX="0">
+            <HorzAlign>1</HorzAlign>
+          </Para>
+          <Geom IX="0">
+            <MoveTo IX="1">
+              <X>0</X>
+              <Y>0</Y>
+            </MoveTo>
+            <LineTo IX="2">
+              <X>0.78</X>
+              <Y>0</Y>
+            </LineTo>
+            <LineTo IX="3">
+              <X>0.78</X>
+              <Y>0.24</Y>
+            </LineTo>
+            <LineTo IX="4">
+              <X>0</X>
+              <Y>0.24</Y>
+            </LineTo>
+            <LineTo IX="5">
+              <X>0</X>
+              <Y>0</Y>
+            </LineTo>
+          </Geom>
+          <Text>Yes</Text>
+        </Shape>
+        <Shape ID="23" NameU="label11" Type="Shape">
+          <XForm>
+            <PinX>8.12</PinX>
+            <PinY>9.5</PinY>
+            <Width>0.78</Width>
+            <Height>0.24</Height>
+            <LocPinX>0.39</LocPinX>
+            <LocPinY>0.12</LocPinY>
+            <Angle>0</Angle>
+          </XForm>
+          <Line>
+            <LineWeight>0.012</LineWeight>
+            <LineColor>#40556B</LineColor>
+            <LinePattern>0</LinePattern>
+          </Line>
+          <Fill>
+            <FillForegnd>#FFFFFF</FillForegnd>
+            <FillPattern>1</FillPattern>
+          </Fill>
+          <TextBlock>
+            <VerticalAlign>1</VerticalAlign>
+            <LeftMargin>0.07</LeftMargin>
+            <RightMargin>0.07</RightMargin>
+            <TopMargin>0.07</TopMargin>
+            <BottomMargin>0.07</BottomMargin>
+          </TextBlock>
+          <Char IX="0">
+            <Font>0</Font>
+            <Size>0.15</Size>
+            <Color>#142B42</Color>
+          </Char>
+          <Para IX="0">
+            <HorzAlign>1</HorzAlign>
+          </Para>
+          <Geom IX="0">
+            <MoveTo IX="1">
+              <X>0</X>
+              <Y>0</Y>
+            </MoveTo>
+            <LineTo IX="2">
+              <X>0.78</X>
+              <Y>0</Y>
+            </LineTo>
+            <LineTo IX="3">
+              <X>0.78</X>
+              <Y>0.24</Y>
+            </LineTo>
+            <LineTo IX="4">
+              <X>0</X>
+              <Y>0.24</Y>
+            </LineTo>
+            <LineTo IX="5">
+              <X>0</X>
+              <Y>0</Y>
+            </LineTo>
+          </Geom>
+          <Text>Re-send</Text>
+        </Shape>
+        <Shape ID="24" NameU="label12" Type="Shape">
+          <XForm>
+            <PinX>10.0</PinX>
+            <PinY>6.419999999999998</PinY>
+            <Width>0.78</Width>
+            <Height>0.24</Height>
+            <LocPinX>0.39</LocPinX>
+            <LocPinY>0.12</LocPinY>
+            <Angle>0</Angle>
+          </XForm>
+          <Line>
+            <LineWeight>0.012</LineWeight>
+            <LineColor>#40556B</LineColor>
+            <LinePattern>0</LinePattern>
+          </Line>
+          <Fill>
+            <FillForegnd>#FFFFFF</FillForegnd>
+            <FillPattern>1</FillPattern>
+          </Fill>
+          <TextBlock>
+            <VerticalAlign>1</VerticalAlign>
+            <LeftMargin>0.07</LeftMargin>
+            <RightMargin>0.07</RightMargin>
+            <TopMargin>0.07</TopMargin>
+            <BottomMargin>0.07</BottomMargin>
+          </TextBlock>
+          <Char IX="0">
+            <Font>0</Font>
+            <Size>0.15</Size>
+            <Color>#142B42</Color>
+          </Char>
+          <Para IX="0">
+            <HorzAlign>1</HorzAlign>
+          </Para>
+          <Geom IX="0">
+            <MoveTo IX="1">
+              <X>0</X>
+              <Y>0</Y>
+            </MoveTo>
+            <LineTo IX="2">
+              <X>0.78</X>
+              <Y>0</Y>
+            </LineTo>
+            <LineTo IX="3">
+              <X>0.78</X>
+              <Y>0.24</Y>
+            </LineTo>
+            <LineTo IX="4">
+              <X>0</X>
+              <Y>0.24</Y>
+            </LineTo>
+            <LineTo IX="5">
+              <X>0</X>
+              <Y>0</Y>
+            </LineTo>
+          </Geom>
+          <Text>No</Text>
+        </Shape>
+      </Shapes>
+    </Page>
+    <Page ID="1" NameU="02 Section priority" Name="02 Section priority">
+      <PageSheet>
+        <PageProps>
+          <PageWidth>12</PageWidth>
+          <PageHeight>16</PageHeight>
+        </PageProps>
+      </PageSheet>
+      <Shapes>
+        <Shape ID="100" NameU="Connector.0" Type="Shape">
+          <XForm>
+            <PinX>6</PinX>
+            <PinY>8</PinY>
+            <Width>12</Width>
+            <Height>16</Height>
+            <LocPinX>6</LocPinX>
+            <LocPinY>8</LocPinY>
+            <Angle>0</Angle>
+          </XForm>
+          <Line>
+            <LineColor>#40556B</LineColor>
+            <LineWeight>0.014</LineWeight>
+            <EndArrow>4</EndArrow>
+          </Line>
+          <Geom IX="0">
+            <NoFill>1</NoFill>
+            <MoveTo IX="1">
+              <X>4.5</X>
+              <Y>13.725</Y>
+            </MoveTo>
+            <LineTo IX="2">
+              <X>4.5</X>
+              <Y>13.2</Y>
+            </LineTo>
+          </Geom>
+        </Shape>
+        <Shape ID="101" NameU="Connector.1" Type="Shape">
+          <XForm>
+            <PinX>6</PinX>
+            <PinY>8</PinY>
+            <Width>12</Width>
+            <Height>16</Height>
+            <LocPinX>6</LocPinX>
+            <LocPinY>8</LocPinY>
+            <Angle>0</Angle>
+          </XForm>
+          <Line>
+            <LineColor>#40556B</LineColor>
+            <LineWeight>0.014</LineWeight>
+            <EndArrow>4</EndArrow>
+          </Line>
+          <Geom IX="0">
+            <NoFill>1</NoFill>
+            <MoveTo IX="1">
+              <X>6.4</X>
+              <Y>12.65</Y>
+            </MoveTo>
+            <LineTo IX="2">
+              <X>7.8</X>
+              <Y>12.65</Y>
+            </LineTo>
+          </Geom>
+        </Shape>
+        <Shape ID="102" NameU="Connector.2" Type="Shape">
+          <XForm>
+            <PinX>6</PinX>
+            <PinY>8</PinY>
+            <Width>12</Width>
+            <Height>16</Height>
+            <LocPinX>6</LocPinX>
+            <LocPinY>8</LocPinY>
+            <Angle>0</Angle>
+          </XForm>
+          <Line>
+            <LineColor>#40556B</LineColor>
+            <LineWeight>0.014</LineWeight>
+            <EndArrow>4</EndArrow>
+          </Line>
+          <Geom IX="0">
+            <NoFill>1</NoFill>
+            <MoveTo IX="1">
+              <X>4.5</X>
+              <Y>12.1</Y>
+            </MoveTo>
+            <LineTo IX="2">
+              <X>4.5</X>
+              <Y>11.5</Y>
+            </LineTo>
+          </Geom>
+        </Shape>
+        <Shape ID="103" NameU="Connector.3" Type="Shape">
+          <XForm>
+            <PinX>6</PinX>
+            <PinY>8</PinY>
+            <Width>12</Width>
+            <Height>16</Height>
+            <LocPinX>6</LocPinX>
+            <LocPinY>8</LocPinY>
+            <Angle>0</Angle>
+          </XForm>
+          <Line>
+            <LineColor>#40556B</LineColor>
+            <LineWeight>0.014</LineWeight>
+            <EndArrow>4</EndArrow>
+          </Line>
+          <Geom IX="0">
+            <NoFill>1</NoFill>
+            <MoveTo IX="1">
+              <X>6.4</X>
+              <Y>10.85</Y>
+            </MoveTo>
+            <LineTo IX="2">
+              <X>7.8</X>
+              <Y>10.85</Y>
+            </LineTo>
+          </Geom>
+        </Shape>
+        <Shape ID="104" NameU="Connector.4" Type="Shape">
+          <XForm>
+            <PinX>6</PinX>
+            <PinY>8</PinY>
+            <Width>12</Width>
+            <Height>16</Height>
+            <LocPinX>6</LocPinX>
+            <LocPinY>8</LocPinY>
+            <Angle>0</Angle>
+          </XForm>
+          <Line>
+            <LineColor>#40556B</LineColor>
+            <LineWeight>0.014</LineWeight>
+            <EndArrow>4</EndArrow>
+          </Line>
+          <Geom IX="0">
+            <NoFill>1</NoFill>
+            <MoveTo IX="1">
+              <X>4.5</X>
+              <Y>10.2</Y>
+            </MoveTo>
+            <LineTo IX="2">
+              <X>4.5</X>
+              <Y>9.55</Y>
+            </LineTo>
+          </Geom>
+        </Shape>
+        <Shape ID="105" NameU="Connector.5" Type="Shape">
+          <XForm>
+            <PinX>6</PinX>
+            <PinY>8</PinY>
+            <Width>12</Width>
+            <Height>16</Height>
+            <LocPinX>6</LocPinX>
+            <LocPinY>8</LocPinY>
+            <Angle>0</Angle>
+          </XForm>
+          <Line>
+            <LineColor>#40556B</LineColor>
+            <LineWeight>0.014</LineWeight>
+            <EndArrow>4</EndArrow>
+          </Line>
+          <Geom IX="0">
+            <NoFill>1</NoFill>
+            <MoveTo IX="1">
+              <X>4.5</X>
+              <Y>8.45</Y>
+            </MoveTo>
+            <LineTo IX="2">
+              <X>4.5</X>
+              <Y>7.725000000000001</Y>
+            </LineTo>
+          </Geom>
+        </Shape>
+        <Shape ID="106" NameU="Connector.6" Type="Shape">
+          <XForm>
+            <PinX>6</PinX>
+            <PinY>8</PinY>
+            <Width>12</Width>
+            <Height>16</Height>
+            <LocPinX>6</LocPinX>
+            <LocPinY>8</LocPinY>
+            <Angle>0</Angle>
+          </XForm>
+          <Line>
+            <LineColor>#40556B</LineColor>
+            <LineWeight>0.014</LineWeight>
+            <EndArrow>4</EndArrow>
+          </Line>
+          <Geom IX="0">
+            <NoFill>1</NoFill>
+            <MoveTo IX="1">
+              <X>6.4</X>
+              <Y>9</Y>
+            </MoveTo>
+            <LineTo IX="2">
+              <X>7.1</X>
+              <Y>9</Y>
+            </LineTo>
+            <LineTo IX="3">
+              <X>9.5</X>
+              <Y>9</Y>
+            </LineTo>
+            <LineTo IX="4">
+              <X>9.5</X>
+              <Y>10.425</Y>
+            </LineTo>
+          </Geom>
+        </Shape>
+        <Shape ID="107" NameU="Connector.7" Type="Shape">
+          <XForm>
+            <PinX>6</PinX>
+            <PinY>8</PinY>
+            <Width>12</Width>
+            <Height>16</Height>
+            <LocPinX>6</LocPinX>
+            <LocPinY>8</LocPinY>
+            <Angle>0</Angle>
+          </XForm>
+          <Line>
+            <LineColor>#40556B</LineColor>
+            <LineWeight>0.014</LineWeight>
+            <EndArrow>4</EndArrow>
+          </Line>
+          <Geom IX="0">
+            <NoFill>1</NoFill>
+            <MoveTo IX="1">
+              <X>4.5</X>
+              <Y>6.875</Y>
+            </MoveTo>
+            <LineTo IX="2">
+              <X>4.5</X>
+              <Y>6.25</Y>
+            </LineTo>
+          </Geom>
+        </Shape>
+        <Shape ID="108" NameU="Connector.8" Type="Shape">
+          <XForm>
+            <PinX>6</PinX>
+            <PinY>8</PinY>
+            <Width>12</Width>
+            <Height>16</Height>
+            <LocPinX>6</LocPinX>
+            <LocPinY>8</LocPinY>
+            <Angle>0</Angle>
+          </XForm>
+          <Line>
+            <LineColor>#40556B</LineColor>
+            <LineWeight>0.014</LineWeight>
+            <EndArrow>4</EndArrow>
+          </Line>
+          <Geom IX="0">
+            <NoFill>1</NoFill>
+            <MoveTo IX="1">
+              <X>11.2</X>
+              <Y>12.65</Y>
+            </MoveTo>
+            <LineTo IX="2">
+              <X>11.6</X>
+              <Y>12.65</Y>
+            </LineTo>
+            <LineTo IX="3">
+              <X>11.6</X>
+              <Y>4.800000000000001</Y>
+            </LineTo>
+            <LineTo IX="4">
+              <X>1.9</X>
+              <Y>4.800000000000001</Y>
+            </LineTo>
+            <LineTo IX="5">
+              <X>1.9</X>
+              <Y>5.699999999999999</Y>
+            </LineTo>
+            <LineTo IX="6">
+              <X>2.6</X>
+              <Y>5.699999999999999</Y>
+            </LineTo>
+          </Geom>
+        </Shape>
+        <Shape ID="109" NameU="Connector.9" Type="Shape">
+          <XForm>
+            <PinX>6</PinX>
+            <PinY>8</PinY>
+            <Width>12</Width>
+            <Height>16</Height>
+            <LocPinX>6</LocPinX>
+            <LocPinY>8</LocPinY>
+            <Angle>0</Angle>
+          </XForm>
+          <Line>
+            <LineColor>#40556B</LineColor>
+            <LineWeight>0.014</LineWeight>
+            <EndArrow>4</EndArrow>
+          </Line>
+          <Geom IX="0">
+            <NoFill>1</NoFill>
+            <MoveTo IX="1">
+              <X>11.2</X>
+              <Y>10.85</Y>
+            </MoveTo>
+            <LineTo IX="2">
+              <X>11.4</X>
+              <Y>10.85</Y>
+            </LineTo>
+            <LineTo IX="3">
+              <X>11.4</X>
+              <Y>5.699999999999999</Y>
+            </LineTo>
+            <LineTo IX="4">
+              <X>6.4</X>
+              <Y>5.699999999999999</Y>
+            </LineTo>
+          </Geom>
+        </Shape>
+        <Shape ID="1" NameU="start" Type="Shape">
+          <XForm>
+            <PinX>4.5</PinX>
+            <PinY>14.15</PinY>
+            <Width>3.8</Width>
+            <Height>0.85</Height>
+            <LocPinX>1.9</LocPinX>
+            <LocPinY>0.425</LocPinY>
+            <Angle>0</Angle>
+          </XForm>
+          <Line>
+            <LineWeight>0.012</LineWeight>
+            <LineColor>#40556B</LineColor>
+            <LinePattern>1</LinePattern>
+          </Line>
+          <Fill>
+            <FillForegnd>#EAF2FB</FillForegnd>
+            <FillPattern>1</FillPattern>
+          </Fill>
+          <TextBlock>
+            <VerticalAlign>1</VerticalAlign>
+            <LeftMargin>0.07</LeftMargin>
+            <RightMargin>0.07</RightMargin>
+            <TopMargin>0.07</TopMargin>
+            <BottomMargin>0.07</BottomMargin>
+          </TextBlock>
+          <Char IX="0">
+            <Font>0</Font>
+            <Size>0.15</Size>
+            <Color>#142B42</Color>
+          </Char>
+          <Para IX="0">
+            <HorzAlign>1</HorzAlign>
+          </Para>
+          <Geom IX="0">
+            <MoveTo IX="1">
+              <X>0</X>
+              <Y>0</Y>
+            </MoveTo>
+            <LineTo IX="2">
+              <X>3.8</X>
+              <Y>0</Y>
+            </LineTo>
+            <LineTo IX="3">
+              <X>3.8</X>
+              <Y>0.85</Y>
+            </LineTo>
+            <LineTo IX="4">
+              <X>0</X>
+              <Y>0.85</Y>
+            </LineTo>
+            <LineTo IX="5">
+              <X>0</X>
+              <Y>0</Y>
+            </LineTo>
+          </Geom>
+          <Text>For each scalar field: read named-section value from model JSON.</Text>
+        </Shape>
+        <Shape ID="2" NameU="exists" Type="Shape">
+          <XForm>
+            <PinX>4.5</PinX>
+            <PinY>12.65</PinY>
+            <Width>3.8</Width>
+            <Height>1.1</Height>
+            <LocPinX>1.9</LocPinX>
+            <LocPinY>0.55</LocPinY>
+            <Angle>0</Angle>
+          </XForm>
+          <Line>
+            <LineWeight>0.012</LineWeight>
+            <LineColor>#40556B</LineColor>
+            <LinePattern>1</LinePattern>
+          </Line>
+          <Fill>
+            <FillForegnd>#FFF2CC</FillForegnd>
+            <FillPattern>1</FillPattern>
+          </Fill>
+          <TextBlock>
+            <VerticalAlign>1</VerticalAlign>
+            <LeftMargin>0.07</LeftMargin>
+            <RightMargin>0.07</RightMargin>
+            <TopMargin>0.07</TopMargin>
+            <BottomMargin>0.07</BottomMargin>
+          </TextBlock>
+          <Char IX="0">
+            <Font>0</Font>
+            <Size>0.15</Size>
+            <Color>#142B42</Color>
+          </Char>
+          <Para IX="0">
+            <HorzAlign>1</HorzAlign>
+          </Para>
+          <Geom IX="0">
+            <MoveTo IX="1">
+              <X>1.9</X>
+              <Y>1.1</Y>
+            </MoveTo>
+            <LineTo IX="2">
+              <X>3.8</X>
+              <Y>0.55</Y>
+            </LineTo>
+            <LineTo IX="3">
+              <X>1.9</X>
+              <Y>0</Y>
+            </LineTo>
+            <LineTo IX="4">
+              <X>0</X>
+              <Y>0.55</Y>
+            </LineTo>
+            <LineTo IX="5">
+              <X>1.9</X>
+              <Y>1.1</Y>
+            </LineTo>
+          </Geom>
+          <Text>Primary value present?</Text>
+        </Shape>
+        <Shape ID="3" NameU="keep" Type="Shape">
+          <XForm>
+            <PinX>9.5</PinX>
+            <PinY>12.65</PinY>
+            <Width>3.4</Width>
+            <Height>0.85</Height>
+            <LocPinX>1.7</LocPinX>
+            <LocPinY>0.425</LocPinY>
+            <Angle>0</Angle>
+          </XForm>
+          <Line>
+            <LineWeight>0.012</LineWeight>
+            <LineColor>#40556B</LineColor>
+            <LinePattern>1</LinePattern>
+          </Line>
+          <Fill>
+            <FillForegnd>#DFF2E5</FillForegnd>
+            <FillPattern>1</FillPattern>
+          </Fill>
+          <TextBlock>
+            <VerticalAlign>1</VerticalAlign>
+            <LeftMargin>0.07</LeftMargin>
+            <RightMargin>0.07</RightMargin>
+            <TopMargin>0.07</TopMargin>
+            <BottomMargin>0.07</BottomMargin>
+          </TextBlock>
+          <Char IX="0">
+            <Font>0</Font>
+            <Size>0.15</Size>
+            <Color>#142B42</Color>
+          </Char>
+          <Para IX="0">
+            <HorzAlign>1</HorzAlign>
+          </Para>
+          <Geom IX="0">
+            <MoveTo IX="1">
+              <X>0</X>
+              <Y>0</Y>
+            </MoveTo>
+            <LineTo IX="2">
+              <X>3.4</X>
+              <Y>0</Y>
+            </LineTo>
+            <LineTo IX="3">
+              <X>3.4</X>
+              <Y>0.85</Y>
+            </LineTo>
+            <LineTo IX="4">
+              <X>0</X>
+              <Y>0.85</Y>
+            </LineTo>
+            <LineTo IX="5">
+              <X>0</X>
+              <Y>0</Y>
+            </LineTo>
+          </Geom>
+          <Text>Keep primary value. Never overwrite it with Special Instructions.</Text>
+        </Shape>
+        <Shape ID="4" NameU="allowed" Type="Shape">
+          <XForm>
+            <PinX>4.5</PinX>
+            <PinY>10.85</PinY>
+            <Width>3.8</Width>
+            <Height>1.3</Height>
+            <LocPinX>1.9</LocPinX>
+            <LocPinY>0.65</LocPinY>
+            <Angle>0</Angle>
+          </XForm>
+          <Line>
+            <LineWeight>0.012</LineWeight>
+            <LineColor>#40556B</LineColor>
+            <LinePattern>1</LinePattern>
+          </Line>
+          <Fill>
+            <FillForegnd>#FFF2CC</FillForegnd>
+            <FillPattern>1</FillPattern>
+          </Fill>
+          <TextBlock>
+            <VerticalAlign>1</VerticalAlign>
+            <LeftMargin>0.07</LeftMargin>
+            <RightMargin>0.07</RightMargin>
+            <TopMargin>0.07</TopMargin>
+            <BottomMargin>0.07</BottomMargin>
+          </TextBlock>
+          <Char IX="0">
+            <Font>0</Font>
+            <Size>0.15</Size>
+            <Color>#142B42</Color>
+          </Char>
+          <Para IX="0">
+            <HorzAlign>1</HorzAlign>
+          </Para>
+          <Geom IX="0">
+            <MoveTo IX="1">
+              <X>1.9</X>
+              <Y>1.3</Y>
+            </MoveTo>
+            <LineTo IX="2">
+              <X>3.8</X>
+              <Y>0.65</Y>
+            </LineTo>
+            <LineTo IX="3">
+              <X>1.9</X>
+              <Y>0</Y>
+            </LineTo>
+            <LineTo IX="4">
+              <X>0</X>
+              <Y>0.65</Y>
+            </LineTo>
+            <LineTo IX="5">
+              <X>1.9</X>
+              <Y>1.3</Y>
+            </LineTo>
+          </Geom>
+          <Text>Special Instructions fallback allowed for this field?</Text>
+        </Shape>
+        <Shape ID="5" NameU="missing" Type="Shape">
+          <XForm>
+            <PinX>9.5</PinX>
+            <PinY>10.85</PinY>
+            <Width>3.4</Width>
+            <Height>0.85</Height>
+            <LocPinX>1.7</LocPinX>
+            <LocPinY>0.425</LocPinY>
+            <Angle>0</Angle>
+          </XForm>
+          <Line>
+            <LineWeight>0.012</LineWeight>
+            <LineColor>#40556B</LineColor>
+            <LinePattern>1</LinePattern>
+          </Line>
+          <Fill>
+            <FillForegnd>#F4F6F8</FillForegnd>
+            <FillPattern>1</FillPattern>
+          </Fill>
+          <TextBlock>
+            <VerticalAlign>1</VerticalAlign>
+            <LeftMargin>0.07</LeftMargin>
+            <RightMargin>0.07</RightMargin>
+            <TopMargin>0.07</TopMargin>
+            <BottomMargin>0.07</BottomMargin>
+          </TextBlock>
+          <Char IX="0">
+            <Font>0</Font>
+            <Size>0.135</Size>
+            <Color>#142B42</Color>
+          </Char>
+          <Para IX="0">
+            <HorzAlign>1</HorzAlign>
+          </Para>
+          <Geom IX="0">
+            <MoveTo IX="1">
+              <X>0</X>
+              <Y>0</Y>
+            </MoveTo>
+            <LineTo IX="2">
+              <X>3.4</X>
+              <Y>0</Y>
+            </LineTo>
+            <LineTo IX="3">
+              <X>3.4</X>
+              <Y>0.85</Y>
+            </LineTo>
+            <LineTo IX="4">
+              <X>0</X>
+              <Y>0.85</Y>
+            </LineTo>
+            <LineTo IX="5">
+              <X>0</X>
+              <Y>0</Y>
+            </LineTo>
+          </Geom>
+          <Text>Use Not found</Text>
+        </Shape>
+        <Shape ID="6" NameU="fallback" Type="Shape">
+          <XForm>
+            <PinX>4.5</PinX>
+            <PinY>9</PinY>
+            <Width>3.8</Width>
+            <Height>1.1</Height>
+            <LocPinX>1.9</LocPinX>
+            <LocPinY>0.55</LocPinY>
+            <Angle>0</Angle>
+          </XForm>
+          <Line>
+            <LineWeight>0.012</LineWeight>
+            <LineColor>#40556B</LineColor>
+            <LinePattern>1</LinePattern>
+          </Line>
+          <Fill>
+            <FillForegnd>#FFF2CC</FillForegnd>
+            <FillPattern>1</FillPattern>
+          </Fill>
+          <TextBlock>
+            <VerticalAlign>1</VerticalAlign>
+            <LeftMargin>0.07</LeftMargin>
+            <RightMargin>0.07</RightMargin>
+            <TopMargin>0.07</TopMargin>
+            <BottomMargin>0.07</BottomMargin>
+          </TextBlock>
+          <Char IX="0">
+            <Font>0</Font>
+            <Size>0.15</Size>
+            <Color>#142B42</Color>
+          </Char>
+          <Para IX="0">
+            <HorzAlign>1</HorzAlign>
+          </Para>
+          <Geom IX="0">
+            <MoveTo IX="1">
+              <X>1.9</X>
+              <Y>1.1</Y>
+            </MoveTo>
+            <LineTo IX="2">
+              <X>3.8</X>
+              <Y>0.55</Y>
+            </LineTo>
+            <LineTo IX="3">
+              <X>1.9</X>
+              <Y>0</Y>
+            </LineTo>
+            <LineTo IX="4">
+              <X>0</X>
+              <Y>0.55</Y>
+            </LineTo>
+            <LineTo IX="5">
+              <X>1.9</X>
+              <Y>1.1</Y>
+            </LineTo>
+          </Geom>
+          <Text>Special Instructions value present?</Text>
+        </Shape>
+        <Shape ID="7" NameU="use" Type="Shape">
+          <XForm>
+            <PinX>4.5</PinX>
+            <PinY>7.300000000000001</PinY>
+            <Width>3.8</Width>
+            <Height>0.85</Height>
+            <LocPinX>1.9</LocPinX>
+            <LocPinY>0.425</LocPinY>
+            <Angle>0</Angle>
+          </XForm>
+          <Line>
+            <LineWeight>0.012</LineWeight>
+            <LineColor>#40556B</LineColor>
+            <LinePattern>1</LinePattern>
+          </Line>
+          <Fill>
+            <FillForegnd>#EAF2FB</FillForegnd>
+            <FillPattern>1</FillPattern>
+          </Fill>
+          <TextBlock>
+            <VerticalAlign>1</VerticalAlign>
+            <LeftMargin>0.07</LeftMargin>
+            <RightMargin>0.07</RightMargin>
+            <TopMargin>0.07</TopMargin>
+            <BottomMargin>0.07</BottomMargin>
+          </TextBlock>
+          <Char IX="0">
+            <Font>0</Font>
+            <Size>0.15</Size>
+            <Color>#142B42</Color>
+          </Char>
+          <Para IX="0">
+            <HorzAlign>1</HorzAlign>
+          </Para>
+          <Geom IX="0">
+            <MoveTo IX="1">
+              <X>0</X>
+              <Y>0</Y>
+            </MoveTo>
+            <LineTo IX="2">
+              <X>3.8</X>
+              <Y>0</Y>
+            </LineTo>
+            <LineTo IX="3">
+              <X>3.8</X>
+              <Y>0.85</Y>
+            </LineTo>
+            <LineTo IX="4">
+              <X>0</X>
+              <Y>0.85</Y>
+            </LineTo>
+            <LineTo IX="5">
+              <X>0</X>
+              <Y>0</Y>
+            </LineTo>
+          </Geom>
+          <Text>Use Special Instructions value</Text>
+        </Shape>
+        <Shape ID="8" NameU="next" Type="Shape">
+          <XForm>
+            <PinX>4.5</PinX>
+            <PinY>5.699999999999999</PinY>
+            <Width>3.8</Width>
+            <Height>1.1</Height>
+            <LocPinX>1.9</LocPinX>
+            <LocPinY>0.55</LocPinY>
+            <Angle>0</Angle>
+          </XForm>
+          <Line>
+            <LineWeight>0.012</LineWeight>
+            <LineColor>#40556B</LineColor>
+            <LinePattern>1</LinePattern>
+          </Line>
+          <Fill>
+            <FillForegnd>#EAF2FB</FillForegnd>
+            <FillPattern>1</FillPattern>
+          </Fill>
+          <TextBlock>
+            <VerticalAlign>1</VerticalAlign>
+            <LeftMargin>0.07</LeftMargin>
+            <RightMargin>0.07</RightMargin>
+            <TopMargin>0.07</TopMargin>
+            <BottomMargin>0.07</BottomMargin>
+          </TextBlock>
+          <Char IX="0">
+            <Font>0</Font>
+            <Size>0.15</Size>
+            <Color>#142B42</Color>
+          </Char>
+          <Para IX="0">
+            <HorzAlign>1</HorzAlign>
+          </Para>
+          <Geom IX="0">
+            <MoveTo IX="1">
+              <X>0</X>
+              <Y>0</Y>
+            </MoveTo>
+            <LineTo IX="2">
+              <X>3.8</X>
+              <Y>0</Y>
+            </LineTo>
+            <LineTo IX="3">
+              <X>3.8</X>
+              <Y>1.1</Y>
+            </LineTo>
+            <LineTo IX="4">
+              <X>0</X>
+              <Y>1.1</Y>
+            </LineTo>
+            <LineTo IX="5">
+              <X>0</X>
+              <Y>0</Y>
+            </LineTo>
+          </Geom>
+          <Text>Keep role-specific fields separate; reject emails used as phone numbers. Continue to next field.</Text>
+        </Shape>
+        <Shape ID="9" NameU="blocked" Type="Shape">
+          <XForm>
+            <PinX>3.4</PinX>
+            <PinY>3.1999999999999993</PinY>
+            <Width>4.6</Width>
+            <Height>1.5</Height>
+            <LocPinX>2.3</LocPinX>
+            <LocPinY>0.75</LocPinY>
+            <Angle>0</Angle>
+          </XForm>
+          <Line>
+            <LineWeight>0.012</LineWeight>
+            <LineColor>#40556B</LineColor>
+            <LinePattern>1</LinePattern>
+          </Line>
+          <Fill>
+            <FillForegnd>#F4F6F8</FillForegnd>
+            <FillPattern>1</FillPattern>
+          </Fill>
+          <TextBlock>
+            <VerticalAlign>1</VerticalAlign>
+            <LeftMargin>0.07</LeftMargin>
+            <RightMargin>0.07</RightMargin>
+            <TopMargin>0.07</TopMargin>
+            <BottomMargin>0.07</BottomMargin>
+          </TextBlock>
+          <Char IX="0">
+            <Font>0</Font>
+            <Size>0.135</Size>
+            <Color>#142B42</Color>
+          </Char>
+          <Para IX="0">
+            <HorzAlign>1</HorzAlign>
+          </Para>
+          <Geom IX="0">
+            <MoveTo IX="1">
+              <X>0</X>
+              <Y>0</Y>
+            </MoveTo>
+            <LineTo IX="2">
+              <X>4.6</X>
+              <Y>0</Y>
+            </LineTo>
+            <LineTo IX="3">
+              <X>4.6</X>
+              <Y>1.5</Y>
+            </LineTo>
+            <LineTo IX="4">
+              <X>0</X>
+              <Y>1.5</Y>
+            </LineTo>
+            <LineTo IX="5">
+              <X>0</X>
+              <Y>0</Y>
+            </LineTo>
+          </Geom>
+          <Text>NO FALLBACK
+All claimant/customer fields
+Claim Number, Claim ID, Claim Type</Text>
+        </Shape>
+        <Shape ID="10" NameU="whitelist" Type="Shape">
+          <XForm>
+            <PinX>9</PinX>
+            <PinY>3.1999999999999993</PinY>
+            <Width>4.8</Width>
+            <Height>2.2</Height>
+            <LocPinX>2.4</LocPinX>
+            <LocPinY>1.1</LocPinY>
+            <Angle>0</Angle>
+          </XForm>
+          <Line>
+            <LineWeight>0.012</LineWeight>
+            <LineColor>#40556B</LineColor>
+            <LinePattern>1</LinePattern>
+          </Line>
+          <Fill>
+            <FillForegnd>#F4F6F8</FillForegnd>
+            <FillPattern>1</FillPattern>
+          </Fill>
+          <TextBlock>
+            <VerticalAlign>1</VerticalAlign>
+            <LeftMargin>0.07</LeftMargin>
+            <RightMargin>0.07</RightMargin>
+            <TopMargin>0.07</TopMargin>
+            <BottomMargin>0.07</BottomMargin>
+          </TextBlock>
+          <Char IX="0">
+            <Font>0</Font>
+            <Size>0.135</Size>
+            <Color>#142B42</Color>
+          </Char>
+          <Para IX="0">
+            <HorzAlign>1</HorzAlign>
+          </Para>
+          <Geom IX="0">
+            <MoveTo IX="1">
+              <X>0</X>
+              <Y>0</Y>
+            </MoveTo>
+            <LineTo IX="2">
+              <X>4.8</X>
+              <Y>0</Y>
+            </LineTo>
+            <LineTo IX="3">
+              <X>4.8</X>
+              <Y>2.2</Y>
+            </LineTo>
+            <LineTo IX="4">
+              <X>0</X>
+              <Y>2.2</Y>
+            </LineTo>
+            <LineTo IX="5">
+              <X>0</X>
+              <Y>0</Y>
+            </LineTo>
+          </Geom>
+          <Text>FALLBACK ALLOWED
+Injury date, jurisdiction, accident description, injury description, diagnosis code
+All case manager fields
+Attorney + referral metadata
+Providers: see page 3</Text>
+        </Shape>
+        <Shape ID="11" NameU="note" Type="Shape">
+          <XForm>
+            <PinX>9.5</PinX>
+            <PinY>7.1</PinY>
+            <Width>3.4</Width>
+            <Height>2.3</Height>
+            <LocPinX>1.7</LocPinX>
+            <LocPinY>1.15</LocPinY>
+            <Angle>0</Angle>
+          </XForm>
+          <Line>
+            <LineWeight>0.012</LineWeight>
+            <LineColor>#40556B</LineColor>
+            <LinePattern>1</LinePattern>
+          </Line>
+          <Fill>
+            <FillForegnd>#F4F6F8</FillForegnd>
+            <FillPattern>1</FillPattern>
+          </Fill>
+          <TextBlock>
+            <VerticalAlign>1</VerticalAlign>
+            <LeftMargin>0.07</LeftMargin>
+            <RightMargin>0.07</RightMargin>
+            <TopMargin>0.07</TopMargin>
+            <BottomMargin>0.07</BottomMargin>
+          </TextBlock>
+          <Char IX="0">
+            <Font>0</Font>
+            <Size>0.135</Size>
+            <Color>#142B42</Color>
+          </Char>
+          <Para IX="0">
+            <HorzAlign>1</HorzAlign>
+          </Para>
+          <Geom IX="0">
+            <MoveTo IX="1">
+              <X>0</X>
+              <Y>0</Y>
+            </MoveTo>
+            <LineTo IX="2">
+              <X>3.4</X>
+              <Y>0</Y>
+            </LineTo>
+            <LineTo IX="3">
+              <X>3.4</X>
+              <Y>2.3</Y>
+            </LineTo>
+            <LineTo IX="4">
+              <X>0</X>
+              <Y>2.3</Y>
+            </LineTo>
+            <LineTo IX="5">
+              <X>0</X>
+              <Y>0</Y>
+            </LineTo>
+          </Geom>
+          <Text>Optional does not mean fallback is allowed: claimant Address-line-2 is optional but never uses Special Instructions. Missing/null/unknown values normalize to Not found. Identifiers remain strings.</Text>
+        </Shape>
+        <Shape ID="12" NameU="title" Type="Shape">
+          <XForm>
+            <PinX>6</PinX>
+            <PinY>15.52</PinY>
+            <Width>11</Width>
+            <Height>0.5</Height>
+            <LocPinX>5.5</LocPinX>
+            <LocPinY>0.25</LocPinY>
+            <Angle>0</Angle>
+          </XForm>
+          <Line>
+            <LineWeight>0.012</LineWeight>
+            <LineColor>#40556B</LineColor>
+            <LinePattern>0</LinePattern>
+          </Line>
+          <Fill>
+            <FillForegnd>#FFFFFF</FillForegnd>
+            <FillPattern>1</FillPattern>
+          </Fill>
+          <TextBlock>
+            <VerticalAlign>1</VerticalAlign>
+            <LeftMargin>0.07</LeftMargin>
+            <RightMargin>0.07</RightMargin>
+            <TopMargin>0.07</TopMargin>
+            <BottomMargin>0.07</BottomMargin>
+          </TextBlock>
+          <Char IX="0">
+            <Font>0</Font>
+            <Size>0.15</Size>
+            <Color>#142B42</Color>
+          </Char>
+          <Para IX="0">
+            <HorzAlign>1</HorzAlign>
+          </Para>
+          <Geom IX="0">
+            <MoveTo IX="1">
+              <X>0</X>
+              <Y>0</Y>
+            </MoveTo>
+            <LineTo IX="2">
+              <X>11</X>
+              <Y>0</Y>
+            </LineTo>
+            <LineTo IX="3">
+              <X>11</X>
+              <Y>0.5</Y>
+            </LineTo>
+            <LineTo IX="4">
+              <X>0</X>
+              <Y>0.5</Y>
+            </LineTo>
+            <LineTo IX="5">
+              <X>0</X>
+              <Y>0</Y>
+            </LineTo>
+          </Geom>
+          <Text>02 Section priority</Text>
+        </Shape>
+        <Shape ID="13" NameU="subtitle" Type="Shape">
+          <XForm>
+            <PinX>6</PinX>
+            <PinY>15.06</PinY>
+            <Width>11</Width>
+            <Height>0.35</Height>
+            <LocPinX>5.5</LocPinX>
+            <LocPinY>0.175</LocPinY>
+            <Angle>0</Angle>
+          </XForm>
+          <Line>
+            <LineWeight>0.012</LineWeight>
+            <LineColor>#40556B</LineColor>
+            <LinePattern>0</LinePattern>
+          </Line>
+          <Fill>
+            <FillForegnd>#FFFFFF</FillForegnd>
+            <FillPattern>1</FillPattern>
+          </Fill>
+          <TextBlock>
+            <VerticalAlign>1</VerticalAlign>
+            <LeftMargin>0.07</LeftMargin>
+            <RightMargin>0.07</RightMargin>
+            <TopMargin>0.07</TopMargin>
+            <BottomMargin>0.07</BottomMargin>
+          </TextBlock>
+          <Char IX="0">
+            <Font>0</Font>
+            <Size>0.15</Size>
+            <Color>#142B42</Color>
+          </Char>
+          <Para IX="0">
+            <HorzAlign>1</HorzAlign>
+          </Para>
+          <Geom IX="0">
+            <MoveTo IX="1">
+              <X>0</X>
+              <Y>0</Y>
+            </MoveTo>
+            <LineTo IX="2">
+              <X>11</X>
+              <Y>0</Y>
+            </LineTo>
+            <LineTo IX="3">
+              <X>11</X>
+              <Y>0.35</Y>
+            </LineTo>
+            <LineTo IX="4">
+              <X>0</X>
+              <Y>0.35</Y>
+            </LineTo>
+            <LineTo IX="5">
+              <X>0</X>
+              <Y>0</Y>
+            </LineTo>
+          </Geom>
+          <Text>Scalar fields | Model separates sources; Python resolves permitted missing values</Text>
+        </Shape>
+        <Shape ID="14" NameU="footer" Type="Shape">
+          <XForm>
+            <PinX>6</PinX>
+            <PinY>0.34999999999999964</PinY>
+            <Width>11</Width>
+            <Height>0.35</Height>
+            <LocPinX>5.5</LocPinX>
+            <LocPinY>0.175</LocPinY>
+            <Angle>0</Angle>
+          </XForm>
+          <Line>
+            <LineWeight>0.012</LineWeight>
+            <LineColor>#40556B</LineColor>
+            <LinePattern>0</LinePattern>
+          </Line>
+          <Fill>
+            <FillForegnd>#FFFFFF</FillForegnd>
+            <FillPattern>1</FillPattern>
+          </Fill>
+          <TextBlock>
+            <VerticalAlign>1</VerticalAlign>
+            <LeftMargin>0.07</LeftMargin>
+            <RightMargin>0.07</RightMargin>
+            <TopMargin>0.07</TopMargin>
+            <BottomMargin>0.07</BottomMargin>
+          </TextBlock>
+          <Char IX="0">
+            <Font>0</Font>
+            <Size>0.15</Size>
+            <Color>#142B42</Color>
+          </Char>
+          <Para IX="0">
+            <HorzAlign>1</HorzAlign>
+          </Para>
+          <Geom IX="0">
+            <MoveTo IX="1">
+              <X>0</X>
+              <Y>0</Y>
+            </MoveTo>
+            <LineTo IX="2">
+              <X>11</X>
+              <Y>0</Y>
+            </LineTo>
+            <LineTo IX="3">
+              <X>11</X>
+              <Y>0.35</Y>
+            </LineTo>
+            <LineTo IX="4">
+              <X>0</X>
+              <Y>0.35</Y>
+            </LineTo>
+            <LineTo IX="5">
+              <X>0</X>
+              <Y>0</Y>
+            </LineTo>
+          </Geom>
+          <Text>FCM Structured | AI/referral_schema.py + AI/bedrock_core.py | Page 2 of 4</Text>
+        </Shape>
+        <Shape ID="15" NameU="label1" Type="Shape">
+          <XForm>
+            <PinX>6.78</PinX>
+            <PinY>12.65</PinY>
+            <Width>0.78</Width>
+            <Height>0.24</Height>
+            <LocPinX>0.39</LocPinX>
+            <LocPinY>0.12</LocPinY>
+            <Angle>0</Angle>
+          </XForm>
+          <Line>
+            <LineWeight>0.012</LineWeight>
+            <LineColor>#40556B</LineColor>
+            <LinePattern>0</LinePattern>
+          </Line>
+          <Fill>
+            <FillForegnd>#FFFFFF</FillForegnd>
+            <FillPattern>1</FillPattern>
+          </Fill>
+          <TextBlock>
+            <VerticalAlign>1</VerticalAlign>
+            <LeftMargin>0.07</LeftMargin>
+            <RightMargin>0.07</RightMargin>
+            <TopMargin>0.07</TopMargin>
+            <BottomMargin>0.07</BottomMargin>
+          </TextBlock>
+          <Char IX="0">
+            <Font>0</Font>
+            <Size>0.15</Size>
+            <Color>#142B42</Color>
+          </Char>
+          <Para IX="0">
+            <HorzAlign>1</HorzAlign>
+          </Para>
+          <Geom IX="0">
+            <MoveTo IX="1">
+              <X>0</X>
+              <Y>0</Y>
+            </MoveTo>
+            <LineTo IX="2">
+              <X>0.78</X>
+              <Y>0</Y>
+            </LineTo>
+            <LineTo IX="3">
+              <X>0.78</X>
+              <Y>0.24</Y>
+            </LineTo>
+            <LineTo IX="4">
+              <X>0</X>
+              <Y>0.24</Y>
+            </LineTo>
+            <LineTo IX="5">
+              <X>0</X>
+              <Y>0</Y>
+            </LineTo>
+          </Geom>
+          <Text>Yes</Text>
+        </Shape>
+        <Shape ID="16" NameU="label2" Type="Shape">
+          <XForm>
+            <PinX>4.5</PinX>
+            <PinY>11.8</PinY>
+            <Width>0.78</Width>
+            <Height>0.24</Height>
+            <LocPinX>0.39</LocPinX>
+            <LocPinY>0.12</LocPinY>
+            <Angle>0</Angle>
+          </XForm>
+          <Line>
+            <LineWeight>0.012</LineWeight>
+            <LineColor>#40556B</LineColor>
+            <LinePattern>0</LinePattern>
+          </Line>
+          <Fill>
+            <FillForegnd>#FFFFFF</FillForegnd>
+            <FillPattern>1</FillPattern>
+          </Fill>
+          <TextBlock>
+            <VerticalAlign>1</VerticalAlign>
+            <LeftMargin>0.07</LeftMargin>
+            <RightMargin>0.07</RightMargin>
+            <TopMargin>0.07</TopMargin>
+            <BottomMargin>0.07</BottomMargin>
+          </TextBlock>
+          <Char IX="0">
+            <Font>0</Font>
+            <Size>0.15</Size>
+            <Color>#142B42</Color>
+          </Char>
+          <Para IX="0">
+            <HorzAlign>1</HorzAlign>
+          </Para>
+          <Geom IX="0">
+            <MoveTo IX="1">
+              <X>0</X>
+              <Y>0</Y>
+            </MoveTo>
+            <LineTo IX="2">
+              <X>0.78</X>
+              <Y>0</Y>
+            </LineTo>
+            <LineTo IX="3">
+              <X>0.78</X>
+              <Y>0.24</Y>
+            </LineTo>
+            <LineTo IX="4">
+              <X>0</X>
+              <Y>0.24</Y>
+            </LineTo>
+            <LineTo IX="5">
+              <X>0</X>
+              <Y>0</Y>
+            </LineTo>
+          </Geom>
+          <Text>No</Text>
+        </Shape>
+        <Shape ID="17" NameU="label3" Type="Shape">
+          <XForm>
+            <PinX>6.78</PinX>
+            <PinY>10.85</PinY>
+            <Width>0.78</Width>
+            <Height>0.24</Height>
+            <LocPinX>0.39</LocPinX>
+            <LocPinY>0.12</LocPinY>
+            <Angle>0</Angle>
+          </XForm>
+          <Line>
+            <LineWeight>0.012</LineWeight>
+            <LineColor>#40556B</LineColor>
+            <LinePattern>0</LinePattern>
+          </Line>
+          <Fill>
+            <FillForegnd>#FFFFFF</FillForegnd>
+            <FillPattern>1</FillPattern>
+          </Fill>
+          <TextBlock>
+            <VerticalAlign>1</VerticalAlign>
+            <LeftMargin>0.07</LeftMargin>
+            <RightMargin>0.07</RightMargin>
+            <TopMargin>0.07</TopMargin>
+            <BottomMargin>0.07</BottomMargin>
+          </TextBlock>
+          <Char IX="0">
+            <Font>0</Font>
+            <Size>0.15</Size>
+            <Color>#142B42</Color>
+          </Char>
+          <Para IX="0">
+            <HorzAlign>1</HorzAlign>
+          </Para>
+          <Geom IX="0">
+            <MoveTo IX="1">
+              <X>0</X>
+              <Y>0</Y>
+            </MoveTo>
+            <LineTo IX="2">
+              <X>0.78</X>
+              <Y>0</Y>
+            </LineTo>
+            <LineTo IX="3">
+              <X>0.78</X>
+              <Y>0.24</Y>
+            </LineTo>
+            <LineTo IX="4">
+              <X>0</X>
+              <Y>0.24</Y>
+            </LineTo>
+            <LineTo IX="5">
+              <X>0</X>
+              <Y>0</Y>
+            </LineTo>
+          </Geom>
+          <Text>No</Text>
+        </Shape>
+        <Shape ID="18" NameU="label4" Type="Shape">
+          <XForm>
+            <PinX>4.5</PinX>
+            <PinY>9.875</PinY>
+            <Width>0.78</Width>
+            <Height>0.24</Height>
+            <LocPinX>0.39</LocPinX>
+            <LocPinY>0.12</LocPinY>
+            <Angle>0</Angle>
+          </XForm>
+          <Line>
+            <LineWeight>0.012</LineWeight>
+            <LineColor>#40556B</LineColor>
+            <LinePattern>0</LinePattern>
+          </Line>
+          <Fill>
+            <FillForegnd>#FFFFFF</FillForegnd>
+            <FillPattern>1</FillPattern>
+          </Fill>
+          <TextBlock>
+            <VerticalAlign>1</VerticalAlign>
+            <LeftMargin>0.07</LeftMargin>
+            <RightMargin>0.07</RightMargin>
+            <TopMargin>0.07</TopMargin>
+            <BottomMargin>0.07</BottomMargin>
+          </TextBlock>
+          <Char IX="0">
+            <Font>0</Font>
+            <Size>0.15</Size>
+            <Color>#142B42</Color>
+          </Char>
+          <Para IX="0">
+            <HorzAlign>1</HorzAlign>
+          </Para>
+          <Geom IX="0">
+            <MoveTo IX="1">
+              <X>0</X>
+              <Y>0</Y>
+            </MoveTo>
+            <LineTo IX="2">
+              <X>0.78</X>
+              <Y>0</Y>
+            </LineTo>
+            <LineTo IX="3">
+              <X>0.78</X>
+              <Y>0.24</Y>
+            </LineTo>
+            <LineTo IX="4">
+              <X>0</X>
+              <Y>0.24</Y>
+            </LineTo>
+            <LineTo IX="5">
+              <X>0</X>
+              <Y>0</Y>
+            </LineTo>
+          </Geom>
+          <Text>Yes</Text>
+        </Shape>
+        <Shape ID="19" NameU="label5" Type="Shape">
+          <XForm>
+            <PinX>4.5</PinX>
+            <PinY>8.0875</PinY>
+            <Width>0.78</Width>
+            <Height>0.24</Height>
+            <LocPinX>0.39</LocPinX>
+            <LocPinY>0.12</LocPinY>
+            <Angle>0</Angle>
+          </XForm>
+          <Line>
+            <LineWeight>0.012</LineWeight>
+            <LineColor>#40556B</LineColor>
+            <LinePattern>0</LinePattern>
+          </Line>
+          <Fill>
+            <FillForegnd>#FFFFFF</FillForegnd>
+            <FillPattern>1</FillPattern>
+          </Fill>
+          <TextBlock>
+            <VerticalAlign>1</VerticalAlign>
+            <LeftMargin>0.07</LeftMargin>
+            <RightMargin>0.07</RightMargin>
+            <TopMargin>0.07</TopMargin>
+            <BottomMargin>0.07</BottomMargin>
+          </TextBlock>
+          <Char IX="0">
+            <Font>0</Font>
+            <Size>0.15</Size>
+            <Color>#142B42</Color>
+          </Char>
+          <Para IX="0">
+            <HorzAlign>1</HorzAlign>
+          </Para>
+          <Geom IX="0">
+            <MoveTo IX="1">
+              <X>0</X>
+              <Y>0</Y>
+            </MoveTo>
+            <LineTo IX="2">
+              <X>0.78</X>
+              <Y>0</Y>
+            </LineTo>
+            <LineTo IX="3">
+              <X>0.78</X>
+              <Y>0.24</Y>
+            </LineTo>
+            <LineTo IX="4">
+              <X>0</X>
+              <Y>0.24</Y>
+            </LineTo>
+            <LineTo IX="5">
+              <X>0</X>
+              <Y>0</Y>
+            </LineTo>
+          </Geom>
+          <Text>Yes</Text>
+        </Shape>
+        <Shape ID="20" NameU="label6" Type="Shape">
+          <XForm>
+            <PinX>6.75</PinX>
+            <PinY>9.0</PinY>
+            <Width>0.78</Width>
+            <Height>0.24</Height>
+            <LocPinX>0.39</LocPinX>
+            <LocPinY>0.12</LocPinY>
+            <Angle>0</Angle>
+          </XForm>
+          <Line>
+            <LineWeight>0.012</LineWeight>
+            <LineColor>#40556B</LineColor>
+            <LinePattern>0</LinePattern>
+          </Line>
+          <Fill>
+            <FillForegnd>#FFFFFF</FillForegnd>
+            <FillPattern>1</FillPattern>
+          </Fill>
+          <TextBlock>
+            <VerticalAlign>1</VerticalAlign>
+            <LeftMargin>0.07</LeftMargin>
+            <RightMargin>0.07</RightMargin>
+            <TopMargin>0.07</TopMargin>
+            <BottomMargin>0.07</BottomMargin>
+          </TextBlock>
+          <Char IX="0">
+            <Font>0</Font>
+            <Size>0.15</Size>
+            <Color>#142B42</Color>
+          </Char>
+          <Para IX="0">
+            <HorzAlign>1</HorzAlign>
+          </Para>
+          <Geom IX="0">
+            <MoveTo IX="1">
+              <X>0</X>
+              <Y>0</Y>
+            </MoveTo>
+            <LineTo IX="2">
+              <X>0.78</X>
+              <Y>0</Y>
+            </LineTo>
+            <LineTo IX="3">
+              <X>0.78</X>
+              <Y>0.24</Y>
+            </LineTo>
+            <LineTo IX="4">
+              <X>0</X>
+              <Y>0.24</Y>
+            </LineTo>
+            <LineTo IX="5">
+              <X>0</X>
+              <Y>0</Y>
+            </LineTo>
+          </Geom>
+          <Text>No</Text>
+        </Shape>
+        <Shape ID="21" NameU="label8" Type="Shape">
+          <XForm>
+            <PinX>11.399999999999999</PinX>
+            <PinY>12.65</PinY>
+            <Width>0.78</Width>
+            <Height>0.24</Height>
+            <LocPinX>0.39</LocPinX>
+            <LocPinY>0.12</LocPinY>
+            <Angle>0</Angle>
+          </XForm>
+          <Line>
+            <LineWeight>0.012</LineWeight>
+            <LineColor>#40556B</LineColor>
+            <LinePattern>0</LinePattern>
+          </Line>
+          <Fill>
+            <FillForegnd>#FFFFFF</FillForegnd>
+            <FillPattern>1</FillPattern>
+          </Fill>
+          <TextBlock>
+            <VerticalAlign>1</VerticalAlign>
+            <LeftMargin>0.07</LeftMargin>
+            <RightMargin>0.07</RightMargin>
+            <TopMargin>0.07</TopMargin>
+            <BottomMargin>0.07</BottomMargin>
+          </TextBlock>
+          <Char IX="0">
+            <Font>0</Font>
+            <Size>0.15</Size>
+            <Color>#142B42</Color>
+          </Char>
+          <Para IX="0">
+            <HorzAlign>1</HorzAlign>
+          </Para>
+          <Geom IX="0">
+            <MoveTo IX="1">
+              <X>0</X>
+              <Y>0</Y>
+            </MoveTo>
+            <LineTo IX="2">
+              <X>0.78</X>
+              <Y>0</Y>
+            </LineTo>
+            <LineTo IX="3">
+              <X>0.78</X>
+              <Y>0.24</Y>
+            </LineTo>
+            <LineTo IX="4">
+              <X>0</X>
+              <Y>0.24</Y>
+            </LineTo>
+            <LineTo IX="5">
+              <X>0</X>
+              <Y>0</Y>
+            </LineTo>
+          </Geom>
+          <Text>Next field</Text>
+        </Shape>
+        <Shape ID="22" NameU="label9" Type="Shape">
+          <XForm>
+            <PinX>11.3</PinX>
+            <PinY>10.85</PinY>
+            <Width>0.78</Width>
+            <Height>0.24</Height>
+            <LocPinX>0.39</LocPinX>
+            <LocPinY>0.12</LocPinY>
+            <Angle>0</Angle>
+          </XForm>
+          <Line>
+            <LineWeight>0.012</LineWeight>
+            <LineColor>#40556B</LineColor>
+            <LinePattern>0</LinePattern>
+          </Line>
+          <Fill>
+            <FillForegnd>#FFFFFF</FillForegnd>
+            <FillPattern>1</FillPattern>
+          </Fill>
+          <TextBlock>
+            <VerticalAlign>1</VerticalAlign>
+            <LeftMargin>0.07</LeftMargin>
+            <RightMargin>0.07</RightMargin>
+            <TopMargin>0.07</TopMargin>
+            <BottomMargin>0.07</BottomMargin>
+          </TextBlock>
+          <Char IX="0">
+            <Font>0</Font>
+            <Size>0.15</Size>
+            <Color>#142B42</Color>
+          </Char>
+          <Para IX="0">
+            <HorzAlign>1</HorzAlign>
+          </Para>
+          <Geom IX="0">
+            <MoveTo IX="1">
+              <X>0</X>
+              <Y>0</Y>
+            </MoveTo>
+            <LineTo IX="2">
+              <X>0.78</X>
+              <Y>0</Y>
+            </LineTo>
+            <LineTo IX="3">
+              <X>0.78</X>
+              <Y>0.24</Y>
+            </LineTo>
+            <LineTo IX="4">
+              <X>0</X>
+              <Y>0.24</Y>
+            </LineTo>
+            <LineTo IX="5">
+              <X>0</X>
+              <Y>0</Y>
+            </LineTo>
+          </Geom>
+          <Text>Next field</Text>
+        </Shape>
+      </Shapes>
+    </Page>
+    <Page ID="2" NameU="03 Provider processing" Name="03 Provider processing">
+      <PageSheet>
+        <PageProps>
+          <PageWidth>12</PageWidth>
+          <PageHeight>16</PageHeight>
+        </PageProps>
+      </PageSheet>
+      <Shapes>
+        <Shape ID="100" NameU="Connector.0" Type="Shape">
+          <XForm>
+            <PinX>6</PinX>
+            <PinY>8</PinY>
+            <Width>12</Width>
+            <Height>16</Height>
+            <LocPinX>6</LocPinX>
+            <LocPinY>8</LocPinY>
+            <Angle>0</Angle>
+          </XForm>
+          <Line>
+            <LineColor>#40556B</LineColor>
+            <LineWeight>0.014</LineWeight>
+            <EndArrow>4</EndArrow>
+          </Line>
+          <Geom IX="0">
+            <NoFill>1</NoFill>
+            <MoveTo IX="1">
+              <X>4.6</X>
+              <Y>13.725</Y>
+            </MoveTo>
+            <LineTo IX="2">
+              <X>4.6</X>
+              <Y>13.225</Y>
+            </LineTo>
+          </Geom>
+        </Shape>
+        <Shape ID="101" NameU="Connector.1" Type="Shape">
+          <XForm>
+            <PinX>6</PinX>
+            <PinY>8</PinY>
+            <Width>12</Width>
+            <Height>16</Height>
+            <LocPinX>6</LocPinX>
+            <LocPinY>8</LocPinY>
+            <Angle>0</Angle>
+          </XForm>
+          <Line>
+            <LineColor>#40556B</LineColor>
+            <LineWeight>0.014</LineWeight>
+            <EndArrow>4</EndArrow>
+          </Line>
+          <Geom IX="0">
+            <NoFill>1</NoFill>
+            <MoveTo IX="1">
+              <X>4.6</X>
+              <Y>12.375</Y>
+            </MoveTo>
+            <LineTo IX="2">
+              <X>4.6</X>
+              <Y>11.875</Y>
+            </LineTo>
+          </Geom>
+        </Shape>
+        <Shape ID="102" NameU="Connector.2" Type="Shape">
+          <XForm>
+            <PinX>6</PinX>
+            <PinY>8</PinY>
+            <Width>12</Width>
+            <Height>16</Height>
+            <LocPinX>6</LocPinX>
+            <LocPinY>8</LocPinY>
+            <Angle>0</Angle>
+          </XForm>
+          <Line>
+            <LineColor>#40556B</LineColor>
+            <LineWeight>0.014</LineWeight>
+            <EndArrow>4</EndArrow>
+          </Line>
+          <Geom IX="0">
+            <NoFill>1</NoFill>
+            <MoveTo IX="1">
+              <X>6.5</X>
+              <Y>11.25</Y>
+            </MoveTo>
+            <LineTo IX="2">
+              <X>7.9</X>
+              <Y>11.25</Y>
+            </LineTo>
+          </Geom>
+        </Shape>
+        <Shape ID="103" NameU="Connector.3" Type="Shape">
+          <XForm>
+            <PinX>6</PinX>
+            <PinY>8</PinY>
+            <Width>12</Width>
+            <Height>16</Height>
+            <LocPinX>6</LocPinX>
+            <LocPinY>8</LocPinY>
+            <Angle>0</Angle>
+          </XForm>
+          <Line>
+            <LineColor>#40556B</LineColor>
+            <LineWeight>0.014</LineWeight>
+            <EndArrow>4</EndArrow>
+          </Line>
+          <Geom IX="0">
+            <NoFill>1</NoFill>
+            <MoveTo IX="1">
+              <X>4.6</X>
+              <Y>10.625</Y>
+            </MoveTo>
+            <LineTo IX="2">
+              <X>4.6</X>
+              <Y>10.0</Y>
+            </LineTo>
+          </Geom>
+        </Shape>
+        <Shape ID="104" NameU="Connector.4" Type="Shape">
+          <XForm>
+            <PinX>6</PinX>
+            <PinY>8</PinY>
+            <Width>12</Width>
+            <Height>16</Height>
+            <LocPinX>6</LocPinX>
+            <LocPinY>8</LocPinY>
+            <Angle>0</Angle>
+          </XForm>
+          <Line>
+            <LineColor>#40556B</LineColor>
+            <LineWeight>0.014</LineWeight>
+            <EndArrow>4</EndArrow>
+          </Line>
+          <Geom IX="0">
+            <NoFill>1</NoFill>
+            <MoveTo IX="1">
+              <X>6.5</X>
+              <Y>9.35</Y>
+            </MoveTo>
+            <LineTo IX="2">
+              <X>7.9</X>
+              <Y>9.35</Y>
+            </LineTo>
+          </Geom>
+        </Shape>
+        <Shape ID="105" NameU="Connector.5" Type="Shape">
+          <XForm>
+            <PinX>6</PinX>
+            <PinY>8</PinY>
+            <Width>12</Width>
+            <Height>16</Height>
+            <LocPinX>6</LocPinX>
+            <LocPinY>8</LocPinY>
+            <Angle>0</Angle>
+          </XForm>
+          <Line>
+            <LineColor>#40556B</LineColor>
+            <LineWeight>0.014</LineWeight>
+            <EndArrow>4</EndArrow>
+          </Line>
+          <Geom IX="0">
+            <NoFill>1</NoFill>
+            <MoveTo IX="1">
+              <X>4.6</X>
+              <Y>8.7</Y>
+            </MoveTo>
+            <LineTo IX="2">
+              <X>4.6</X>
+              <Y>8.05</Y>
+            </LineTo>
+          </Geom>
+        </Shape>
+        <Shape ID="106" NameU="Connector.6" Type="Shape">
+          <XForm>
+            <PinX>6</PinX>
+            <PinY>8</PinY>
+            <Width>12</Width>
+            <Height>16</Height>
+            <LocPinX>6</LocPinX>
+            <LocPinY>8</LocPinY>
+            <Angle>0</Angle>
+          </XForm>
+          <Line>
+            <LineColor>#40556B</LineColor>
+            <LineWeight>0.014</LineWeight>
+            <EndArrow>4</EndArrow>
+          </Line>
+          <Geom IX="0">
+            <NoFill>1</NoFill>
+            <MoveTo IX="1">
+              <X>4.6</X>
+              <Y>7.050000000000001</Y>
+            </MoveTo>
+            <LineTo IX="2">
+              <X>4.6</X>
+              <Y>6.5</Y>
+            </LineTo>
+          </Geom>
+        </Shape>
+        <Shape ID="107" NameU="Connector.7" Type="Shape">
+          <XForm>
+            <PinX>6</PinX>
+            <PinY>8</PinY>
+            <Width>12</Width>
+            <Height>16</Height>
+            <LocPinX>6</LocPinX>
+            <LocPinY>8</LocPinY>
+            <Angle>0</Angle>
+          </XForm>
+          <Line>
+            <LineColor>#40556B</LineColor>
+            <LineWeight>0.014</LineWeight>
+            <EndArrow>4</EndArrow>
+          </Line>
+          <Geom IX="0">
+            <NoFill>1</NoFill>
+            <MoveTo IX="1">
+              <X>11.1</X>
+              <Y>11.25</Y>
+            </MoveTo>
+            <LineTo IX="2">
+              <X>11.5</X>
+              <Y>11.25</Y>
+            </LineTo>
+            <LineTo IX="3">
+              <X>11.5</X>
+              <Y>6.85</Y>
+            </LineTo>
+            <LineTo IX="4">
+              <X>7</X>
+              <Y>6.85</Y>
+            </LineTo>
+            <LineTo IX="5">
+              <X>7</X>
+              <Y>5.949999999999999</Y>
+            </LineTo>
+            <LineTo IX="6">
+              <X>6.5</X>
+              <Y>5.949999999999999</Y>
+            </LineTo>
+          </Geom>
+        </Shape>
+        <Shape ID="108" NameU="Connector.8" Type="Shape">
+          <XForm>
+            <PinX>6</PinX>
+            <PinY>8</PinY>
+            <Width>12</Width>
+            <Height>16</Height>
+            <LocPinX>6</LocPinX>
+            <LocPinY>8</LocPinY>
+            <Angle>0</Angle>
+          </XForm>
+          <Line>
+            <LineColor>#40556B</LineColor>
+            <LineWeight>0.014</LineWeight>
+            <EndArrow>4</EndArrow>
+          </Line>
+          <Geom IX="0">
+            <NoFill>1</NoFill>
+            <MoveTo IX="1">
+              <X>9.5</X>
+              <Y>8.774999999999999</Y>
+            </MoveTo>
+            <LineTo IX="2">
+              <X>9.5</X>
+              <Y>6.6</Y>
+            </LineTo>
+            <LineTo IX="3">
+              <X>7.1</X>
+              <Y>6.6</Y>
+            </LineTo>
+            <LineTo IX="4">
+              <X>7.1</X>
+              <Y>5.949999999999999</Y>
+            </LineTo>
+            <LineTo IX="5">
+              <X>6.5</X>
+              <Y>5.949999999999999</Y>
+            </LineTo>
+          </Geom>
+        </Shape>
+        <Shape ID="109" NameU="Connector.9" Type="Shape">
+          <XForm>
+            <PinX>6</PinX>
+            <PinY>8</PinY>
+            <Width>12</Width>
+            <Height>16</Height>
+            <LocPinX>6</LocPinX>
+            <LocPinY>8</LocPinY>
+            <Angle>0</Angle>
+          </XForm>
+          <Line>
+            <LineColor>#40556B</LineColor>
+            <LineWeight>0.014</LineWeight>
+            <EndArrow>4</EndArrow>
+          </Line>
+          <Geom IX="0">
+            <NoFill>1</NoFill>
+            <MoveTo IX="1">
+              <X>2.6999999999999997</X>
+              <Y>5.949999999999999</Y>
+            </MoveTo>
+            <LineTo IX="2">
+              <X>1.5</X>
+              <Y>5.949999999999999</Y>
+            </LineTo>
+            <LineTo IX="3">
+              <X>1.5</X>
+              <Y>12.8</Y>
+            </LineTo>
+            <LineTo IX="4">
+              <X>2.6999999999999997</X>
+              <Y>12.8</Y>
+            </LineTo>
+          </Geom>
+        </Shape>
+        <Shape ID="110" NameU="Connector.10" Type="Shape">
+          <XForm>
+            <PinX>6</PinX>
+            <PinY>8</PinY>
+            <Width>12</Width>
+            <Height>16</Height>
+            <LocPinX>6</LocPinX>
+            <LocPinY>8</LocPinY>
+            <Angle>0</Angle>
+          </XForm>
+          <Line>
+            <LineColor>#40556B</LineColor>
+            <LineWeight>0.014</LineWeight>
+            <EndArrow>4</EndArrow>
+          </Line>
+          <Geom IX="0">
+            <NoFill>1</NoFill>
+            <MoveTo IX="1">
+              <X>4.6</X>
+              <Y>5.399999999999999</Y>
+            </MoveTo>
+            <LineTo IX="2">
+              <X>4.6</X>
+              <Y>4.775</Y>
+            </LineTo>
+          </Geom>
+        </Shape>
+        <Shape ID="111" NameU="Connector.11" Type="Shape">
+          <XForm>
+            <PinX>6</PinX>
+            <PinY>8</PinY>
+            <Width>12</Width>
+            <Height>16</Height>
+            <LocPinX>6</LocPinX>
+            <LocPinY>8</LocPinY>
+            <Angle>0</Angle>
+          </XForm>
+          <Line>
+            <LineColor>#40556B</LineColor>
+            <LineWeight>0.014</LineWeight>
+            <EndArrow>4</EndArrow>
+          </Line>
+          <Geom IX="0">
+            <NoFill>1</NoFill>
+            <MoveTo IX="1">
+              <X>4.6</X>
+              <Y>3.924999999999999</Y>
+            </MoveTo>
+            <LineTo IX="2">
+              <X>4.6</X>
+              <Y>3.4499999999999993</Y>
+            </LineTo>
+          </Geom>
+        </Shape>
+        <Shape ID="1" NameU="start" Type="Shape">
+          <XForm>
+            <PinX>4.6</PinX>
+            <PinY>14.15</PinY>
+            <Width>3.8</Width>
+            <Height>0.85</Height>
+            <LocPinX>1.9</LocPinX>
+            <LocPinY>0.425</LocPinY>
+            <Angle>0</Angle>
+          </XForm>
+          <Line>
+            <LineWeight>0.012</LineWeight>
+            <LineColor>#40556B</LineColor>
+            <LinePattern>1</LinePattern>
+          </Line>
+          <Fill>
+            <FillForegnd>#EAF2FB</FillForegnd>
+            <FillPattern>1</FillPattern>
+          </Fill>
+          <TextBlock>
+            <VerticalAlign>1</VerticalAlign>
+            <LeftMargin>0.07</LeftMargin>
+            <RightMargin>0.07</RightMargin>
+            <TopMargin>0.07</TopMargin>
+            <BottomMargin>0.07</BottomMargin>
+          </TextBlock>
+          <Char IX="0">
+            <Font>0</Font>
+            <Size>0.15</Size>
+            <Color>#142B42</Color>
+          </Char>
+          <Para IX="0">
+            <HorzAlign>1</HorzAlign>
+          </Para>
+          <Geom IX="0">
+            <MoveTo IX="1">
+              <X>0</X>
+              <Y>0</Y>
+            </MoveTo>
+            <LineTo IX="2">
+              <X>3.8</X>
+              <Y>0</Y>
+            </LineTo>
+            <LineTo IX="3">
+              <X>3.8</X>
+              <Y>0.85</Y>
+            </LineTo>
+            <LineTo IX="4">
+              <X>0</X>
+              <Y>0.85</Y>
+            </LineTo>
+            <LineTo IX="5">
+              <X>0</X>
+              <Y>0</Y>
+            </LineTo>
+          </Geom>
+          <Text>For each provider record: validate required keys and normalize values.</Text>
+        </Shape>
+        <Shape ID="2" NameU="phone" Type="Shape">
+          <XForm>
+            <PinX>4.6</PinX>
+            <PinY>12.8</PinY>
+            <Width>3.8</Width>
+            <Height>0.85</Height>
+            <LocPinX>1.9</LocPinX>
+            <LocPinY>0.425</LocPinY>
+            <Angle>0</Angle>
+          </XForm>
+          <Line>
+            <LineWeight>0.012</LineWeight>
+            <LineColor>#40556B</LineColor>
+            <LinePattern>1</LinePattern>
+          </Line>
+          <Fill>
+            <FillForegnd>#EAF2FB</FillForegnd>
+            <FillPattern>1</FillPattern>
+          </Fill>
+          <TextBlock>
+            <VerticalAlign>1</VerticalAlign>
+            <LeftMargin>0.07</LeftMargin>
+            <RightMargin>0.07</RightMargin>
+            <TopMargin>0.07</TopMargin>
+            <BottomMargin>0.07</BottomMargin>
+          </TextBlock>
+          <Char IX="0">
+            <Font>0</Font>
+            <Size>0.15</Size>
+            <Color>#142B42</Color>
+          </Char>
+          <Para IX="0">
+            <HorzAlign>1</HorzAlign>
+          </Para>
+          <Geom IX="0">
+            <MoveTo IX="1">
+              <X>0</X>
+              <Y>0</Y>
+            </MoveTo>
+            <LineTo IX="2">
+              <X>3.8</X>
+              <Y>0</Y>
+            </LineTo>
+            <LineTo IX="3">
+              <X>3.8</X>
+              <Y>0.85</Y>
+            </LineTo>
+            <LineTo IX="4">
+              <X>0</X>
+              <Y>0.85</Y>
+            </LineTo>
+            <LineTo IX="5">
+              <X>0</X>
+              <Y>0</Y>
+            </LineTo>
+          </Geom>
+          <Text>Phone contains @? Replace with Not found. Keep dates/times tied to their provider.</Text>
+        </Shape>
+        <Shape ID="3" NameU="skip" Type="Shape">
+          <XForm>
+            <PinX>4.6</PinX>
+            <PinY>11.25</PinY>
+            <Width>3.8</Width>
+            <Height>1.25</Height>
+            <LocPinX>1.9</LocPinX>
+            <LocPinY>0.625</LocPinY>
+            <Angle>0</Angle>
+          </XForm>
+          <Line>
+            <LineWeight>0.012</LineWeight>
+            <LineColor>#40556B</LineColor>
+            <LinePattern>1</LinePattern>
+          </Line>
+          <Fill>
+            <FillForegnd>#FFF2CC</FillForegnd>
+            <FillPattern>1</FillPattern>
+          </Fill>
+          <TextBlock>
+            <VerticalAlign>1</VerticalAlign>
+            <LeftMargin>0.07</LeftMargin>
+            <RightMargin>0.07</RightMargin>
+            <TopMargin>0.07</TopMargin>
+            <BottomMargin>0.07</BottomMargin>
+          </TextBlock>
+          <Char IX="0">
+            <Font>0</Font>
+            <Size>0.15</Size>
+            <Color>#142B42</Color>
+          </Char>
+          <Para IX="0">
+            <HorzAlign>1</HorzAlign>
+          </Para>
+          <Geom IX="0">
+            <MoveTo IX="1">
+              <X>1.9</X>
+              <Y>1.25</Y>
+            </MoveTo>
+            <LineTo IX="2">
+              <X>3.8</X>
+              <Y>0.625</Y>
+            </LineTo>
+            <LineTo IX="3">
+              <X>1.9</X>
+              <Y>0</Y>
+            </LineTo>
+            <LineTo IX="4">
+              <X>0</X>
+              <Y>0.625</Y>
+            </LineTo>
+            <LineTo IX="5">
+              <X>1.9</X>
+              <Y>1.25</Y>
+            </LineTo>
+          </Geom>
+          <Text>All values missing OR exact duplicate of a retained record?</Text>
+        </Shape>
+        <Shape ID="4" NameU="drop" Type="Shape">
+          <XForm>
+            <PinX>9.5</PinX>
+            <PinY>11.25</PinY>
+            <Width>3.2</Width>
+            <Height>0.85</Height>
+            <LocPinX>1.6</LocPinX>
+            <LocPinY>0.425</LocPinY>
+            <Angle>0</Angle>
+          </XForm>
+          <Line>
+            <LineWeight>0.012</LineWeight>
+            <LineColor>#40556B</LineColor>
+            <LinePattern>1</LinePattern>
+          </Line>
+          <Fill>
+            <FillForegnd>#F4F6F8</FillForegnd>
+            <FillPattern>1</FillPattern>
+          </Fill>
+          <TextBlock>
+            <VerticalAlign>1</VerticalAlign>
+            <LeftMargin>0.07</LeftMargin>
+            <RightMargin>0.07</RightMargin>
+            <TopMargin>0.07</TopMargin>
+            <BottomMargin>0.07</BottomMargin>
+          </TextBlock>
+          <Char IX="0">
+            <Font>0</Font>
+            <Size>0.135</Size>
+            <Color>#142B42</Color>
+          </Char>
+          <Para IX="0">
+            <HorzAlign>1</HorzAlign>
+          </Para>
+          <Geom IX="0">
+            <MoveTo IX="1">
+              <X>0</X>
+              <Y>0</Y>
+            </MoveTo>
+            <LineTo IX="2">
+              <X>3.2</X>
+              <Y>0</Y>
+            </LineTo>
+            <LineTo IX="3">
+              <X>3.2</X>
+              <Y>0.85</Y>
+            </LineTo>
+            <LineTo IX="4">
+              <X>0</X>
+              <Y>0.85</Y>
+            </LineTo>
+            <LineTo IX="5">
+              <X>0</X>
+              <Y>0</Y>
+            </LineTo>
+          </Geom>
+          <Text>Skip this record</Text>
+        </Shape>
+        <Shape ID="5" NameU="match" Type="Shape">
+          <XForm>
+            <PinX>4.6</PinX>
+            <PinY>9.35</PinY>
+            <Width>3.8</Width>
+            <Height>1.3</Height>
+            <LocPinX>1.9</LocPinX>
+            <LocPinY>0.65</LocPinY>
+            <Angle>0</Angle>
+          </XForm>
+          <Line>
+            <LineWeight>0.012</LineWeight>
+            <LineColor>#40556B</LineColor>
+            <LinePattern>1</LinePattern>
+          </Line>
+          <Fill>
+            <FillForegnd>#FFF2CC</FillForegnd>
+            <FillPattern>1</FillPattern>
+          </Fill>
+          <TextBlock>
+            <VerticalAlign>1</VerticalAlign>
+            <LeftMargin>0.07</LeftMargin>
+            <RightMargin>0.07</RightMargin>
+            <TopMargin>0.07</TopMargin>
+            <BottomMargin>0.07</BottomMargin>
+          </TextBlock>
+          <Char IX="0">
+            <Font>0</Font>
+            <Size>0.15</Size>
+            <Color>#142B42</Color>
+          </Char>
+          <Para IX="0">
+            <HorzAlign>1</HorzAlign>
+          </Para>
+          <Geom IX="0">
+            <MoveTo IX="1">
+              <X>1.9</X>
+              <Y>1.3</Y>
+            </MoveTo>
+            <LineTo IX="2">
+              <X>3.8</X>
+              <Y>0.65</Y>
+            </LineTo>
+            <LineTo IX="3">
+              <X>1.9</X>
+              <Y>0</Y>
+            </LineTo>
+            <LineTo IX="4">
+              <X>0</X>
+              <Y>0.65</Y>
+            </LineTo>
+            <LineTo IX="5">
+              <X>1.9</X>
+              <Y>1.3</Y>
+            </LineTo>
+          </Geom>
+          <Text>Exactly one compatible retained record with the same name?</Text>
+        </Shape>
+        <Shape ID="6" NameU="new" Type="Shape">
+          <XForm>
+            <PinX>9.5</PinX>
+            <PinY>9.35</PinY>
+            <Width>3.2</Width>
+            <Height>1.15</Height>
+            <LocPinX>1.6</LocPinX>
+            <LocPinY>0.575</LocPinY>
+            <Angle>0</Angle>
+          </XForm>
+          <Line>
+            <LineWeight>0.012</LineWeight>
+            <LineColor>#40556B</LineColor>
+            <LinePattern>1</LinePattern>
+          </Line>
+          <Fill>
+            <FillForegnd>#EAF2FB</FillForegnd>
+            <FillPattern>1</FillPattern>
+          </Fill>
+          <TextBlock>
+            <VerticalAlign>1</VerticalAlign>
+            <LeftMargin>0.07</LeftMargin>
+            <RightMargin>0.07</RightMargin>
+            <TopMargin>0.07</TopMargin>
+            <BottomMargin>0.07</BottomMargin>
+          </TextBlock>
+          <Char IX="0">
+            <Font>0</Font>
+            <Size>0.15</Size>
+            <Color>#142B42</Color>
+          </Char>
+          <Para IX="0">
+            <HorzAlign>1</HorzAlign>
+          </Para>
+          <Geom IX="0">
+            <MoveTo IX="1">
+              <X>0</X>
+              <Y>0</Y>
+            </MoveTo>
+            <LineTo IX="2">
+              <X>3.2</X>
+              <Y>0</Y>
+            </LineTo>
+            <LineTo IX="3">
+              <X>3.2</X>
+              <Y>1.15</Y>
+            </LineTo>
+            <LineTo IX="4">
+              <X>0</X>
+              <Y>1.15</Y>
+            </LineTo>
+            <LineTo IX="5">
+              <X>0</X>
+              <Y>0</Y>
+            </LineTo>
+          </Geom>
+          <Text>Keep as separate record. Do not merge ambiguous or conflicting records.</Text>
+        </Shape>
+        <Shape ID="7" NameU="merge" Type="Shape">
+          <XForm>
+            <PinX>4.6</PinX>
+            <PinY>7.550000000000001</PinY>
+            <Width>3.8</Width>
+            <Height>1</Height>
+            <LocPinX>1.9</LocPinX>
+            <LocPinY>0.5</LocPinY>
+            <Angle>0</Angle>
+          </XForm>
+          <Line>
+            <LineWeight>0.012</LineWeight>
+            <LineColor>#40556B</LineColor>
+            <LinePattern>1</LinePattern>
+          </Line>
+          <Fill>
+            <FillForegnd>#EAF2FB</FillForegnd>
+            <FillPattern>1</FillPattern>
+          </Fill>
+          <TextBlock>
+            <VerticalAlign>1</VerticalAlign>
+            <LeftMargin>0.07</LeftMargin>
+            <RightMargin>0.07</RightMargin>
+            <TopMargin>0.07</TopMargin>
+            <BottomMargin>0.07</BottomMargin>
+          </TextBlock>
+          <Char IX="0">
+            <Font>0</Font>
+            <Size>0.15</Size>
+            <Color>#142B42</Color>
+          </Char>
+          <Para IX="0">
+            <HorzAlign>1</HorzAlign>
+          </Para>
+          <Geom IX="0">
+            <MoveTo IX="1">
+              <X>0</X>
+              <Y>0</Y>
+            </MoveTo>
+            <LineTo IX="2">
+              <X>3.8</X>
+              <Y>0</Y>
+            </LineTo>
+            <LineTo IX="3">
+              <X>3.8</X>
+              <Y>1</Y>
+            </LineTo>
+            <LineTo IX="4">
+              <X>0</X>
+              <Y>1</Y>
+            </LineTo>
+            <LineTo IX="5">
+              <X>0</X>
+              <Y>0</Y>
+            </LineTo>
+          </Geom>
+          <Text>Fill only missing values in the retained record. Keep existing values.</Text>
+        </Shape>
+        <Shape ID="8" NameU="more" Type="Shape">
+          <XForm>
+            <PinX>4.6</PinX>
+            <PinY>5.949999999999999</PinY>
+            <Width>3.8</Width>
+            <Height>1.1</Height>
+            <LocPinX>1.9</LocPinX>
+            <LocPinY>0.55</LocPinY>
+            <Angle>0</Angle>
+          </XForm>
+          <Line>
+            <LineWeight>0.012</LineWeight>
+            <LineColor>#40556B</LineColor>
+            <LinePattern>1</LinePattern>
+          </Line>
+          <Fill>
+            <FillForegnd>#FFF2CC</FillForegnd>
+            <FillPattern>1</FillPattern>
+          </Fill>
+          <TextBlock>
+            <VerticalAlign>1</VerticalAlign>
+            <LeftMargin>0.07</LeftMargin>
+            <RightMargin>0.07</RightMargin>
+            <TopMargin>0.07</TopMargin>
+            <BottomMargin>0.07</BottomMargin>
+          </TextBlock>
+          <Char IX="0">
+            <Font>0</Font>
+            <Size>0.15</Size>
+            <Color>#142B42</Color>
+          </Char>
+          <Para IX="0">
+            <HorzAlign>1</HorzAlign>
+          </Para>
+          <Geom IX="0">
+            <MoveTo IX="1">
+              <X>1.9</X>
+              <Y>1.1</Y>
+            </MoveTo>
+            <LineTo IX="2">
+              <X>3.8</X>
+              <Y>0.55</Y>
+            </LineTo>
+            <LineTo IX="3">
+              <X>1.9</X>
+              <Y>0</Y>
+            </LineTo>
+            <LineTo IX="4">
+              <X>0</X>
+              <Y>0.55</Y>
+            </LineTo>
+            <LineTo IX="5">
+              <X>1.9</X>
+              <Y>1.1</Y>
+            </LineTo>
+          </Geom>
+          <Text>More input records?</Text>
+        </Shape>
+        <Shape ID="9" NameU="sort" Type="Shape">
+          <XForm>
+            <PinX>4.6</PinX>
+            <PinY>4.35</PinY>
+            <Width>3.8</Width>
+            <Height>0.85</Height>
+            <LocPinX>1.9</LocPinX>
+            <LocPinY>0.425</LocPinY>
+            <Angle>0</Angle>
+          </XForm>
+          <Line>
+            <LineWeight>0.012</LineWeight>
+            <LineColor>#40556B</LineColor>
+            <LinePattern>1</LinePattern>
+          </Line>
+          <Fill>
+            <FillForegnd>#EAF2FB</FillForegnd>
+            <FillPattern>1</FillPattern>
+          </Fill>
+          <TextBlock>
+            <VerticalAlign>1</VerticalAlign>
+            <LeftMargin>0.07</LeftMargin>
+            <RightMargin>0.07</RightMargin>
+            <TopMargin>0.07</TopMargin>
+            <BottomMargin>0.07</BottomMargin>
+          </TextBlock>
+          <Char IX="0">
+            <Font>0</Font>
+            <Size>0.15</Size>
+            <Color>#142B42</Color>
+          </Char>
+          <Para IX="0">
+            <HorzAlign>1</HorzAlign>
+          </Para>
+          <Geom IX="0">
+            <MoveTo IX="1">
+              <X>0</X>
+              <Y>0</Y>
+            </MoveTo>
+            <LineTo IX="2">
+              <X>3.8</X>
+              <Y>0</Y>
+            </LineTo>
+            <LineTo IX="3">
+              <X>3.8</X>
+              <Y>0.85</Y>
+            </LineTo>
+            <LineTo IX="4">
+              <X>0</X>
+              <Y>0.85</Y>
+            </LineTo>
+            <LineTo IX="5">
+              <X>0</X>
+              <Y>0</Y>
+            </LineTo>
+          </Geom>
+          <Text>Sort retained records by populated requested fields, most complete first.</Text>
+        </Shape>
+        <Shape ID="10" NameU="end" Type="Shape">
+          <XForm>
+            <PinX>4.6</PinX>
+            <PinY>2.9499999999999993</PinY>
+            <Width>3.8</Width>
+            <Height>1</Height>
+            <LocPinX>1.9</LocPinX>
+            <LocPinY>0.5</LocPinY>
+            <Angle>0</Angle>
+          </XForm>
+          <Line>
+            <LineWeight>0.012</LineWeight>
+            <LineColor>#40556B</LineColor>
+            <LinePattern>1</LinePattern>
+          </Line>
+          <Fill>
+            <FillForegnd>#DDE8F0</FillForegnd>
+            <FillPattern>1</FillPattern>
+          </Fill>
+          <TextBlock>
+            <VerticalAlign>1</VerticalAlign>
+            <LeftMargin>0.07</LeftMargin>
+            <RightMargin>0.07</RightMargin>
+            <TopMargin>0.07</TopMargin>
+            <BottomMargin>0.07</BottomMargin>
+          </TextBlock>
+          <Char IX="0">
+            <Font>0</Font>
+            <Size>0.15</Size>
+            <Color>#142B42</Color>
+          </Char>
+          <Para IX="0">
+            <HorzAlign>1</HorzAlign>
+          </Para>
+          <Geom IX="0">
+            <MoveTo IX="1">
+              <X>0</X>
+              <Y>0</Y>
+            </MoveTo>
+            <LineTo IX="2">
+              <X>3.8</X>
+              <Y>0</Y>
+            </LineTo>
+            <LineTo IX="3">
+              <X>3.8</X>
+              <Y>1</Y>
+            </LineTo>
+            <LineTo IX="4">
+              <X>0</X>
+              <Y>1</Y>
+            </LineTo>
+            <LineTo IX="5">
+              <X>0</X>
+              <Y>0</Y>
+            </LineTo>
+          </Geom>
+          <Text>Keep all retained providers. Preserve records in JSON and aligned slots in CSV/TXT.</Text>
+        </Shape>
+        <Shape ID="11" NameU="note" Type="Shape">
+          <XForm>
+            <PinX>9.6</PinX>
+            <PinY>4.300000000000001</PinY>
+            <Width>3.4</Width>
+            <Height>3.1</Height>
+            <LocPinX>1.7</LocPinX>
+            <LocPinY>1.55</LocPinY>
+            <Angle>0</Angle>
+          </XForm>
+          <Line>
+            <LineWeight>0.012</LineWeight>
+            <LineColor>#40556B</LineColor>
+            <LinePattern>1</LinePattern>
+          </Line>
+          <Fill>
+            <FillForegnd>#F4F6F8</FillForegnd>
+            <FillPattern>1</FillPattern>
+          </Fill>
+          <TextBlock>
+            <VerticalAlign>1</VerticalAlign>
+            <LeftMargin>0.07</LeftMargin>
+            <RightMargin>0.07</RightMargin>
+            <TopMargin>0.07</TopMargin>
+            <BottomMargin>0.07</BottomMargin>
+          </TextBlock>
+          <Char IX="0">
+            <Font>0</Font>
+            <Size>0.135</Size>
+            <Color>#142B42</Color>
+          </Char>
+          <Para IX="0">
+            <HorzAlign>1</HorzAlign>
+          </Para>
+          <Geom IX="0">
+            <MoveTo IX="1">
+              <X>0</X>
+              <Y>0</Y>
+            </MoveTo>
+            <LineTo IX="2">
+              <X>3.4</X>
+              <Y>0</Y>
+            </LineTo>
+            <LineTo IX="3">
+              <X>3.4</X>
+              <Y>3.1</Y>
+            </LineTo>
+            <LineTo IX="4">
+              <X>0</X>
+              <Y>3.1</Y>
+            </LineTo>
+            <LineTo IX="5">
+              <X>0</X>
+              <Y>0</Y>
+            </LineTo>
+          </Geom>
+          <Text>COMPATIBLE means:
+Non-missing names match, ignoring case.
+Every provider value either matches or is missing on one side.
+Conflicting phone, location or appointment data prevents merging.
+
+Completeness uses seven requested fields; provider street address and Doctor/Facility classification do not add to the score.</Text>
+        </Shape>
+        <Shape ID="12" NameU="title" Type="Shape">
+          <XForm>
+            <PinX>6</PinX>
+            <PinY>15.52</PinY>
+            <Width>11</Width>
+            <Height>0.5</Height>
+            <LocPinX>5.5</LocPinX>
+            <LocPinY>0.25</LocPinY>
+            <Angle>0</Angle>
+          </XForm>
+          <Line>
+            <LineWeight>0.012</LineWeight>
+            <LineColor>#40556B</LineColor>
+            <LinePattern>0</LinePattern>
+          </Line>
+          <Fill>
+            <FillForegnd>#FFFFFF</FillForegnd>
+            <FillPattern>1</FillPattern>
+          </Fill>
+          <TextBlock>
+            <VerticalAlign>1</VerticalAlign>
+            <LeftMargin>0.07</LeftMargin>
+            <RightMargin>0.07</RightMargin>
+            <TopMargin>0.07</TopMargin>
+            <BottomMargin>0.07</BottomMargin>
+          </TextBlock>
+          <Char IX="0">
+            <Font>0</Font>
+            <Size>0.15</Size>
+            <Color>#142B42</Color>
+          </Char>
+          <Para IX="0">
+            <HorzAlign>1</HorzAlign>
+          </Para>
+          <Geom IX="0">
+            <MoveTo IX="1">
+              <X>0</X>
+              <Y>0</Y>
+            </MoveTo>
+            <LineTo IX="2">
+              <X>11</X>
+              <Y>0</Y>
+            </LineTo>
+            <LineTo IX="3">
+              <X>11</X>
+              <Y>0.5</Y>
+            </LineTo>
+            <LineTo IX="4">
+              <X>0</X>
+              <Y>0.5</Y>
+            </LineTo>
+            <LineTo IX="5">
+              <X>0</X>
+              <Y>0</Y>
+            </LineTo>
+          </Geom>
+          <Text>03 Provider processing</Text>
+        </Shape>
+        <Shape ID="13" NameU="subtitle" Type="Shape">
+          <XForm>
+            <PinX>6</PinX>
+            <PinY>15.06</PinY>
+            <Width>11</Width>
+            <Height>0.35</Height>
+            <LocPinX>5.5</LocPinX>
+            <LocPinY>0.175</LocPinY>
+            <Angle>0</Angle>
+          </XForm>
+          <Line>
+            <LineWeight>0.012</LineWeight>
+            <LineColor>#40556B</LineColor>
+            <LinePattern>0</LinePattern>
+          </Line>
+          <Fill>
+            <FillForegnd>#FFFFFF</FillForegnd>
+            <FillPattern>1</FillPattern>
+          </Fill>
+          <TextBlock>
+            <VerticalAlign>1</VerticalAlign>
+            <LeftMargin>0.07</LeftMargin>
+            <RightMargin>0.07</RightMargin>
+            <TopMargin>0.07</TopMargin>
+            <BottomMargin>0.07</BottomMargin>
+          </TextBlock>
+          <Char IX="0">
+            <Font>0</Font>
+            <Size>0.15</Size>
+            <Color>#142B42</Color>
+          </Char>
+          <Para IX="0">
+            <HorzAlign>1</HorzAlign>
+          </Para>
+          <Geom IX="0">
+            <MoveTo IX="1">
+              <X>0</X>
+              <Y>0</Y>
+            </MoveTo>
+            <LineTo IX="2">
+              <X>11</X>
+              <Y>0</Y>
+            </LineTo>
+            <LineTo IX="3">
+              <X>11</X>
+              <Y>0.35</Y>
+            </LineTo>
+            <LineTo IX="4">
+              <X>0</X>
+              <Y>0.35</Y>
+            </LineTo>
+            <LineTo IX="5">
+              <X>0</X>
+              <Y>0</Y>
+            </LineTo>
+          </Geom>
+          <Text>Primary-section records first, followed by Special Instructions records</Text>
+        </Shape>
+        <Shape ID="14" NameU="footer" Type="Shape">
+          <XForm>
+            <PinX>6</PinX>
+            <PinY>0.34999999999999964</PinY>
+            <Width>11</Width>
+            <Height>0.35</Height>
+            <LocPinX>5.5</LocPinX>
+            <LocPinY>0.175</LocPinY>
+            <Angle>0</Angle>
+          </XForm>
+          <Line>
+            <LineWeight>0.012</LineWeight>
+            <LineColor>#40556B</LineColor>
+            <LinePattern>0</LinePattern>
+          </Line>
+          <Fill>
+            <FillForegnd>#FFFFFF</FillForegnd>
+            <FillPattern>1</FillPattern>
+          </Fill>
+          <TextBlock>
+            <VerticalAlign>1</VerticalAlign>
+            <LeftMargin>0.07</LeftMargin>
+            <RightMargin>0.07</RightMargin>
+            <TopMargin>0.07</TopMargin>
+            <BottomMargin>0.07</BottomMargin>
+          </TextBlock>
+          <Char IX="0">
+            <Font>0</Font>
+            <Size>0.15</Size>
+            <Color>#142B42</Color>
+          </Char>
+          <Para IX="0">
+            <HorzAlign>1</HorzAlign>
+          </Para>
+          <Geom IX="0">
+            <MoveTo IX="1">
+              <X>0</X>
+              <Y>0</Y>
+            </MoveTo>
+            <LineTo IX="2">
+              <X>11</X>
+              <Y>0</Y>
+            </LineTo>
+            <LineTo IX="3">
+              <X>11</X>
+              <Y>0.35</Y>
+            </LineTo>
+            <LineTo IX="4">
+              <X>0</X>
+              <Y>0.35</Y>
+            </LineTo>
+            <LineTo IX="5">
+              <X>0</X>
+              <Y>0</Y>
+            </LineTo>
+          </Geom>
+          <Text>FCM Structured | AI/referral_schema.py + AI/bedrock_core.py | Page 3 of 4</Text>
+        </Shape>
+        <Shape ID="15" NameU="label2" Type="Shape">
+          <XForm>
+            <PinX>6.88</PinX>
+            <PinY>11.25</PinY>
+            <Width>0.78</Width>
+            <Height>0.24</Height>
+            <LocPinX>0.39</LocPinX>
+            <LocPinY>0.12</LocPinY>
+            <Angle>0</Angle>
+          </XForm>
+          <Line>
+            <LineWeight>0.012</LineWeight>
+            <LineColor>#40556B</LineColor>
+            <LinePattern>0</LinePattern>
+          </Line>
+          <Fill>
+            <FillForegnd>#FFFFFF</FillForegnd>
+            <FillPattern>1</FillPattern>
+          </Fill>
+          <TextBlock>
+            <VerticalAlign>1</VerticalAlign>
+            <LeftMargin>0.07</LeftMargin>
+            <RightMargin>0.07</RightMargin>
+            <TopMargin>0.07</TopMargin>
+            <BottomMargin>0.07</BottomMargin>
+          </TextBlock>
+          <Char IX="0">
+            <Font>0</Font>
+            <Size>0.15</Size>
+            <Color>#142B42</Color>
+          </Char>
+          <Para IX="0">
+            <HorzAlign>1</HorzAlign>
+          </Para>
+          <Geom IX="0">
+            <MoveTo IX="1">
+              <X>0</X>
+              <Y>0</Y>
+            </MoveTo>
+            <LineTo IX="2">
+              <X>0.78</X>
+              <Y>0</Y>
+            </LineTo>
+            <LineTo IX="3">
+              <X>0.78</X>
+              <Y>0.24</Y>
+            </LineTo>
+            <LineTo IX="4">
+              <X>0</X>
+              <Y>0.24</Y>
+            </LineTo>
+            <LineTo IX="5">
+              <X>0</X>
+              <Y>0</Y>
+            </LineTo>
+          </Geom>
+          <Text>Yes</Text>
+        </Shape>
+        <Shape ID="16" NameU="label3" Type="Shape">
+          <XForm>
+            <PinX>4.6</PinX>
+            <PinY>10.3125</PinY>
+            <Width>0.78</Width>
+            <Height>0.24</Height>
+            <LocPinX>0.39</LocPinX>
+            <LocPinY>0.12</LocPinY>
+            <Angle>0</Angle>
+          </XForm>
+          <Line>
+            <LineWeight>0.012</LineWeight>
+            <LineColor>#40556B</LineColor>
+            <LinePattern>0</LinePattern>
+          </Line>
+          <Fill>
+            <FillForegnd>#FFFFFF</FillForegnd>
+            <FillPattern>1</FillPattern>
+          </Fill>
+          <TextBlock>
+            <VerticalAlign>1</VerticalAlign>
+            <LeftMargin>0.07</LeftMargin>
+            <RightMargin>0.07</RightMargin>
+            <TopMargin>0.07</TopMargin>
+            <BottomMargin>0.07</BottomMargin>
+          </TextBlock>
+          <Char IX="0">
+            <Font>0</Font>
+            <Size>0.15</Size>
+            <Color>#142B42</Color>
+          </Char>
+          <Para IX="0">
+            <HorzAlign>1</HorzAlign>
+          </Para>
+          <Geom IX="0">
+            <MoveTo IX="1">
+              <X>0</X>
+              <Y>0</Y>
+            </MoveTo>
+            <LineTo IX="2">
+              <X>0.78</X>
+              <Y>0</Y>
+            </LineTo>
+            <LineTo IX="3">
+              <X>0.78</X>
+              <Y>0.24</Y>
+            </LineTo>
+            <LineTo IX="4">
+              <X>0</X>
+              <Y>0.24</Y>
+            </LineTo>
+            <LineTo IX="5">
+              <X>0</X>
+              <Y>0</Y>
+            </LineTo>
+          </Geom>
+          <Text>No</Text>
+        </Shape>
+        <Shape ID="17" NameU="label4" Type="Shape">
+          <XForm>
+            <PinX>6.88</PinX>
+            <PinY>9.35</PinY>
+            <Width>0.78</Width>
+            <Height>0.24</Height>
+            <LocPinX>0.39</LocPinX>
+            <LocPinY>0.12</LocPinY>
+            <Angle>0</Angle>
+          </XForm>
+          <Line>
+            <LineWeight>0.012</LineWeight>
+            <LineColor>#40556B</LineColor>
+            <LinePattern>0</LinePattern>
+          </Line>
+          <Fill>
+            <FillForegnd>#FFFFFF</FillForegnd>
+            <FillPattern>1</FillPattern>
+          </Fill>
+          <TextBlock>
+            <VerticalAlign>1</VerticalAlign>
+            <LeftMargin>0.07</LeftMargin>
+            <RightMargin>0.07</RightMargin>
+            <TopMargin>0.07</TopMargin>
+            <BottomMargin>0.07</BottomMargin>
+          </TextBlock>
+          <Char IX="0">
+            <Font>0</Font>
+            <Size>0.15</Size>
+            <Color>#142B42</Color>
+          </Char>
+          <Para IX="0">
+            <HorzAlign>1</HorzAlign>
+          </Para>
+          <Geom IX="0">
+            <MoveTo IX="1">
+              <X>0</X>
+              <Y>0</Y>
+            </MoveTo>
+            <LineTo IX="2">
+              <X>0.78</X>
+              <Y>0</Y>
+            </LineTo>
+            <LineTo IX="3">
+              <X>0.78</X>
+              <Y>0.24</Y>
+            </LineTo>
+            <LineTo IX="4">
+              <X>0</X>
+              <Y>0.24</Y>
+            </LineTo>
+            <LineTo IX="5">
+              <X>0</X>
+              <Y>0</Y>
+            </LineTo>
+          </Geom>
+          <Text>No</Text>
+        </Shape>
+        <Shape ID="18" NameU="label5" Type="Shape">
+          <XForm>
+            <PinX>4.6</PinX>
+            <PinY>8.375</PinY>
+            <Width>0.78</Width>
+            <Height>0.24</Height>
+            <LocPinX>0.39</LocPinX>
+            <LocPinY>0.12</LocPinY>
+            <Angle>0</Angle>
+          </XForm>
+          <Line>
+            <LineWeight>0.012</LineWeight>
+            <LineColor>#40556B</LineColor>
+            <LinePattern>0</LinePattern>
+          </Line>
+          <Fill>
+            <FillForegnd>#FFFFFF</FillForegnd>
+            <FillPattern>1</FillPattern>
+          </Fill>
+          <TextBlock>
+            <VerticalAlign>1</VerticalAlign>
+            <LeftMargin>0.07</LeftMargin>
+            <RightMargin>0.07</RightMargin>
+            <TopMargin>0.07</TopMargin>
+            <BottomMargin>0.07</BottomMargin>
+          </TextBlock>
+          <Char IX="0">
+            <Font>0</Font>
+            <Size>0.15</Size>
+            <Color>#142B42</Color>
+          </Char>
+          <Para IX="0">
+            <HorzAlign>1</HorzAlign>
+          </Para>
+          <Geom IX="0">
+            <MoveTo IX="1">
+              <X>0</X>
+              <Y>0</Y>
+            </MoveTo>
+            <LineTo IX="2">
+              <X>0.78</X>
+              <Y>0</Y>
+            </LineTo>
+            <LineTo IX="3">
+              <X>0.78</X>
+              <Y>0.24</Y>
+            </LineTo>
+            <LineTo IX="4">
+              <X>0</X>
+              <Y>0.24</Y>
+            </LineTo>
+            <LineTo IX="5">
+              <X>0</X>
+              <Y>0</Y>
+            </LineTo>
+          </Geom>
+          <Text>Yes</Text>
+        </Shape>
+        <Shape ID="19" NameU="label7" Type="Shape">
+          <XForm>
+            <PinX>11.3</PinX>
+            <PinY>11.25</PinY>
+            <Width>0.78</Width>
+            <Height>0.24</Height>
+            <LocPinX>0.39</LocPinX>
+            <LocPinY>0.12</LocPinY>
+            <Angle>0</Angle>
+          </XForm>
+          <Line>
+            <LineWeight>0.012</LineWeight>
+            <LineColor>#40556B</LineColor>
+            <LinePattern>0</LinePattern>
+          </Line>
+          <Fill>
+            <FillForegnd>#FFFFFF</FillForegnd>
+            <FillPattern>1</FillPattern>
+          </Fill>
+          <TextBlock>
+            <VerticalAlign>1</VerticalAlign>
+            <LeftMargin>0.07</LeftMargin>
+            <RightMargin>0.07</RightMargin>
+            <TopMargin>0.07</TopMargin>
+            <BottomMargin>0.07</BottomMargin>
+          </TextBlock>
+          <Char IX="0">
+            <Font>0</Font>
+            <Size>0.15</Size>
+            <Color>#142B42</Color>
+          </Char>
+          <Para IX="0">
+            <HorzAlign>1</HorzAlign>
+          </Para>
+          <Geom IX="0">
+            <MoveTo IX="1">
+              <X>0</X>
+              <Y>0</Y>
+            </MoveTo>
+            <LineTo IX="2">
+              <X>0.78</X>
+              <Y>0</Y>
+            </LineTo>
+            <LineTo IX="3">
+              <X>0.78</X>
+              <Y>0.24</Y>
+            </LineTo>
+            <LineTo IX="4">
+              <X>0</X>
+              <Y>0.24</Y>
+            </LineTo>
+            <LineTo IX="5">
+              <X>0</X>
+              <Y>0</Y>
+            </LineTo>
+          </Geom>
+          <Text>Next</Text>
+        </Shape>
+        <Shape ID="20" NameU="label8" Type="Shape">
+          <XForm>
+            <PinX>9.5</PinX>
+            <PinY>8.395</PinY>
+            <Width>0.78</Width>
+            <Height>0.24</Height>
+            <LocPinX>0.39</LocPinX>
+            <LocPinY>0.12</LocPinY>
+            <Angle>0</Angle>
+          </XForm>
+          <Line>
+            <LineWeight>0.012</LineWeight>
+            <LineColor>#40556B</LineColor>
+            <LinePattern>0</LinePattern>
+          </Line>
+          <Fill>
+            <FillForegnd>#FFFFFF</FillForegnd>
+            <FillPattern>1</FillPattern>
+          </Fill>
+          <TextBlock>
+            <VerticalAlign>1</VerticalAlign>
+            <LeftMargin>0.07</LeftMargin>
+            <RightMargin>0.07</RightMargin>
+            <TopMargin>0.07</TopMargin>
+            <BottomMargin>0.07</BottomMargin>
+          </TextBlock>
+          <Char IX="0">
+            <Font>0</Font>
+            <Size>0.15</Size>
+            <Color>#142B42</Color>
+          </Char>
+          <Para IX="0">
+            <HorzAlign>1</HorzAlign>
+          </Para>
+          <Geom IX="0">
+            <MoveTo IX="1">
+              <X>0</X>
+              <Y>0</Y>
+            </MoveTo>
+            <LineTo IX="2">
+              <X>0.78</X>
+              <Y>0</Y>
+            </LineTo>
+            <LineTo IX="3">
+              <X>0.78</X>
+              <Y>0.24</Y>
+            </LineTo>
+            <LineTo IX="4">
+              <X>0</X>
+              <Y>0.24</Y>
+            </LineTo>
+            <LineTo IX="5">
+              <X>0</X>
+              <Y>0</Y>
+            </LineTo>
+          </Geom>
+          <Text>Next</Text>
+        </Shape>
+        <Shape ID="21" NameU="label9" Type="Shape">
+          <XForm>
+            <PinX>2.32</PinX>
+            <PinY>5.949999999999999</PinY>
+            <Width>0.78</Width>
+            <Height>0.24</Height>
+            <LocPinX>0.39</LocPinX>
+            <LocPinY>0.12</LocPinY>
+            <Angle>0</Angle>
+          </XForm>
+          <Line>
+            <LineWeight>0.012</LineWeight>
+            <LineColor>#40556B</LineColor>
+            <LinePattern>0</LinePattern>
+          </Line>
+          <Fill>
+            <FillForegnd>#FFFFFF</FillForegnd>
+            <FillPattern>1</FillPattern>
+          </Fill>
+          <TextBlock>
+            <VerticalAlign>1</VerticalAlign>
+            <LeftMargin>0.07</LeftMargin>
+            <RightMargin>0.07</RightMargin>
+            <TopMargin>0.07</TopMargin>
+            <BottomMargin>0.07</BottomMargin>
+          </TextBlock>
+          <Char IX="0">
+            <Font>0</Font>
+            <Size>0.15</Size>
+            <Color>#142B42</Color>
+          </Char>
+          <Para IX="0">
+            <HorzAlign>1</HorzAlign>
+          </Para>
+          <Geom IX="0">
+            <MoveTo IX="1">
+              <X>0</X>
+              <Y>0</Y>
+            </MoveTo>
+            <LineTo IX="2">
+              <X>0.78</X>
+              <Y>0</Y>
+            </LineTo>
+            <LineTo IX="3">
+              <X>0.78</X>
+              <Y>0.24</Y>
+            </LineTo>
+            <LineTo IX="4">
+              <X>0</X>
+              <Y>0.24</Y>
+            </LineTo>
+            <LineTo IX="5">
+              <X>0</X>
+              <Y>0</Y>
+            </LineTo>
+          </Geom>
+          <Text>Yes</Text>
+        </Shape>
+        <Shape ID="22" NameU="label10" Type="Shape">
+          <XForm>
+            <PinX>4.6</PinX>
+            <PinY>5.087499999999999</PinY>
+            <Width>0.78</Width>
+            <Height>0.24</Height>
+            <LocPinX>0.39</LocPinX>
+            <LocPinY>0.12</LocPinY>
+            <Angle>0</Angle>
+          </XForm>
+          <Line>
+            <LineWeight>0.012</LineWeight>
+            <LineColor>#40556B</LineColor>
+            <LinePattern>0</LinePattern>
+          </Line>
+          <Fill>
+            <FillForegnd>#FFFFFF</FillForegnd>
+            <FillPattern>1</FillPattern>
+          </Fill>
+          <TextBlock>
+            <VerticalAlign>1</VerticalAlign>
+            <LeftMargin>0.07</LeftMargin>
+            <RightMargin>0.07</RightMargin>
+            <TopMargin>0.07</TopMargin>
+            <BottomMargin>0.07</BottomMargin>
+          </TextBlock>
+          <Char IX="0">
+            <Font>0</Font>
+            <Size>0.15</Size>
+            <Color>#142B42</Color>
+          </Char>
+          <Para IX="0">
+            <HorzAlign>1</HorzAlign>
+          </Para>
+          <Geom IX="0">
+            <MoveTo IX="1">
+              <X>0</X>
+              <Y>0</Y>
+            </MoveTo>
+            <LineTo IX="2">
+              <X>0.78</X>
+              <Y>0</Y>
+            </LineTo>
+            <LineTo IX="3">
+              <X>0.78</X>
+              <Y>0.24</Y>
+            </LineTo>
+            <LineTo IX="4">
+              <X>0</X>
+              <Y>0.24</Y>
+            </LineTo>
+            <LineTo IX="5">
+              <X>0</X>
+              <Y>0</Y>
+            </LineTo>
+          </Geom>
+          <Text>No</Text>
+        </Shape>
+      </Shapes>
+    </Page>
+    <Page ID="3" NameU="04 NEXT STEP" Name="04 NEXT STEP">
+      <PageSheet>
+        <PageProps>
+          <PageWidth>12</PageWidth>
+          <PageHeight>16</PageHeight>
+        </PageProps>
+      </PageSheet>
+      <Shapes>
+        <Shape ID="100" NameU="Connector.0" Type="Shape">
+          <XForm>
+            <PinX>6</PinX>
+            <PinY>8</PinY>
+            <Width>12</Width>
+            <Height>16</Height>
+            <LocPinX>6</LocPinX>
+            <LocPinY>8</LocPinY>
+            <Angle>0</Angle>
+          </XForm>
+          <Line>
+            <LineColor>#40556B</LineColor>
+            <LineWeight>0.014</LineWeight>
+            <EndArrow>4</EndArrow>
+          </Line>
+          <Geom IX="0">
+            <NoFill>1</NoFill>
+            <MoveTo IX="1">
+              <X>4.5</X>
+              <Y>13.775</Y>
+            </MoveTo>
+            <LineTo IX="2">
+              <X>4.5</X>
+              <Y>13.275</Y>
+            </LineTo>
+          </Geom>
+        </Shape>
+        <Shape ID="101" NameU="Connector.1" Type="Shape">
+          <XForm>
+            <PinX>6</PinX>
+            <PinY>8</PinY>
+            <Width>12</Width>
+            <Height>16</Height>
+            <LocPinX>6</LocPinX>
+            <LocPinY>8</LocPinY>
+            <Angle>0</Angle>
+          </XForm>
+          <Line>
+            <LineColor>#40556B</LineColor>
+            <LineWeight>0.014</LineWeight>
+            <EndArrow>4</EndArrow>
+          </Line>
+          <Geom IX="0">
+            <NoFill>1</NoFill>
+            <MoveTo IX="1">
+              <X>4.5</X>
+              <Y>12.425</Y>
+            </MoveTo>
+            <LineTo IX="2">
+              <X>4.5</X>
+              <Y>11.875</Y>
+            </LineTo>
+          </Geom>
+        </Shape>
+        <Shape ID="102" NameU="Connector.2" Type="Shape">
+          <XForm>
+            <PinX>6</PinX>
+            <PinY>8</PinY>
+            <Width>12</Width>
+            <Height>16</Height>
+            <LocPinX>6</LocPinX>
+            <LocPinY>8</LocPinY>
+            <Angle>0</Angle>
+          </XForm>
+          <Line>
+            <LineColor>#40556B</LineColor>
+            <LineWeight>0.014</LineWeight>
+            <EndArrow>4</EndArrow>
+          </Line>
+          <Geom IX="0">
+            <NoFill>1</NoFill>
+            <MoveTo IX="1">
+              <X>6.4</X>
+              <Y>11.25</Y>
+            </MoveTo>
+            <LineTo IX="2">
+              <X>7.85</X>
+              <Y>11.25</Y>
+            </LineTo>
+          </Geom>
+        </Shape>
+        <Shape ID="103" NameU="Connector.3" Type="Shape">
+          <XForm>
+            <PinX>6</PinX>
+            <PinY>8</PinY>
+            <Width>12</Width>
+            <Height>16</Height>
+            <LocPinX>6</LocPinX>
+            <LocPinY>8</LocPinY>
+            <Angle>0</Angle>
+          </XForm>
+          <Line>
+            <LineColor>#40556B</LineColor>
+            <LineWeight>0.014</LineWeight>
+            <EndArrow>4</EndArrow>
+          </Line>
+          <Geom IX="0">
+            <NoFill>1</NoFill>
+            <MoveTo IX="1">
+              <X>4.5</X>
+              <Y>10.625</Y>
+            </MoveTo>
+            <LineTo IX="2">
+              <X>4.5</X>
+              <Y>9.95</Y>
+            </LineTo>
+          </Geom>
+        </Shape>
+        <Shape ID="104" NameU="Connector.4" Type="Shape">
+          <XForm>
+            <PinX>6</PinX>
+            <PinY>8</PinY>
+            <Width>12</Width>
+            <Height>16</Height>
+            <LocPinX>6</LocPinX>
+            <LocPinY>8</LocPinY>
+            <Angle>0</Angle>
+          </XForm>
+          <Line>
+            <LineColor>#40556B</LineColor>
+            <LineWeight>0.014</LineWeight>
+            <EndArrow>4</EndArrow>
+          </Line>
+          <Geom IX="0">
+            <NoFill>1</NoFill>
+            <MoveTo IX="1">
+              <X>9.5</X>
+              <Y>10.6</Y>
+            </MoveTo>
+            <LineTo IX="2">
+              <X>9.5</X>
+              <Y>9.35</Y>
+            </LineTo>
+            <LineTo IX="3">
+              <X>6.4</X>
+              <Y>9.35</Y>
+            </LineTo>
+          </Geom>
+        </Shape>
+        <Shape ID="105" NameU="Connector.5" Type="Shape">
+          <XForm>
+            <PinX>6</PinX>
+            <PinY>8</PinY>
+            <Width>12</Width>
+            <Height>16</Height>
+            <LocPinX>6</LocPinX>
+            <LocPinY>8</LocPinY>
+            <Angle>0</Angle>
+          </XForm>
+          <Line>
+            <LineColor>#40556B</LineColor>
+            <LineWeight>0.014</LineWeight>
+            <EndArrow>4</EndArrow>
+          </Line>
+          <Geom IX="0">
+            <NoFill>1</NoFill>
+            <MoveTo IX="1">
+              <X>2.6</X>
+              <Y>9.35</Y>
+            </MoveTo>
+            <LineTo IX="2">
+              <X>2.1</X>
+              <Y>9.35</Y>
+            </LineTo>
+            <LineTo IX="3">
+              <X>2.1</X>
+              <Y>8.45</Y>
+            </LineTo>
+            <LineTo IX="4">
+              <X>3.4</X>
+              <Y>8.45</Y>
+            </LineTo>
+            <LineTo IX="5">
+              <X>3.4</X>
+              <Y>8.025</Y>
+            </LineTo>
+          </Geom>
+        </Shape>
+        <Shape ID="106" NameU="Connector.6" Type="Shape">
+          <XForm>
+            <PinX>6</PinX>
+            <PinY>8</PinY>
+            <Width>12</Width>
+            <Height>16</Height>
+            <LocPinX>6</LocPinX>
+            <LocPinY>8</LocPinY>
+            <Angle>0</Angle>
+          </XForm>
+          <Line>
+            <LineColor>#40556B</LineColor>
+            <LineWeight>0.014</LineWeight>
+            <EndArrow>4</EndArrow>
+          </Line>
+          <Geom IX="0">
+            <NoFill>1</NoFill>
+            <MoveTo IX="1">
+              <X>4.5</X>
+              <Y>8.75</Y>
+            </MoveTo>
+            <LineTo IX="2">
+              <X>4.5</X>
+              <Y>8.5</Y>
+            </LineTo>
+            <LineTo IX="3">
+              <X>8.7</X>
+              <Y>8.5</Y>
+            </LineTo>
+            <LineTo IX="4">
+              <X>8.7</X>
+              <Y>8.025</Y>
+            </LineTo>
+          </Geom>
+        </Shape>
+        <Shape ID="107" NameU="Connector.7" Type="Shape">
+          <XForm>
+            <PinX>6</PinX>
+            <PinY>8</PinY>
+            <Width>12</Width>
+            <Height>16</Height>
+            <LocPinX>6</LocPinX>
+            <LocPinY>8</LocPinY>
+            <Angle>0</Angle>
+          </XForm>
+          <Line>
+            <LineColor>#40556B</LineColor>
+            <LineWeight>0.014</LineWeight>
+            <EndArrow>4</EndArrow>
+          </Line>
+          <Geom IX="0">
+            <NoFill>1</NoFill>
+            <MoveTo IX="1">
+              <X>3.4</X>
+              <Y>6.975</Y>
+            </MoveTo>
+            <LineTo IX="2">
+              <X>3.4</X>
+              <Y>6.449999999999999</Y>
+            </LineTo>
+            <LineTo IX="3">
+              <X>6</X>
+              <Y>6.449999999999999</Y>
+            </LineTo>
+            <LineTo IX="4">
+              <X>6</X>
+              <Y>6.200000000000001</Y>
+            </LineTo>
+          </Geom>
+        </Shape>
+        <Shape ID="108" NameU="Connector.8" Type="Shape">
+          <XForm>
+            <PinX>6</PinX>
+            <PinY>8</PinY>
+            <Width>12</Width>
+            <Height>16</Height>
+            <LocPinX>6</LocPinX>
+            <LocPinY>8</LocPinY>
+            <Angle>0</Angle>
+          </XForm>
+          <Line>
+            <LineColor>#40556B</LineColor>
+            <LineWeight>0.014</LineWeight>
+            <EndArrow>4</EndArrow>
+          </Line>
+          <Geom IX="0">
+            <NoFill>1</NoFill>
+            <MoveTo IX="1">
+              <X>8.7</X>
+              <Y>6.975</Y>
+            </MoveTo>
+            <LineTo IX="2">
+              <X>8.7</X>
+              <Y>6.25</Y>
+            </LineTo>
+            <LineTo IX="3">
+              <X>6</X>
+              <Y>6.25</Y>
+            </LineTo>
+            <LineTo IX="4">
+              <X>6</X>
+              <Y>6.200000000000001</Y>
+            </LineTo>
+          </Geom>
+        </Shape>
+        <Shape ID="1" NameU="start" Type="Shape">
+          <XForm>
+            <PinX>4.5</PinX>
+            <PinY>14.2</PinY>
+            <Width>3.8</Width>
+            <Height>0.85</Height>
+            <LocPinX>1.9</LocPinX>
+            <LocPinY>0.425</LocPinY>
+            <Angle>0</Angle>
+          </XForm>
+          <Line>
+            <LineWeight>0.012</LineWeight>
+            <LineColor>#40556B</LineColor>
+            <LinePattern>1</LinePattern>
+          </Line>
+          <Fill>
+            <FillForegnd>#DDE8F0</FillForegnd>
+            <FillPattern>1</FillPattern>
+          </Fill>
+          <TextBlock>
+            <VerticalAlign>1</VerticalAlign>
+            <LeftMargin>0.07</LeftMargin>
+            <RightMargin>0.07</RightMargin>
+            <TopMargin>0.07</TopMargin>
+            <BottomMargin>0.07</BottomMargin>
+          </TextBlock>
+          <Char IX="0">
+            <Font>0</Font>
+            <Size>0.15</Size>
+            <Color>#142B42</Color>
+          </Char>
+          <Para IX="0">
+            <HorzAlign>1</HorzAlign>
+          </Para>
+          <Geom IX="0">
+            <MoveTo IX="1">
+              <X>0</X>
+              <Y>0</Y>
+            </MoveTo>
+            <LineTo IX="2">
+              <X>3.8</X>
+              <Y>0</Y>
+            </LineTo>
+            <LineTo IX="3">
+              <X>3.8</X>
+              <Y>0.85</Y>
+            </LineTo>
+            <LineTo IX="4">
+              <X>0</X>
+              <Y>0.85</Y>
+            </LineTo>
+            <LineTo IX="5">
+              <X>0</X>
+              <Y>0</Y>
+            </LineTo>
+          </Geom>
+          <Text>Evaluate normalized extraction results</Text>
+        </Shape>
+        <Shape ID="2" NameU="scalar" Type="Shape">
+          <XForm>
+            <PinX>4.5</PinX>
+            <PinY>12.85</PinY>
+            <Width>3.8</Width>
+            <Height>0.85</Height>
+            <LocPinX>1.9</LocPinX>
+            <LocPinY>0.425</LocPinY>
+            <Angle>0</Angle>
+          </XForm>
+          <Line>
+            <LineWeight>0.012</LineWeight>
+            <LineColor>#40556B</LineColor>
+            <LinePattern>1</LinePattern>
+          </Line>
+          <Fill>
+            <FillForegnd>#EAF2FB</FillForegnd>
+            <FillPattern>1</FillPattern>
+          </Fill>
+          <TextBlock>
+            <VerticalAlign>1</VerticalAlign>
+            <LeftMargin>0.07</LeftMargin>
+            <RightMargin>0.07</RightMargin>
+            <TopMargin>0.07</TopMargin>
+            <BottomMargin>0.07</BottomMargin>
+          </TextBlock>
+          <Char IX="0">
+            <Font>0</Font>
+            <Size>0.15</Size>
+            <Color>#142B42</Color>
+          </Char>
+          <Para IX="0">
+            <HorzAlign>1</HorzAlign>
+          </Para>
+          <Geom IX="0">
+            <MoveTo IX="1">
+              <X>0</X>
+              <Y>0</Y>
+            </MoveTo>
+            <LineTo IX="2">
+              <X>3.8</X>
+              <Y>0</Y>
+            </LineTo>
+            <LineTo IX="3">
+              <X>3.8</X>
+              <Y>0.85</Y>
+            </LineTo>
+            <LineTo IX="4">
+              <X>0</X>
+              <Y>0.85</Y>
+            </LineTo>
+            <LineTo IX="5">
+              <X>0</X>
+              <Y>0</Y>
+            </LineTo>
+          </Geom>
+          <Text>List every missing non-optional scalar field.</Text>
+        </Shape>
+        <Shape ID="3" NameU="provider" Type="Shape">
+          <XForm>
+            <PinX>4.5</PinX>
+            <PinY>11.25</PinY>
+            <Width>3.8</Width>
+            <Height>1.25</Height>
+            <LocPinX>1.9</LocPinX>
+            <LocPinY>0.625</LocPinY>
+            <Angle>0</Angle>
+          </XForm>
+          <Line>
+            <LineWeight>0.012</LineWeight>
+            <LineColor>#40556B</LineColor>
+            <LinePattern>1</LinePattern>
+          </Line>
+          <Fill>
+            <FillForegnd>#FFF2CC</FillForegnd>
+            <FillPattern>1</FillPattern>
+          </Fill>
+          <TextBlock>
+            <VerticalAlign>1</VerticalAlign>
+            <LeftMargin>0.07</LeftMargin>
+            <RightMargin>0.07</RightMargin>
+            <TopMargin>0.07</TopMargin>
+            <BottomMargin>0.07</BottomMargin>
+          </TextBlock>
+          <Char IX="0">
+            <Font>0</Font>
+            <Size>0.15</Size>
+            <Color>#142B42</Color>
+          </Char>
+          <Para IX="0">
+            <HorzAlign>1</HorzAlign>
+          </Para>
+          <Geom IX="0">
+            <MoveTo IX="1">
+              <X>1.9</X>
+              <Y>1.25</Y>
+            </MoveTo>
+            <LineTo IX="2">
+              <X>3.8</X>
+              <Y>0.625</Y>
+            </LineTo>
+            <LineTo IX="3">
+              <X>1.9</X>
+              <Y>0</Y>
+            </LineTo>
+            <LineTo IX="4">
+              <X>0</X>
+              <Y>0.625</Y>
+            </LineTo>
+            <LineTo IX="5">
+              <X>1.9</X>
+              <Y>1.25</Y>
+            </LineTo>
+          </Geom>
+          <Text>At least one provider has all seven requested fields?</Text>
+        </Shape>
+        <Shape ID="4" NameU="gaps" Type="Shape">
+          <XForm>
+            <PinX>9.5</PinX>
+            <PinY>11.25</PinY>
+            <Width>3.3</Width>
+            <Height>1.3</Height>
+            <LocPinX>1.65</LocPinX>
+            <LocPinY>0.65</LocPinY>
+            <Angle>0</Angle>
+          </XForm>
+          <Line>
+            <LineWeight>0.012</LineWeight>
+            <LineColor>#40556B</LineColor>
+            <LinePattern>1</LinePattern>
+          </Line>
+          <Fill>
+            <FillForegnd>#EAF2FB</FillForegnd>
+            <FillPattern>1</FillPattern>
+          </Fill>
+          <TextBlock>
+            <VerticalAlign>1</VerticalAlign>
+            <LeftMargin>0.07</LeftMargin>
+            <RightMargin>0.07</RightMargin>
+            <TopMargin>0.07</TopMargin>
+            <BottomMargin>0.07</BottomMargin>
+          </TextBlock>
+          <Char IX="0">
+            <Font>0</Font>
+            <Size>0.15</Size>
+            <Color>#142B42</Color>
+          </Char>
+          <Para IX="0">
+            <HorzAlign>1</HorzAlign>
+          </Para>
+          <Geom IX="0">
+            <MoveTo IX="1">
+              <X>0</X>
+              <Y>0</Y>
+            </MoveTo>
+            <LineTo IX="2">
+              <X>3.3</X>
+              <Y>0</Y>
+            </LineTo>
+            <LineTo IX="3">
+              <X>3.3</X>
+              <Y>1.3</Y>
+            </LineTo>
+            <LineTo IX="4">
+              <X>0</X>
+              <Y>1.3</Y>
+            </LineTo>
+            <LineTo IX="5">
+              <X>0</X>
+              <Y>0</Y>
+            </LineTo>
+          </Geom>
+          <Text>Add missing fields from the provider with the fewest gaps. If none: add all seven.</Text>
+        </Shape>
+        <Shape ID="5" NameU="empty" Type="Shape">
+          <XForm>
+            <PinX>4.5</PinX>
+            <PinY>9.35</PinY>
+            <Width>3.8</Width>
+            <Height>1.2</Height>
+            <LocPinX>1.9</LocPinX>
+            <LocPinY>0.6</LocPinY>
+            <Angle>0</Angle>
+          </XForm>
+          <Line>
+            <LineWeight>0.012</LineWeight>
+            <LineColor>#40556B</LineColor>
+            <LinePattern>1</LinePattern>
+          </Line>
+          <Fill>
+            <FillForegnd>#FFF2CC</FillForegnd>
+            <FillPattern>1</FillPattern>
+          </Fill>
+          <TextBlock>
+            <VerticalAlign>1</VerticalAlign>
+            <LeftMargin>0.07</LeftMargin>
+            <RightMargin>0.07</RightMargin>
+            <TopMargin>0.07</TopMargin>
+            <BottomMargin>0.07</BottomMargin>
+          </TextBlock>
+          <Char IX="0">
+            <Font>0</Font>
+            <Size>0.15</Size>
+            <Color>#142B42</Color>
+          </Char>
+          <Para IX="0">
+            <HorzAlign>1</HorzAlign>
+          </Para>
+          <Geom IX="0">
+            <MoveTo IX="1">
+              <X>1.9</X>
+              <Y>1.2</Y>
+            </MoveTo>
+            <LineTo IX="2">
+              <X>3.8</X>
+              <Y>0.6</Y>
+            </LineTo>
+            <LineTo IX="3">
+              <X>1.9</X>
+              <Y>0</Y>
+            </LineTo>
+            <LineTo IX="4">
+              <X>0</X>
+              <Y>0.6</Y>
+            </LineTo>
+            <LineTo IX="5">
+              <X>1.9</X>
+              <Y>1.2</Y>
+            </LineTo>
+          </Geom>
+          <Text>Missing required-field list empty?</Text>
+        </Shape>
+        <Shape ID="6" NameU="passed" Type="Shape">
+          <XForm>
+            <PinX>3.4</PinX>
+            <PinY>7.5</PinY>
+            <Width>3.6</Width>
+            <Height>1.05</Height>
+            <LocPinX>1.8</LocPinX>
+            <LocPinY>0.525</LocPinY>
+            <Angle>0</Angle>
+          </XForm>
+          <Line>
+            <LineWeight>0.012</LineWeight>
+            <LineColor>#40556B</LineColor>
+            <LinePattern>1</LinePattern>
+          </Line>
+          <Fill>
+            <FillForegnd>#DFF2E5</FillForegnd>
+            <FillPattern>1</FillPattern>
+          </Fill>
+          <TextBlock>
+            <VerticalAlign>1</VerticalAlign>
+            <LeftMargin>0.07</LeftMargin>
+            <RightMargin>0.07</RightMargin>
+            <TopMargin>0.07</TopMargin>
+            <BottomMargin>0.07</BottomMargin>
+          </TextBlock>
+          <Char IX="0">
+            <Font>0</Font>
+            <Size>0.15</Size>
+            <Color>#142B42</Color>
+          </Char>
+          <Para IX="0">
+            <HorzAlign>1</HorzAlign>
+          </Para>
+          <Geom IX="0">
+            <MoveTo IX="1">
+              <X>0</X>
+              <Y>0</Y>
+            </MoveTo>
+            <LineTo IX="2">
+              <X>3.6</X>
+              <Y>0</Y>
+            </LineTo>
+            <LineTo IX="3">
+              <X>3.6</X>
+              <Y>1.05</Y>
+            </LineTo>
+            <LineTo IX="4">
+              <X>0</X>
+              <Y>1.05</Y>
+            </LineTo>
+            <LineTo IX="5">
+              <X>0</X>
+              <Y>0</Y>
+            </LineTo>
+          </Geom>
+          <Text>NEXT STEP: Passed
+Required information complete</Text>
+        </Shape>
+        <Shape ID="7" NameU="failed" Type="Shape">
+          <XForm>
+            <PinX>8.7</PinX>
+            <PinY>7.5</PinY>
+            <Width>3.6</Width>
+            <Height>1.05</Height>
+            <LocPinX>1.8</LocPinX>
+            <LocPinY>0.525</LocPinY>
+            <Angle>0</Angle>
+          </XForm>
+          <Line>
+            <LineWeight>0.012</LineWeight>
+            <LineColor>#40556B</LineColor>
+            <LinePattern>1</LinePattern>
+          </Line>
+          <Fill>
+            <FillForegnd>#FCE4E4</FillForegnd>
+            <FillPattern>1</FillPattern>
+          </Fill>
+          <TextBlock>
+            <VerticalAlign>1</VerticalAlign>
+            <LeftMargin>0.07</LeftMargin>
+            <RightMargin>0.07</RightMargin>
+            <TopMargin>0.07</TopMargin>
+            <BottomMargin>0.07</BottomMargin>
+          </TextBlock>
+          <Char IX="0">
+            <Font>0</Font>
+            <Size>0.15</Size>
+            <Color>#142B42</Color>
+          </Char>
+          <Para IX="0">
+            <HorzAlign>1</HorzAlign>
+          </Para>
+          <Geom IX="0">
+            <MoveTo IX="1">
+              <X>0</X>
+              <Y>0</Y>
+            </MoveTo>
+            <LineTo IX="2">
+              <X>3.6</X>
+              <Y>0</Y>
+            </LineTo>
+            <LineTo IX="3">
+              <X>3.6</X>
+              <Y>1.05</Y>
+            </LineTo>
+            <LineTo IX="4">
+              <X>0</X>
+              <Y>1.05</Y>
+            </LineTo>
+            <LineTo IX="5">
+              <X>0</X>
+              <Y>0</Y>
+            </LineTo>
+          </Geom>
+          <Text>NEXT STEP: Failed
+Display missing required fields</Text>
+        </Shape>
+        <Shape ID="8" NameU="display" Type="Shape">
+          <XForm>
+            <PinX>6</PinX>
+            <PinY>5.65</PinY>
+            <Width>5.8</Width>
+            <Height>1.1</Height>
+            <LocPinX>2.9</LocPinX>
+            <LocPinY>0.55</LocPinY>
+            <Angle>0</Angle>
+          </XForm>
+          <Line>
+            <LineWeight>0.012</LineWeight>
+            <LineColor>#40556B</LineColor>
+            <LinePattern>1</LinePattern>
+          </Line>
+          <Fill>
+            <FillForegnd>#EAF2FB</FillForegnd>
+            <FillPattern>1</FillPattern>
+          </Fill>
+          <TextBlock>
+            <VerticalAlign>1</VerticalAlign>
+            <LeftMargin>0.07</LeftMargin>
+            <RightMargin>0.07</RightMargin>
+            <TopMargin>0.07</TopMargin>
+            <BottomMargin>0.07</BottomMargin>
+          </TextBlock>
+          <Char IX="0">
+            <Font>0</Font>
+            <Size>0.15</Size>
+            <Color>#142B42</Color>
+          </Char>
+          <Para IX="0">
+            <HorzAlign>1</HorzAlign>
+          </Para>
+          <Geom IX="0">
+            <MoveTo IX="1">
+              <X>0</X>
+              <Y>0</Y>
+            </MoveTo>
+            <LineTo IX="2">
+              <X>5.8</X>
+              <Y>0</Y>
+            </LineTo>
+            <LineTo IX="3">
+              <X>5.8</X>
+              <Y>1.1</Y>
+            </LineTo>
+            <LineTo IX="4">
+              <X>0</X>
+              <Y>1.1</Y>
+            </LineTo>
+            <LineTo IX="5">
+              <X>0</X>
+              <Y>0</Y>
+            </LineTo>
+          </Geom>
+          <Text>Keep results available for review/export in either case. JSON also lists gaps for every provider.</Text>
+        </Shape>
+        <Shape ID="9" NameU="optional" Type="Shape">
+          <XForm>
+            <PinX>3.45</PinX>
+            <PinY>3</PinY>
+            <Width>4.65</Width>
+            <Height>2.6</Height>
+            <LocPinX>2.325</LocPinX>
+            <LocPinY>1.3</LocPinY>
+            <Angle>0</Angle>
+          </XForm>
+          <Line>
+            <LineWeight>0.012</LineWeight>
+            <LineColor>#40556B</LineColor>
+            <LinePattern>1</LinePattern>
+          </Line>
+          <Fill>
+            <FillForegnd>#F4F6F8</FillForegnd>
+            <FillPattern>1</FillPattern>
+          </Fill>
+          <TextBlock>
+            <VerticalAlign>1</VerticalAlign>
+            <LeftMargin>0.07</LeftMargin>
+            <RightMargin>0.07</RightMargin>
+            <TopMargin>0.07</TopMargin>
+            <BottomMargin>0.07</BottomMargin>
+          </TextBlock>
+          <Char IX="0">
+            <Font>0</Font>
+            <Size>0.135</Size>
+            <Color>#142B42</Color>
+          </Char>
+          <Para IX="0">
+            <HorzAlign>1</HorzAlign>
+          </Para>
+          <Geom IX="0">
+            <MoveTo IX="1">
+              <X>0</X>
+              <Y>0</Y>
+            </MoveTo>
+            <LineTo IX="2">
+              <X>4.65</X>
+              <Y>0</Y>
+            </LineTo>
+            <LineTo IX="3">
+              <X>4.65</X>
+              <Y>2.6</Y>
+            </LineTo>
+            <LineTo IX="4">
+              <X>0</X>
+              <Y>2.6</Y>
+            </LineTo>
+            <LineTo IX="5">
+              <X>0</X>
+              <Y>0</Y>
+            </LineTo>
+          </Geom>
+          <Text>OPTIONAL / NOT GATING
+Claimant Address-line-2
+Office Phone Number
+Nurse Case Manager E-mail Address
+All attorney + referral metadata
+Four legacy extras: nurse name, employer email, provider street address, Doctor/Facility classification</Text>
+        </Shape>
+        <Shape ID="10" NameU="required" Type="Shape">
+          <XForm>
+            <PinX>9</PinX>
+            <PinY>3</PinY>
+            <Width>4.65</Width>
+            <Height>2.6</Height>
+            <LocPinX>2.325</LocPinX>
+            <LocPinY>1.3</LocPinY>
+            <Angle>0</Angle>
+          </XForm>
+          <Line>
+            <LineWeight>0.012</LineWeight>
+            <LineColor>#40556B</LineColor>
+            <LinePattern>1</LinePattern>
+          </Line>
+          <Fill>
+            <FillForegnd>#F4F6F8</FillForegnd>
+            <FillPattern>1</FillPattern>
+          </Fill>
+          <TextBlock>
+            <VerticalAlign>1</VerticalAlign>
+            <LeftMargin>0.07</LeftMargin>
+            <RightMargin>0.07</RightMargin>
+            <TopMargin>0.07</TopMargin>
+            <BottomMargin>0.07</BottomMargin>
+          </TextBlock>
+          <Char IX="0">
+            <Font>0</Font>
+            <Size>0.135</Size>
+            <Color>#142B42</Color>
+          </Char>
+          <Para IX="0">
+            <HorzAlign>1</HorzAlign>
+          </Para>
+          <Geom IX="0">
+            <MoveTo IX="1">
+              <X>0</X>
+              <Y>0</Y>
+            </MoveTo>
+            <LineTo IX="2">
+              <X>4.65</X>
+              <Y>0</Y>
+            </LineTo>
+            <LineTo IX="3">
+              <X>4.65</X>
+              <Y>2.6</Y>
+            </LineTo>
+            <LineTo IX="4">
+              <X>0</X>
+              <Y>2.6</Y>
+            </LineTo>
+            <LineTo IX="5">
+              <X>0</X>
+              <Y>0</Y>
+            </LineTo>
+          </Geom>
+          <Text>PROVIDER: ALL SEVEN IN ONE RECORD
+Provider / Facility Name
+Phone Number
+City, State, Zip
+Appointment Date, Appointment Time
+
+Separate partial records cannot collectively satisfy this requirement. Other incomplete providers do not fail a referral if one is complete.</Text>
+        </Shape>
+        <Shape ID="11" NameU="title" Type="Shape">
+          <XForm>
+            <PinX>6</PinX>
+            <PinY>15.52</PinY>
+            <Width>11</Width>
+            <Height>0.5</Height>
+            <LocPinX>5.5</LocPinX>
+            <LocPinY>0.25</LocPinY>
+            <Angle>0</Angle>
+          </XForm>
+          <Line>
+            <LineWeight>0.012</LineWeight>
+            <LineColor>#40556B</LineColor>
+            <LinePattern>0</LinePattern>
+          </Line>
+          <Fill>
+            <FillForegnd>#FFFFFF</FillForegnd>
+            <FillPattern>1</FillPattern>
+          </Fill>
+          <TextBlock>
+            <VerticalAlign>1</VerticalAlign>
+            <LeftMargin>0.07</LeftMargin>
+            <RightMargin>0.07</RightMargin>
+            <TopMargin>0.07</TopMargin>
+            <BottomMargin>0.07</BottomMargin>
+          </TextBlock>
+          <Char IX="0">
+            <Font>0</Font>
+            <Size>0.15</Size>
+            <Color>#142B42</Color>
+          </Char>
+          <Para IX="0">
+            <HorzAlign>1</HorzAlign>
+          </Para>
+          <Geom IX="0">
+            <MoveTo IX="1">
+              <X>0</X>
+              <Y>0</Y>
+            </MoveTo>
+            <LineTo IX="2">
+              <X>11</X>
+              <Y>0</Y>
+            </LineTo>
+            <LineTo IX="3">
+              <X>11</X>
+              <Y>0.5</Y>
+            </LineTo>
+            <LineTo IX="4">
+              <X>0</X>
+              <Y>0.5</Y>
+            </LineTo>
+            <LineTo IX="5">
+              <X>0</X>
+              <Y>0</Y>
+            </LineTo>
+          </Geom>
+          <Text>04 NEXT STEP</Text>
+        </Shape>
+        <Shape ID="12" NameU="subtitle" Type="Shape">
+          <XForm>
+            <PinX>6</PinX>
+            <PinY>15.06</PinY>
+            <Width>11</Width>
+            <Height>0.35</Height>
+            <LocPinX>5.5</LocPinX>
+            <LocPinY>0.175</LocPinY>
+            <Angle>0</Angle>
+          </XForm>
+          <Line>
+            <LineWeight>0.012</LineWeight>
+            <LineColor>#40556B</LineColor>
+            <LinePattern>0</LinePattern>
+          </Line>
+          <Fill>
+            <FillForegnd>#FFFFFF</FillForegnd>
+            <FillPattern>1</FillPattern>
+          </Fill>
+          <TextBlock>
+            <VerticalAlign>1</VerticalAlign>
+            <LeftMargin>0.07</LeftMargin>
+            <RightMargin>0.07</RightMargin>
+            <TopMargin>0.07</TopMargin>
+            <BottomMargin>0.07</BottomMargin>
+          </TextBlock>
+          <Char IX="0">
+            <Font>0</Font>
+            <Size>0.15</Size>
+            <Color>#142B42</Color>
+          </Char>
+          <Para IX="0">
+            <HorzAlign>1</HorzAlign>
+          </Para>
+          <Geom IX="0">
+            <MoveTo IX="1">
+              <X>0</X>
+              <Y>0</Y>
+            </MoveTo>
+            <LineTo IX="2">
+              <X>11</X>
+              <Y>0</Y>
+            </LineTo>
+            <LineTo IX="3">
+              <X>11</X>
+              <Y>0.35</Y>
+            </LineTo>
+            <LineTo IX="4">
+              <X>0</X>
+              <Y>0.35</Y>
+            </LineTo>
+            <LineTo IX="5">
+              <X>0</X>
+              <Y>0</Y>
+            </LineTo>
+          </Geom>
+          <Text>Completeness of extracted information | Not a confidence score or factual verification</Text>
+        </Shape>
+        <Shape ID="13" NameU="footer" Type="Shape">
+          <XForm>
+            <PinX>6</PinX>
+            <PinY>0.34999999999999964</PinY>
+            <Width>11</Width>
+            <Height>0.35</Height>
+            <LocPinX>5.5</LocPinX>
+            <LocPinY>0.175</LocPinY>
+            <Angle>0</Angle>
+          </XForm>
+          <Line>
+            <LineWeight>0.012</LineWeight>
+            <LineColor>#40556B</LineColor>
+            <LinePattern>0</LinePattern>
+          </Line>
+          <Fill>
+            <FillForegnd>#FFFFFF</FillForegnd>
+            <FillPattern>1</FillPattern>
+          </Fill>
+          <TextBlock>
+            <VerticalAlign>1</VerticalAlign>
+            <LeftMargin>0.07</LeftMargin>
+            <RightMargin>0.07</RightMargin>
+            <TopMargin>0.07</TopMargin>
+            <BottomMargin>0.07</BottomMargin>
+          </TextBlock>
+          <Char IX="0">
+            <Font>0</Font>
+            <Size>0.15</Size>
+            <Color>#142B42</Color>
+          </Char>
+          <Para IX="0">
+            <HorzAlign>1</HorzAlign>
+          </Para>
+          <Geom IX="0">
+            <MoveTo IX="1">
+              <X>0</X>
+              <Y>0</Y>
+            </MoveTo>
+            <LineTo IX="2">
+              <X>11</X>
+              <Y>0</Y>
+            </LineTo>
+            <LineTo IX="3">
+              <X>11</X>
+              <Y>0.35</Y>
+            </LineTo>
+            <LineTo IX="4">
+              <X>0</X>
+              <Y>0.35</Y>
+            </LineTo>
+            <LineTo IX="5">
+              <X>0</X>
+              <Y>0</Y>
+            </LineTo>
+          </Geom>
+          <Text>FCM Structured | AI/referral_schema.py + AI/bedrock_core.py | Page 4 of 4</Text>
+        </Shape>
+        <Shape ID="14" NameU="label2" Type="Shape">
+          <XForm>
+            <PinX>6.78</PinX>
+            <PinY>11.25</PinY>
+            <Width>0.78</Width>
+            <Height>0.24</Height>
+            <LocPinX>0.39</LocPinX>
+            <LocPinY>0.12</LocPinY>
+            <Angle>0</Angle>
+          </XForm>
+          <Line>
+            <LineWeight>0.012</LineWeight>
+            <LineColor>#40556B</LineColor>
+            <LinePattern>0</LinePattern>
+          </Line>
+          <Fill>
+            <FillForegnd>#FFFFFF</FillForegnd>
+            <FillPattern>1</FillPattern>
+          </Fill>
+          <TextBlock>
+            <VerticalAlign>1</VerticalAlign>
+            <LeftMargin>0.07</LeftMargin>
+            <RightMargin>0.07</RightMargin>
+            <TopMargin>0.07</TopMargin>
+            <BottomMargin>0.07</BottomMargin>
+          </TextBlock>
+          <Char IX="0">
+            <Font>0</Font>
+            <Size>0.15</Size>
+            <Color>#142B42</Color>
+          </Char>
+          <Para IX="0">
+            <HorzAlign>1</HorzAlign>
+          </Para>
+          <Geom IX="0">
+            <MoveTo IX="1">
+              <X>0</X>
+              <Y>0</Y>
+            </MoveTo>
+            <LineTo IX="2">
+              <X>0.78</X>
+              <Y>0</Y>
+            </LineTo>
+            <LineTo IX="3">
+              <X>0.78</X>
+              <Y>0.24</Y>
+            </LineTo>
+            <LineTo IX="4">
+              <X>0</X>
+              <Y>0.24</Y>
+            </LineTo>
+            <LineTo IX="5">
+              <X>0</X>
+              <Y>0</Y>
+            </LineTo>
+          </Geom>
+          <Text>No</Text>
+        </Shape>
+        <Shape ID="15" NameU="label3" Type="Shape">
+          <XForm>
+            <PinX>4.5</PinX>
+            <PinY>10.2875</PinY>
+            <Width>0.78</Width>
+            <Height>0.24</Height>
+            <LocPinX>0.39</LocPinX>
+            <LocPinY>0.12</LocPinY>
+            <Angle>0</Angle>
+          </XForm>
+          <Line>
+            <LineWeight>0.012</LineWeight>
+            <LineColor>#40556B</LineColor>
+            <LinePattern>0</LinePattern>
+          </Line>
+          <Fill>
+            <FillForegnd>#FFFFFF</FillForegnd>
+            <FillPattern>1</FillPattern>
+          </Fill>
+          <TextBlock>
+            <VerticalAlign>1</VerticalAlign>
+            <LeftMargin>0.07</LeftMargin>
+            <RightMargin>0.07</RightMargin>
+            <TopMargin>0.07</TopMargin>
+            <BottomMargin>0.07</BottomMargin>
+          </TextBlock>
+          <Char IX="0">
+            <Font>0</Font>
+            <Size>0.15</Size>
+            <Color>#142B42</Color>
+          </Char>
+          <Para IX="0">
+            <HorzAlign>1</HorzAlign>
+          </Para>
+          <Geom IX="0">
+            <MoveTo IX="1">
+              <X>0</X>
+              <Y>0</Y>
+            </MoveTo>
+            <LineTo IX="2">
+              <X>0.78</X>
+              <Y>0</Y>
+            </LineTo>
+            <LineTo IX="3">
+              <X>0.78</X>
+              <Y>0.24</Y>
+            </LineTo>
+            <LineTo IX="4">
+              <X>0</X>
+              <Y>0.24</Y>
+            </LineTo>
+            <LineTo IX="5">
+              <X>0</X>
+              <Y>0</Y>
+            </LineTo>
+          </Geom>
+          <Text>Yes</Text>
+        </Shape>
+        <Shape ID="16" NameU="label4" Type="Shape">
+          <XForm>
+            <PinX>9.5</PinX>
+            <PinY>10.219999999999999</PinY>
+            <Width>0.78</Width>
+            <Height>0.24</Height>
+            <LocPinX>0.39</LocPinX>
+            <LocPinY>0.12</LocPinY>
+            <Angle>0</Angle>
+          </XForm>
+          <Line>
+            <LineWeight>0.012</LineWeight>
+            <LineColor>#40556B</LineColor>
+            <LinePattern>0</LinePattern>
+          </Line>
+          <Fill>
+            <FillForegnd>#FFFFFF</FillForegnd>
+            <FillPattern>1</FillPattern>
+          </Fill>
+          <TextBlock>
+            <VerticalAlign>1</VerticalAlign>
+            <LeftMargin>0.07</LeftMargin>
+            <RightMargin>0.07</RightMargin>
+            <TopMargin>0.07</TopMargin>
+            <BottomMargin>0.07</BottomMargin>
+          </TextBlock>
+          <Char IX="0">
+            <Font>0</Font>
+            <Size>0.15</Size>
+            <Color>#142B42</Color>
+          </Char>
+          <Para IX="0">
+            <HorzAlign>1</HorzAlign>
+          </Para>
+          <Geom IX="0">
+            <MoveTo IX="1">
+              <X>0</X>
+              <Y>0</Y>
+            </MoveTo>
+            <LineTo IX="2">
+              <X>0.78</X>
+              <Y>0</Y>
+            </LineTo>
+            <LineTo IX="3">
+              <X>0.78</X>
+              <Y>0.24</Y>
+            </LineTo>
+            <LineTo IX="4">
+              <X>0</X>
+              <Y>0.24</Y>
+            </LineTo>
+            <LineTo IX="5">
+              <X>0</X>
+              <Y>0</Y>
+            </LineTo>
+          </Geom>
+          <Text>Continue</Text>
+        </Shape>
+        <Shape ID="17" NameU="label5" Type="Shape">
+          <XForm>
+            <PinX>2.35</PinX>
+            <PinY>9.35</PinY>
+            <Width>0.78</Width>
+            <Height>0.24</Height>
+            <LocPinX>0.39</LocPinX>
+            <LocPinY>0.12</LocPinY>
+            <Angle>0</Angle>
+          </XForm>
+          <Line>
+            <LineWeight>0.012</LineWeight>
+            <LineColor>#40556B</LineColor>
+            <LinePattern>0</LinePattern>
+          </Line>
+          <Fill>
+            <FillForegnd>#FFFFFF</FillForegnd>
+            <FillPattern>1</FillPattern>
+          </Fill>
+          <TextBlock>
+            <VerticalAlign>1</VerticalAlign>
+            <LeftMargin>0.07</LeftMargin>
+            <RightMargin>0.07</RightMargin>
+            <TopMargin>0.07</TopMargin>
+            <BottomMargin>0.07</BottomMargin>
+          </TextBlock>
+          <Char IX="0">
+            <Font>0</Font>
+            <Size>0.15</Size>
+            <Color>#142B42</Color>
+          </Char>
+          <Para IX="0">
+            <HorzAlign>1</HorzAlign>
+          </Para>
+          <Geom IX="0">
+            <MoveTo IX="1">
+              <X>0</X>
+              <Y>0</Y>
+            </MoveTo>
+            <LineTo IX="2">
+              <X>0.78</X>
+              <Y>0</Y>
+            </LineTo>
+            <LineTo IX="3">
+              <X>0.78</X>
+              <Y>0.24</Y>
+            </LineTo>
+            <LineTo IX="4">
+              <X>0</X>
+              <Y>0.24</Y>
+            </LineTo>
+            <LineTo IX="5">
+              <X>0</X>
+              <Y>0</Y>
+            </LineTo>
+          </Geom>
+          <Text>Yes</Text>
+        </Shape>
+        <Shape ID="18" NameU="label6" Type="Shape">
+          <XForm>
+            <PinX>4.5</PinX>
+            <PinY>8.625</PinY>
+            <Width>0.78</Width>
+            <Height>0.24</Height>
+            <LocPinX>0.39</LocPinX>
+            <LocPinY>0.12</LocPinY>
+            <Angle>0</Angle>
+          </XForm>
+          <Line>
+            <LineWeight>0.012</LineWeight>
+            <LineColor>#40556B</LineColor>
+            <LinePattern>0</LinePattern>
+          </Line>
+          <Fill>
+            <FillForegnd>#FFFFFF</FillForegnd>
+            <FillPattern>1</FillPattern>
+          </Fill>
+          <TextBlock>
+            <VerticalAlign>1</VerticalAlign>
+            <LeftMargin>0.07</LeftMargin>
+            <RightMargin>0.07</RightMargin>
+            <TopMargin>0.07</TopMargin>
+            <BottomMargin>0.07</BottomMargin>
+          </TextBlock>
+          <Char IX="0">
+            <Font>0</Font>
+            <Size>0.15</Size>
+            <Color>#142B42</Color>
+          </Char>
+          <Para IX="0">
+            <HorzAlign>1</HorzAlign>
+          </Para>
+          <Geom IX="0">
+            <MoveTo IX="1">
+              <X>0</X>
+              <Y>0</Y>
+            </MoveTo>
+            <LineTo IX="2">
+              <X>0.78</X>
+              <Y>0</Y>
+            </LineTo>
+            <LineTo IX="3">
+              <X>0.78</X>
+              <Y>0.24</Y>
+            </LineTo>
+            <LineTo IX="4">
+              <X>0</X>
+              <Y>0.24</Y>
+            </LineTo>
+            <LineTo IX="5">
+              <X>0</X>
+              <Y>0</Y>
+            </LineTo>
+          </Geom>
+          <Text>No</Text>
+        </Shape>
+      </Shapes>
+    </Page>
+  </Pages>
+</VisioDocument>

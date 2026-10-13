@@ -1,0 +1,70 @@
+flowchart TD
+  subgraph Desktop["FCM desktop automation"]
+    START(["main.py / python -m fcm_intake"]) --> UI["FcmBotApp — CustomTkinter"]
+    UI --> ACCESS{"Windows user allowed?"}
+    ACCESS -->|No| BLOCK["Disable Run"]
+    ACCESS -->|Yes: Run| THREAD["Worker thread + BotContext"]
+    THREAD --> RUNNER["runners/fcm.py: run_fcm"]
+    RUNNER --> LOAD["legacy_loader loads legacy_fcm.py"]
+    LOAD --> MAIN["legacy_fcm.main"]
+    MAIN --> RRS["Read referral and attachment from RRS"]
+    RRS --> PARSE["Read PDF and parse referral fields"]
+    PARSE --> VALID["Validate fields; provider lookup when needed"]
+    VALID --> READY{"Required information usable?"}
+    READY -->|No| MANUAL["Stop / manual processing"]
+    READY -->|Yes| REOPEN["Check existing CMS cases"]
+    REOPEN --> CONTINUE{"Case rules and user confirmation allow continuation?"}
+    CONTINUE -->|No| MANUAL
+    CONTINUE -->|Yes| CUSTOMER["Validate customer / employer in CMS"]
+    CUSTOMER --> SUBJECT["Populate Subject Line Template Builder"]
+    SUBJECT --> STOP{"botStop set?"}
+    STOP -->|Yes| MANUAL
+    STOP -->|No| TRIAGE["Complete triage and export attachment"]
+    TRIAGE --> UNITY["Open Unity"]
+    UNITY --> APPROVAL["User confirms referral approved in iCaseManager"]
+    APPROVAL --> COMPLETE["Complete assignment and retrieve CMS case ID"]
+    COMPLETE --> DONE(["Return to UI"])
+    THREAD -. "stdout / stderr / exceptions" .-> LOG["QueueWriter → log queue → UI log"]
+    LOAD -. "notification callback" .-> LOG
+  end
+
+  subgraph CMSLayer["CMS integration and compatibility"]
+    REOPEN --> RSHIM["src/ReOpenCheck_shared.py"]
+    CUSTOMER --> CSHIM["src/CustomerCheckerV2_shared.py"]
+    RSHIM --> RW["workflows/reopen_check.py"]
+    CSHIM --> CW["workflows/customer_checker.py"]
+    RUNNERS["Standalone customer / reopen runners"] --> RW
+    RUNNERS --> CW
+    RW --> SESSION["cms/session.py — shared browser and login"]
+    CW --> SESSION
+    SESSION --> BROWSER["Selenium / Edge IE mode → CMS"]
+    RW --> RL["legacy_reopencheck.py — case validation"]
+    CW --> CL["legacy_customerchecker.py — customer validation"]
+    RL --> DB[("CMS / RRS database lookups")]
+    SETTINGS["config + local_settings.ini + environment overrides"] -.-> SESSION
+    SETTINGS -.-> LOAD
+  end
+
+  subgraph AI["Separate AI extraction tools"]
+    INPUT["Streamlit upload: PDF / DOCX / TXT"] --> TEXT["Extract document text"]
+    TEXT --> REASON["run_reasoning: field extraction prompt"]
+    REASON --> API["Amazon Bedrock: Converse runtime or Mantle API"]
+    API --> CLEAN["Clean output and validate required fields"]
+    CLEAN --> MISSING{"Too many missing fields?"}
+    MISSING -->|Yes| RETRY["One corrective model call and validation"]
+    MISSING -->|No| OUTPUT["Field table / text / CSV"]
+    RETRY --> OUTPUT
+    BATCH["batch_samples.py: sample PDFs"] --> CORE["Load runtime extraction core without Streamlit UI"]
+    CORE --> REASON
+    CORE --> RESULTS["Resumable JSONL predictions"]
+    RESULTS --> REVIEW["Export review CSV → human corrections → score"]
+  end
+
+  classDef entry fill:#dbeafe,stroke:#2563eb,color:#172554;
+  classDef decision fill:#fef3c7,stroke:#d97706,color:#451a03;
+  classDef external fill:#ede9fe,stroke:#7c3aed,color:#2e1065;
+  classDef result fill:#dcfce7,stroke:#16a34a,color:#14532d;
+  class START,UI,INPUT,BATCH entry;
+  class ACCESS,READY,CONTINUE,STOP,MISSING decision;
+  class BROWSER,DB,API,UNITY external;
+  class DONE,OUTPUT,REVIEW result;
