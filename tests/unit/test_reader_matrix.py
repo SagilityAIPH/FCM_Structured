@@ -46,7 +46,8 @@ def test_doctor_identity_and_date_only_phone_optional():
     fields = parse(data)
     assert schema.completeness(fields)['status'] == 'Passed'
     assert schema.export_payload(fields)['Provider Information'][0]['Date Only'] is True
-    assert schema.export_payload(fields)['Provider Information'][0]['Provider / Facility'] == 'Not found'
+    assert schema.export_payload(fields)['Provider Information'][0]['Doctor / Facility'] == 'Jane Doe'
+    assert schema.export_payload(fields)['Provider Information'][0]['Provider Name (First Name / Last Name)'] == 'Not found'
     record['Doctor Last Name'] = 'Not found'
     assert schema.completeness(parse(data))['status'] == 'Failed'
     record['Provider Name (First Name / Last Name)'] = 'Example Clinic'

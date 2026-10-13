@@ -130,4 +130,11 @@ select { min-width: 0; border: 1px solid #e2e8f0; border-radius: 5px; height: 29
 .bottom-navigation button:hover { background: #f1f5f9; }
 .bottom-navigation button.active { color: #1d4ed8; background: #eff6ff; }
 @media (max-height: 650px) { .app-header { padding-block: 8px; } .title-row p { display: none; } .bottom-navigation button { padding-block: 5px; } .save-row { padding-block: 6px 3px; } }
+/* Keep the form mounted so drafts, panels, and preview state survive compact mode. */
+.is-compact .document-selector, .is-compact .preview-label,
+.is-compact .title-row > button:first-of-type, .is-compact .title-row p,
+.is-compact .save-row, .is-compact .connection-status,
+.is-compact .bottom-navigation { display: none; }
+.is-compact .app-header { padding-block: 8px; }
+.is-compact .bottom-dock { padding-bottom: 8px; }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }

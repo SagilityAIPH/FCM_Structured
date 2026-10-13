@@ -2,7 +2,7 @@
 import type { API, DocumentDetail, Field, State } from '@/types'
 
 const state: State = {
-  documents: [], busy: false, stage: 'Preview mode · example data only', bedrock: 'Preview only', elapsed: 0,
+  documents: [], busy: false, compact: false, stage: 'Preview mode · example data only', bedrock: 'Preview only', elapsed: 0,
   progress: {done: 0, total: 0}, key_configured: true, output_directory: 'Preview / Output / AI',
   settings: {region: 'us-east-2', model: 'openai.gpt-oss-120b-1:0', max_tokens: 32768, temperature: 0, document_limit: 100000},
 }
@@ -15,8 +15,11 @@ function example(id: string, name: string, claimant: string, review: boolean): D
     {name: 'Claim Information', fields: [field('Claim Number', `WC-TEST-${id === 'example-1' ? '10482' : '10483'}`), field('Claim ID', 'DEMO-001'), field('Claim Type', 'Workers’ Compensation'), field('Date of Injury/Accident/Illness', '09/14/2026'), field('State/Jurisdiction of Claim', 'MA'), field('Diagnosis Code', 'Not found', true), field('Accident Description', 'Synthetic example for interface testing. No real claimant data.')]},
     {name: 'RRS Classification', fields: [field('Body Part', 'Knee', true), field('Injury Type', 'Sprain or Tear', true), field('Injury Cause', 'Lifting', true)].map(f => ({...f, source: 'AI' as const}))},
     {name: 'Case Manager Information', fields: [field('Claims Case Manager First Name', 'Jordan'), field('Claims Case Manager Last Name', 'Taylor'), field('Claims Office Name', 'Example Claims Office'), field('Claims Case Manager E-mail Address', 'jordan.taylor@example.com')]},
-    {name: 'Provider 1', fields: [field('Provider / Facility', 'Example Medical Center'), field('Provider Address Line 1', '100 Sample Street'), field('City', 'Worcester'), field('State', 'MA'), field('Zip', '01608'), field('Appointment Date', '11/17/2026'), field('Appointment Time', 'Not found', true)].map(f => ({...f, provider_index: 0}))},
+    {name: 'Provider 1', fields: [field('Doctor / Facility', 'Example Medical Center'), field('Provider Address Line 1', '100 Sample Street'), field('City', 'Worcester'), field('State', 'MA'), field('Zip', '01608'), field('Appointment Date', '11/17/2026'), field('Appointment Time', 'Not found', true)].map(f => ({...f, provider_index: 0}))},
   ]
+  const providerIdentity = groups.find(group => group.name === 'Provider 1')!.fields[0]
+  providerIdentity.key = 'Provider Name (First Name / Last Name)'
+  if (review) providerIdentity.display_value = 'Alex Sample'
   const classification = groups[2].fields.map(f => ({field: f.label, value: f.value, source: 'AI' as const, ai_value: f.value, rule_value: f.value, review: '', list: 'RRS' as const}))
   if (review) Object.assign(classification[0], {rule_value: 'Multiple Body Parts', review: 'AI chose Knee; legacy rules suggest Multiple Body Parts.'})
   return {id, name, claimant, claim: groups[1].fields[0].value, status: review ? 'Needs Review' : 'Completed', pages: 3, revision: 1, error: '', elapsed: 18.4, workbook: 'Preview / AI-output.xlsx', save_error: '', next_step: review ? 'Failed' : 'Passed', issues: review ? 1 : 0, groups, is_pdf: true, text: 'Synthetic document for the browser preview.', raw: '', record_id: id, validation: {status: review ? 'Failed' : 'Passed', missing_fields: review ? ['Claimant Information / Customer Name'] : [], provider_missing_fields: [], confirmation_required: [], appointments: []}, address_report: [], name_inference: [], address_review: [], classification, edits: [], sent_characters: 8042, total_characters: 8042}
@@ -24,6 +27,13 @@ function example(id: string, name: string, claimant: string, review: boolean): D
 function sync() { state.documents = Array.from(records.values()).map(copy) }
 export const previewAPI: API = {
   async get_state() { return copy(state) },
+  async set_compact(value) { state.compact = value; return value },
+  async set_stage(stage, done, total) {
+    state.stage = stage
+    if (done !== undefined && total !== undefined) state.progress = {done, total}
+    return true
+  },
+  async import_text() { throw new Error('Text ingestion requires the Python desktop app.') },
   async choose_documents() {
     if (!records.size) {
       records.set('example-1', example('example-1', 'MORGAN,AVERY.pdf', 'Avery Morgan', false))

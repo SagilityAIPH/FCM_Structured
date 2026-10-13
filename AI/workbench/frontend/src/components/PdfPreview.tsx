@@ -13,7 +13,7 @@ function Thumbnail({ id, page, selected, onClick }: {id: string; page: number; s
     const observer = new IntersectionObserver(entries => {
       if (entries.some(e => e.isIntersecting)) {
         observer.disconnect()
-        void getAPI().then(api => api.render_page(id, page, .15)).then(value => { if (active) setSrc(value) }).catch(() => {})
+        void getAPI().then(api => api.render_page(id, page, .15)).then(value => { if (active && typeof value === 'string') setSrc(value) }).catch(() => {})
       }
     })
     if (ref.current) observer.observe(ref.current)
@@ -30,15 +30,16 @@ export default function PdfPreview({ doc }: {doc: DocumentDetail | null}) {
   const [thumbnails, setThumbnails] = useState(false)
   const [image, setImage] = useState('')
   const [error, setError] = useState('')
+  const [noPreview, setNoPreview] = useState('')
   const [loading, setLoading] = useState(false)
   useEffect(() => { setPage(0); setImage(''); setZoom(1) }, [doc?.id])
   useEffect(() => {
     let active = true
-    setError(''); setImage('')
+    setError(''); setImage(''); setNoPreview(''); setLoading(false)
     if (!doc?.is_pdf || page >= doc.pages) return
     setLoading(true)
     void getAPI().then(api => api.render_page(doc.id, page, Math.min(2.5, zoom * 1.5)))
-      .then(value => { if (active) setImage(value) }).catch(err => { if (active) setError(String(err.message)) })
+      .then(value => { if (active) { if (typeof value === 'string') setImage(value); else setNoPreview(value.message) } }).catch(err => { if (active) setError(String(err.message)) })
       .finally(() => { if (active) setLoading(false) })
     return () => { active = false }
   }, [doc?.id, doc?.is_pdf, doc?.pages, page, zoom])
@@ -54,7 +55,7 @@ export default function PdfPreview({ doc }: {doc: DocumentDetail | null}) {
         <button className="min-w-10 text-[11px]" aria-label="Reset zoom" onClick={() => setZoom(1)}>{Math.round(zoom * 100)}%</button>
         <Button variant="ghost" size="icon" aria-label="Zoom in" disabled={!doc?.is_pdf || zoom >= 2.5} onClick={() => setZoom(z => Math.min(2.5, z + .25))}><ZoomIn /></Button></div>
     </div>
-    {!doc ? <div className="empty-panel"><FileText /><strong>Your document, in view</strong><p>Import a document to preview it alongside its extracted fields.</p></div> : !doc.is_pdf ? <pre className="text-preview">{doc.text}</pre> : <div className="pdf-body">
+    {!doc ? <div className="empty-panel"><FileText /><strong>Your document, in view</strong><p>Import a document to preview it alongside its extracted fields.</p></div> : doc.preview_message || noPreview ? <div className="empty-panel" role="status"><FileText /><strong>{doc.preview_message || noPreview}</strong><p>You can still review and edit the extracted fields.</p></div> : !doc.is_pdf ? <pre className="text-preview">{doc.text}</pre> : <div className="pdf-body">
       {thumbnails ? <aside className="thumbnails" aria-label="Page thumbnails">{Array.from({length: doc.pages}, (_, index) => <Thumbnail key={`${doc.id}-${index}`} id={doc.id} page={index} selected={page === index} onClick={() => setPage(index)} />)}</aside> : null}
       <div className="page-scroll">{loading ? <div className="preview-loading"><LoaderCircle className="animate-spin" size={18} /><span>Rendering page…</span></div> : null}
         {error ? <p role="alert" className="p-4 text-red-700">{error}</p> : image ? <img className="pdf-page" style={{width: `${zoom * 100}%`}} src={image} alt={`Page ${page + 1} of ${doc.name}`} /> : null}

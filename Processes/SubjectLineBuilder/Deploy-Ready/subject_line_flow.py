@@ -18,7 +18,8 @@ def _load_steps():
     return module.CreateSubjectLineBuilder
 
 
-def run_flow(runtime, *, app=None, steps=None):
+def run_flow(runtime, *, app=None, steps=None, allData=None, emaiDisplay=None,
+             skip_capture=False, skip_cms=False):
     """Run only the builder boundary; return completed/stopped/failed.
 
     runtime is the existing legacy module dictionary. Never run concurrently
@@ -32,7 +33,11 @@ def run_flow(runtime, *, app=None, steps=None):
                           template.__defaults__, template.__closure__)
     action.__kwdefaults__ = template.__kwdefaults__
     try:
-        action(app=app)
+        if allData is None and emaiDisplay is None and not skip_capture and not skip_cms:
+            action(app=app)
+        else:
+            action(app=app, allData=allData, emaiDisplay=emaiDisplay,
+                   skip_capture=skip_capture, skip_cms=skip_cms)
     except SystemExit as error:
         runtime['botStop'] = True
         return {'status': 'failed', 'stage': 'subject_line_builder',

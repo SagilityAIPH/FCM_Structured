@@ -40,7 +40,7 @@ def test_allen_single_doctor_not_doctor_and_empty_facility(tmp_path):
     text = schema.format_field_block(fields)
     assert 'Doctor First Name: Shaan\n' in text
     assert 'Doctor Last Name: Mehta\n' in text
-    assert 'Provider / Facility: Not found\n' in text
+    assert f'Doctor / Facility: {schema.provider_display_name(doctor())}\n' in text
     assert all(' & ' not in fields[key] for key in schema.PROVIDER_FIELDS)
     assert len(schema.export_payload(fields)['Provider Information']) == 1
     path, record_id = save_daily_output(fields, 'regression.pdf', directory=tmp_path)
@@ -62,13 +62,16 @@ def test_unnamed_visit_matches_after_all_sources_collected(anonymous_first, time
     {'Doctor First Name': 'Another'},
 ])
 def test_conflicting_unnamed_records_are_not_attached(change):
-    assert len(parse([doctor(), visit(**change)]).providers) == 2
+    fields = parse([doctor(), visit(**change)])
+    assert len(fields.providers) == (1 if 'Appointment Time' in change else 2)
+    if 'Appointment Time' in change:
+        assert fields.providers[0]['Appointment Time'] == doctor()['Appointment Time']
 
 
-def test_two_doctors_same_location_and_appointment_remain_ambiguous():
+def test_two_doctors_remain_separate_without_an_extra_anonymous_record():
     fields = parse([doctor(), visit(), doctor(**{'Doctor First Name': 'Jane', 'Doctor Last Name': 'Doe'})])
-    assert len(fields.providers) == 3
-    assert sum(schema.provider_identity(record) is None for record in fields.providers) == 1
+    assert len(fields.providers) == 2
+    assert all(schema.provider_identity(record) is not None for record in fields.providers)
 
 
 def test_doctors_sharing_a_facility_are_not_merged():
@@ -78,8 +81,8 @@ def test_doctors_sharing_a_facility_are_not_merged():
     assert len(fields.providers) == 2
 
 
-def test_date_alone_is_not_enough_to_identify_provider():
-    assert len(parse([doctor(), provider(**{'Appointment Date': '2025-09-04'})]).providers) == 2
+def test_date_only_evidence_merges_without_conflict():
+    assert len(parse([doctor(), provider(**{'Appointment Date': '2025-09-04'})]).providers) == 1
 
 
 def test_anonymous_special_details_retain_priority_over_named_section():

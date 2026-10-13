@@ -110,6 +110,21 @@ def test_edit_preserves_provider_records_revalidates_and_updates_same_excel_row(
     assert api.get_document(identifier)['value']['groups'][0]['fields'][0]['confidence'] is None
 
 
+def test_doctor_display_is_separate_from_editable_facility(workbench, monkeypatch):
+    from tests.unit.test_provider_merge_decisions import cases
+    api, identifier, _ = workbench
+    data = complete_payload()
+    data['Provider Information'] = cases()['C']
+    extract(monkeypatch, data)
+    api.start_processing([identifier]); finish(api)
+    group = next(group for group in api.get_document(identifier)['value']['groups'] if group['name'] == 'Provider 1')
+    row = next(row for row in group['fields'] if row['label'] == 'Doctor / Facility')
+    assert row['display_value'] == 'Alex Sample'
+    assert row['value'] == 'Synthetic Clinic'
+    assert row['key'] == 'Provider Name (First Name / Last Name)'
+    assert row['conditional']
+
+
 def test_token_failure_does_not_reuse_old_success(workbench, monkeypatch):
     api, identifier, _ = workbench
     extract(monkeypatch, complete_payload())
@@ -202,3 +217,166 @@ def test_unsaved_state_is_pushed_and_close_handler_never_queries_page():
     from pathlib import Path
     launcher = (Path(backend.__file__).parent / 'launcher.py').read_text(encoding='utf-8')
     assert 'evaluate_js' not in launcher
+
+
+def test_import_text_matches_file_shape_and_pipeline(workbench):
+    api, file_id, _ = workbench
+    text = '  Synthetic referral — text capture.  '
+    identifier = api._import_text('synthetic capture.pdf', text)
+    doc = api._documents[identifier]
+    assert doc.keys() == api._documents[file_id].keys()
+    assert doc['path'] is None and doc['content'] == b''
+    assert doc['name'] == 'synthetic capture.pdf'
+    pages = backend.core.extract_pages_from_txt(text.encode('utf-8'))
+    assert doc['text'] == backend.core.join_pages(pages)
+    assert doc['pages'] == len(pages)
+    detail = api.get_document(identifier)['value']
+    assert not detail['is_pdf']
+    assert detail['preview_message'] == 'No preview — referral text captured from RRS'
+
+
+@pytest.mark.parametrize('text', ['', ' \t\n\r '])
+def test_import_text_rejects_empty_content(workbench, text):
+    api, _, _ = workbench
+    before = set(api._documents)
+    with pytest.raises(ValueError, match='No selectable text found'):
+        api._import_text('empty capture', text)
+    reply = api.import_text('empty capture', text)
+    assert not reply['ok'] and 'No selectable text found' in reply['error']
+    assert set(api._documents) == before
+
+
+def test_text_only_render_page_has_successful_no_preview_response(workbench):
+    api, _, _ = workbench
+    identifier = api._import_text('synthetic.pdf', 'Synthetic referral capture.')
+    assert api.render_page(identifier, 0) == {
+        'ok': True, 'value': {'available': False, 'message': 'No preview — referral text captured from RRS'},
+    }
+
+
+def test_text_captures_do_not_collide_and_bridge_respects_busy(workbench):
+    api, file_id, path = workbench
+    first = api.import_text('same label', 'Synthetic capture one.')
+    second = api.import_text('same label', 'Synthetic capture two.')
+    assert first['ok'] and second['ok'] and first['value'] != second['value']
+    assert len(api._documents) == 3
+    assert api.get_state()['value']['stage'] == 'Imported referral text'
+    assert api._import_paths([path]) == [file_id]
+    api._busy = True
+    assert not api.import_text('busy capture', 'Synthetic text.')['ok']
+    assert len(api._documents) == 3
+
+
+def test_text_capture_can_extract_save_fields_validate_and_export(workbench, monkeypatch, tmp_path):
+    api, _, _ = workbench
+    identifier = api._import_text('synthetic capture.pdf', 'Synthetic referral capture.')
+    data = complete_payload()
+    data['Claim ID'] = 'Not found'
+    extract(monkeypatch, data)
+    assert api.start_processing([identifier])['ok']
+    finish(api)
+    doc = api._documents[identifier]
+    assert api.get_document(identifier)['value']['next_step'] == 'Failed'
+    record_id = doc['record_id']
+    assert api.save_fields(identifier, [{'key': 'Claim ID', 'provider_index': None,
+                                       'value': 'SYNTHETIC-TEXT-ONLY'}], doc['revision'])['ok']
+    finish(api)
+    assert api.get_document(identifier)['value']['next_step'] == 'Passed'
+    assert doc['record_id'] == record_id and not doc['save_error']
+    saved, checked = read_record(doc['workbook'], record_id)
+    assert saved['Claim ID'] == 'SYNTHETIC-TEXT-ONLY' and checked['status'] == 'Passed'
+    target = tmp_path / 'synthetic-export.json'
+    def dialog(*args, **kwargs):
+        assert kwargs['save_filename'] == 'synthetic capture.json'
+        return str(target)
+    api._window = SimpleNamespace(create_file_dialog=dialog)
+    monkeypatch.setitem(sys.modules, 'webview', SimpleNamespace(FileDialog=SimpleNamespace(SAVE=1)))
+    assert api.export_document(identifier, 'json')['ok']
+    assert 'SYNTHETIC-TEXT-ONLY' in target.read_text(encoding='utf-8')
+
+
+def test_compact_state_headless_and_injected_resize(workbench):
+    api, _, _ = workbench
+    assert api.get_state()['value']['compact'] is False
+    assert api.set_compact(True) == {'ok': True, 'value': True}
+    assert api.get_state()['value']['compact'] is True
+    calls = []
+    def resize(value):
+        # Simulate a UI callback that needs the state lock: must not deadlock.
+        polled = []
+        thread = threading.Thread(target=lambda: polled.append(api.get_state()))
+        thread.start(); thread.join(2)
+        assert not thread.is_alive()
+        assert polled[0]['ok']
+        calls.append(value)
+    api._window = SimpleNamespace(_set_compact_layout=resize)
+    assert api.set_compact(False)['ok']
+    assert calls == [False]
+    assert api.get_state()['value']['compact'] is False
+
+
+@pytest.mark.parametrize('value', [None, 0, 1, 'false', [], {}])
+def test_compact_rejects_non_boolean(workbench, value):
+    api, _, _ = workbench
+    assert not api.set_compact(value)['ok']
+    assert api.get_state()['value']['compact'] is False
+
+
+def test_compact_resize_failure_does_not_publish_success(workbench):
+    api, _, _ = workbench
+    api._window = SimpleNamespace()
+    assert not api.set_compact(True)['ok']
+    assert api.get_state()['value']['compact'] is False
+
+
+def test_external_stage_idle_and_progress_copy(workbench):
+    api, _, _ = workbench
+    assert api.set_stage('Searching CMS cases…', 1, 3)['ok']
+    state = api.get_state()['value']
+    assert state['stage'] == 'Searching CMS cases…' and not state['busy']
+    assert state['progress'] == {'done': 1, 'total': 3}
+    state['progress']['done'] = 99
+    assert api.get_state()['value']['progress']['done'] == 1
+    assert api.set_stage('Validating customer…')['ok']
+    assert api.get_state()['value']['progress'] == api._progress
+
+
+@pytest.mark.parametrize('fails', [False, True])
+def test_external_stage_wins_running_job_until_next_start(workbench, fails):
+    api, _, _ = workbench
+    gate = threading.Event()
+    def work():
+        assert gate.wait(5)
+        with api._lock:
+            api._stage = 'Internal completion'
+            api._progress = {'done': 2, 'total': 2}
+        if fails:
+            raise RuntimeError('Synthetic job failure')
+    api._start('Internal start', work)
+    try:
+        assert api.set_stage('Filling Subject Line Builder…', 1, 4)['ok']
+        with pytest.raises(ValueError):
+            api._start('Rejected concurrent start', lambda: None)
+        assert api.get_state()['value']['stage'] == 'Filling Subject Line Builder…'
+    finally:
+        gate.set()
+    state = finish(api)
+    assert state['stage'] == 'Filling Subject Line Builder…'
+    assert state['progress'] == {'done': 1, 'total': 4}
+    api._start('Next job', lambda: None)
+    state = finish(api)
+    assert state['stage'] == 'Next job'
+    assert state['progress'] == {'done': 2, 'total': 2}
+
+
+@pytest.mark.parametrize('args', [(None,), ('',), ('  ',), (4,), ('Stage', 1),
+                                  ('Stage', None, 2), ('Stage', -1, 2),
+                                  ('Stage', 3, 2), ('Stage', True, 2),
+                                  ('Stage', 1, 2.5), ('Stage', '1', 2)])
+def test_external_stage_invalid_input_is_atomic(workbench, args):
+    api, _, _ = workbench
+    api.set_stage('Valid synthetic stage', 0, 2)
+    assert not api.set_stage(*args)['ok']
+    state = api.get_state()['value']
+    assert state['stage'] == 'Valid synthetic stage'
+    assert state['progress'] == {'done': 0, 'total': 2}

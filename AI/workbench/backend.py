@@ -18,7 +18,7 @@ from AI.address_enrichment import suggest_addresses, apply_suggestions
 from AI.appointment_rules import confirm_appointments
 from AI.daily_output import output_directory, save_daily_output
 from AI.injury_classification import classify
-from AI.provider_records import provider_summary
+from AI.provider_records import provider_summary, provider_display_name
 from AI.referral_schema import FIELD_GROUPS, OPTIONAL_FIELDS, PROVIDER_FIELDS, DERIVED_FIELDS, output_key, clean_value
 
 
@@ -40,6 +40,10 @@ class WorkbenchAPI:
         self._documents = {}
         self._busy = False
         self._unsaved = False
+        self._compact = False
+        self._compact_lock = threading.Lock()
+        self._external_stage = None
+        self._external_progress = None
         self._thread = None
         self._stage = "Ready to import documents"
         self._bedrock = "Not tested"
@@ -82,10 +86,43 @@ class WorkbenchAPI:
     def get_state(self):
         with self._lock:
             return {"documents": [self._summary(d) for d in self._documents.values()],
-                    "busy": self._busy, "stage": self._stage, "bedrock": self._bedrock,
+                    "busy": self._busy, "compact": self._compact,
+                    "stage": self._external_stage if self._external_stage is not None else self._stage, "bedrock": self._bedrock,
                     "elapsed": round(time.monotonic() - self._started, 1) if self._busy and self._started else self._elapsed,
-                    "progress": dict(self._progress), "settings": dict(self._settings),
+                    "progress": dict(self._external_progress if self._external_progress is not None else self._progress), "settings": dict(self._settings),
                     "key_configured": bool(self._key), "output_directory": str(self._directory)}
+
+    @response
+    def set_compact(self, value):
+        """Resize without holding the state lock across a synchronous UI Invoke."""
+        if type(value) is not bool:
+            raise ValueError("Compact mode must be a boolean.")
+        from AI.workbench.window_layout import set_compact
+        # Serialize resize requests, but let the UI and poller acquire _lock.
+        with self._compact_lock:
+            set_compact(self._window, value)
+            with self._lock:
+                self._compact = value
+        return value
+
+    @response
+    def set_stage(self, stage, done=None, total=None):
+        """Publish an external stage, idle or busy, until the next accepted _start.
+
+        Internal job updates (including completion/errors) continue underneath,
+        but cannot overwrite this display override. An optional progress pair is
+        likewise pinned; omitting it uses live internal progress. Does not mark
+        the app busy or start its elapsed timer. Drivers must inspect job results.
+        """
+        if not isinstance(stage, str) or not stage.strip():
+            raise ValueError("Stage must be a non-empty string.")
+        if (done is not None or total is not None) and (
+                type(done) is not int or type(total) is not int or not 0 <= done <= total):
+            raise ValueError("Progress requires integer done and total with 0 <= done <= total.")
+        with self._lock:
+            self._external_stage = stage
+            self._external_progress = None if done is None else {"done": done, "total": total}
+        return True
 
     def _import_paths(self, paths):
         with self._lock:
@@ -118,6 +155,31 @@ class WorkbenchAPI:
                 imported.append(identifier)
             self._stage = f"Imported {len(imported)} document(s)"
             return imported
+
+    def _import_text(self, name, text):
+        """Ingest a document captured as text with no file on disk.
+
+        Each capture is a separate document, even when its name is reused.
+        """
+        with self._lock:
+            self._idle()
+            pages = core.extract_pages_from_txt(text.encode("utf-8"))
+            # Check page content before join_pages adds non-empty page headings.
+            if not any(page["text"].strip() for page in pages):
+                raise ValueError("No selectable text found in referral capture. Capture text or use OCR before extraction.")
+            identifier = str(uuid.uuid4())
+            self._documents[identifier] = {
+                "id": identifier, "path": None, "name": name, "status": "Ready", "pages": len(pages),
+                "revision": 0, "error": "", "elapsed": 0, "workbook": "", "save_error": "",
+                "fields": None, "raw": "", "text": core.join_pages(pages), "content": b"", "record_id": None,
+                "extracted_at": None, "address_report": [], "edits": [], "sent_characters": 0,
+            }
+            self._stage = "Imported referral text"
+            return identifier
+
+    @response
+    def import_text(self, name, text):
+        return self._import_text(name, text)
 
     @response
     def choose_documents(self):
@@ -154,14 +216,17 @@ class WorkbenchAPI:
                         groups.append({"name": group if index is None else f"Provider {index + 1}",
                                        "fields": [{"key": output_key(group, label), "label": label,
                                                    "value": record.get(output_key(group, label), "Not found"),
+                                                   "display_value": provider_display_name(record) if group == "Provider Information" and label == "Doctor / Facility" else None,
                                                    "provider_index": index, "confidence": None,
                                                    "manual": (output_key(group, label), index) in edited,
                                                    "optional": output_key(group, label) in OPTIONAL_FIELDS,
                                                    "source": sources.get(output_key(group, label)) if index is None else None,
-                                                   "conditional": label in ("Provider / Facility", "Doctor First Name", "Doctor Last Name")}
+                                                   "conditional": label in ("Doctor / Facility", "Doctor First Name", "Doctor Last Name")}
                                                   for label in labels]})
             return self._summary(doc) | {"groups": groups, "raw": doc["raw"], "text": doc["text"],
-                    "is_pdf": doc["path"].suffix.lower() == ".pdf", "record_id": doc["record_id"],
+                    "is_pdf": doc["path"] is not None and doc["path"].suffix.lower() == ".pdf",
+                    "preview_message": "No preview — referral text captured from RRS" if doc["path"] is None else None,
+                    "record_id": doc["record_id"],
                     "validation": core.completeness(fields) if fields is not None else None,
                     "address_report": deepcopy(doc["address_report"]), "edits": deepcopy(doc["edits"]),
                     "name_inference": getattr(fields, "name_inference", []),
@@ -175,6 +240,8 @@ class WorkbenchAPI:
             content = self._document(identifier)["content"]
         if not isinstance(page, int) or not 0.15 <= float(scale) <= 2.5:
             raise ValueError("Invalid preview page or zoom.")
+        if not content:
+            return {"available": False, "message": "No preview — referral text captured from RRS"}
         with fitz.open(stream=content, filetype="pdf") as pdf:
             if not 0 <= page < len(pdf):
                 raise ValueError("Page is outside the document.")
@@ -185,8 +252,10 @@ class WorkbenchAPI:
             return "data:image/png;base64," + b64encode(pixmap.tobytes("png")).decode("ascii")
 
     def _start(self, stage, work):
-        self._idle()
-        self._busy, self._stage, self._started = True, stage, time.monotonic()
+        with self._lock:
+            self._idle()
+            self._external_stage = self._external_progress = None
+            self._busy, self._stage, self._started = True, stage, time.monotonic()
         def worker():
             try:
                 work()
@@ -241,7 +310,7 @@ class WorkbenchAPI:
 
     def _save(self, doc):
         try:
-            path, _ = save_daily_output(doc["fields"], str(doc["path"]), directory=self._directory,
+            path, _ = save_daily_output(doc["fields"], str(doc["path"]) if doc["path"] is not None else doc["name"], directory=self._directory,
                                        record_id=doc["record_id"], extracted_at=doc["extracted_at"], update_existing=True)
             doc.update(workbook=str(path), save_error="")
         except Exception as error:
@@ -380,7 +449,7 @@ class WorkbenchAPI:
         with self._lock:
             doc = self._document(identifier, fields=True)
             fields = deepcopy(doc["fields"])
-            filename = doc["path"].stem
+            filename = (doc["path"] if doc["path"] is not None else Path(doc["name"])).stem or "referral"
         if kind == "json":
             content = json.dumps(core.export_payload(fields), indent=2, ensure_ascii=False)
         elif kind == "txt":

@@ -2,6 +2,18 @@
 import re
 
 
+_ADDRESS_WORDS = dict(zip(
+    'st str ave rd blvd ln ct pl pkwy hwy cir ste apt fl bldg rm n s e w ne nw se sw'.split(),
+    'street street avenue road boulevard lane court place parkway highway circle suite apartment floor building room north south east west northeast northwest southeast southwest'.split()))
+
+
+def canonical_address(value):
+    """Comparison-only expansion; never infer missing address components."""
+    words = re.sub(r'[^\w\s]', ' ', value.casefold().replace('.', '')).split()
+    return ' '.join('drive' if word == 'dr' and index > 0 and index == len(words) - 1
+                    else _ADDRESS_WORDS.get(word, word) for index, word in enumerate(words))
+
+
 def split_address(record, street_key, line2_key, city_key, state_key, zip_key):
     street = record.get(street_key, 'Not found')
     if street == 'Not found':

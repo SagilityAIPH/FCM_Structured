@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
-import { ArrowDownToLine, CheckCheck, CircleAlert, FileCheck2, Files, FileSpreadsheet, FileText, FolderOpen, LoaderCircle, Plus, RotateCcw, Save, Settings2, X } from 'lucide-react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { ArrowDownToLine, CheckCheck, CircleAlert, FileCheck2, Files, FileSpreadsheet, FileText, FolderOpen, LoaderCircle, Minimize2, Maximize2, Plus, RotateCcw, Save, Settings2, X } from 'lucide-react'
 import { Button } from './components/ui/button'
 import { Input } from './components/ui/input'
 import { StatusBadge } from './components/StatusBadge'
@@ -27,6 +27,14 @@ export default function App() {
   const [pending, setPending] = useState(false)
   const [draft, setDraft] = useState<Record<string, Edit>>({})
   const [settingsDirty, setSettingsDirty] = useState(false)
+  const formRef = useRef<HTMLElement>(null)
+  const normalScroll = useRef(0)
+  const wasCompact = useRef(false)
+  const compact = !!state?.compact
+  useLayoutEffect(() => {
+    if (!compact && wasCompact.current && formRef.current) formRef.current.scrollTop = normalScroll.current
+    wasCompact.current = compact
+  }, [compact])
   const edits = Object.values(draft)
   const dirty = edits.length > 0
   useEffect(() => {
@@ -90,7 +98,7 @@ export default function App() {
   const shownDetail = detail?.id === selected ? detail : null
   const progress = state?.progress || {done: 0, total: 0}
   const indeterminate = busy && (progress.total === 0 || progress.done === progress.total || !!state?.stage.startsWith('Checking missing addresses'))
-  return <div className="compact-shell">
+  return <div className={cn("compact-shell", compact && "is-compact")}>
     <header className="app-header"><div className="title-row"><span className="app-icon"><FileText size={19} /></span><div><h1>AI PDF Reader</h1><p>Referral intake form</p></div><Button size="sm" disabled={busy || !state} onClick={() => {
       if (leave()) void act(async api => {
         const ids = await api.choose_documents()
@@ -99,11 +107,14 @@ export default function App() {
           setDraft({}); setScrollTarget('Fields')
         }
       })
-    }}><Plus />{previewMode ? 'Load examples' : 'Open'}</Button></div>
+    }}><Plus />{previewMode ? 'Load examples' : 'Open'}</Button><Button variant="ghost" size="icon" disabled={!state} aria-label={compact ? 'Exit compact mode' : 'Enter compact mode'} aria-pressed={compact} onClick={() => {
+      if (!compact && formRef.current) normalScroll.current = formRef.current.scrollTop
+      void act(api => api.set_compact(!compact))
+    }}>{compact ? <Maximize2 /> : <Minimize2 />}</Button></div>
       {documents.length ? <div className="document-selector"><select aria-label="Current document" value={selected} onChange={e => choose(e.target.value)}>{documents.map(doc => <option key={doc.id} value={doc.id}>{doc.name}</option>)}</select>{row ? <StatusBadge status={row.status} /> : null}</div> : null}
       {previewMode ? <div className="preview-label">Synthetic preview · no Bedrock calls</div> : null}
     </header>
-    <main className="form-scroll" aria-label="Referral form">
+    <main ref={formRef} className="form-scroll" aria-label="Referral form" hidden={compact} onScroll={e => { if (!compact) normalScroll.current = e.currentTarget.scrollTop }}>
       <div id="group-Fields" className="scroll-anchor" />
       {error ? <div className="message error" role="alert"><CircleAlert size={15} /><span>{error}</span><button aria-label="Dismiss error" onClick={() => setError('')}><X size={14} /></button></div> : null}
       {notice ? <div className="message success" role="status"><CheckCheck size={15} /><span>{notice}</span><button aria-label="Dismiss message" onClick={() => setNotice('')}><X size={14} /></button></div> : null}

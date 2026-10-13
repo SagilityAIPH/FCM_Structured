@@ -35,22 +35,24 @@ export default function FieldForm({ doc, busy, draft, onDraft, onConfirm, onRetr
         {doc.name_inference.length ? <details className="automation-note"><summary><CircleAlert size={14} />Inferred names require review<ChevronDown size={13} /></summary><div className="p-3">{doc.name_inference.map((item, i) => <p key={i} className="mb-2 text-xs">{Object.entries(item).map(([key, value]) => `${key}: ${String(value)}`).join(' · ')}</p>)}</div></details> : null}
         {doc.classification?.some(item => item.review || item.list === 'provisional') ? <details className="automation-note"><summary><Tags size={14} />RRS classification review<span>{doc.classification.filter(item => item.review).length} to check</span><ChevronDown size={13} /></summary><div className="p-3">{doc.classification.filter(item => item.review).map(item => <p key={item.field} className="mb-2 text-xs"><strong>{item.field}:</strong> {item.review}</p>)}{doc.classification.some(item => item.list === 'provisional') ? <p className="text-xs text-slate-500">Using provisional RRS lists. Run AI/export_rrs_dropdowns.py with the RRS Subject Line Builder open to load the live lists.</p> : null}</div></details> : null}
         {doc.groups.map(group => {
-          const visible = group.fields.filter(field => `${field.label} ${draft[fieldId(field)]?.value ?? field.value}`.toLowerCase().includes(query.toLowerCase()))
+          const visible = group.fields.filter(field => `${field.label} ${draft[fieldId(field)]?.value ?? field.display_value ?? field.value}`.toLowerCase().includes(query.toLowerCase()))
           if (!visible.length) return null
           const Icon = group.name.startsWith('Provider ') ? Building2 : groupIcons[group.name as keyof typeof groupIcons] || Info
           return <details className="field-section" key={group.name} open><summary><span><Icon size={14} />{group.name}</span><span className="section-count">{visible.length}<ChevronDown size={13} /></span></summary><div className="field-grid">{visible.map(field => {
             const id = fieldId(field)
-            const value = draft[id]?.value ?? field.value
+            const displayOnly = field.display_value != null && field.display_value !== field.value
+            const value = displayOnly ? field.display_value! : draft[id]?.value ?? field.value
             const gap = missing.has(`${group.name} / ${field.label}`) || (field.conditional && missing.has(`${group.name} / Facility name or doctor first and last names`))
             const large = /Description|Instructions|Compensable/.test(field.key)
-            const wide = large || /Address|Email|E-mail|Customer Name|Contact Name|Claims Office Name|Response To|Provider \/ Facility/.test(field.label) || field.label.length > 25
+            const wide = large || /Address|Email|E-mail|Customer Name|Contact Name|Claims Office Name|Response To|Doctor \/ Facility/.test(field.label) || field.label.length > 25
             return <label key={id} className={cn('field-control', wide && 'field-wide')}><span className="field-label">{field.label}{field.optional ? <small>Optional</small> : field.conditional ? <small>Conditional</small> : <span className="required-mark" title="Required">*</span>}</span>
-              {large ? <textarea aria-label={`${group.name} / ${field.label}`} className={cn('field-textarea', gap && 'has-gap')} value={value} disabled={busy} onChange={e => update(field, e.target.value)} rows={field.key === 'Special Instructions' ? 9 : 3} /> : <Input aria-label={`${group.name} / ${field.label}`} className={cn(gap && 'has-gap', value === 'Not found' && 'text-slate-400')} value={value} disabled={busy} onChange={e => update(field, e.target.value)} />}
-              <span className="field-meta">{gap ? <span className="text-amber-700">Required information missing</span> : field.manual || draft[id] ? <span className="text-blue-600">{draft[id] ? 'Unsaved edit' : 'Manually edited'}</span> : field.source ? <span>{sourceLabels[field.source]}</span> : <span>{field.confidence === null ? 'Not scored' : `${field.confidence}% confidence`}</span>}</span>
+              {large ? <textarea aria-label={`${group.name} / ${field.label}`} className={cn('field-textarea', gap && 'has-gap')} value={value} disabled={busy} onChange={e => update(field, e.target.value)} rows={field.key === 'Special Instructions' ? 9 : 3} /> : <Input aria-label={`${group.name} / ${field.label}`} className={cn(gap && 'has-gap', value === 'Not found' && 'text-slate-400')} value={value} readOnly={displayOnly} disabled={busy} onChange={e => update(field, e.target.value)} />}
+              {displayOnly ? <Input aria-label={`${group.name} / Facility name (preserved)`} value={draft[id]?.value ?? field.value} disabled={busy} onChange={e => update(field, e.target.value)} /> : null}
+              <span className="field-meta">{displayOnly ? <span>Facility: {field.value}. Edit doctor names in their own fields.</span> : null}{gap ? <span className="text-amber-700">Required information missing</span> : field.manual || draft[id] ? <span className="text-blue-600">{draft[id] ? 'Unsaved edit' : 'Manually edited'}</span> : field.source ? <span>{sourceLabels[field.source]}</span> : <span>{field.confidence === null ? 'Not scored' : `${field.confidence}% confidence`}</span>}</span>
             </label>
           })}</div></details>
         })}
-        {!doc.groups.some(group => group.fields.some(field => `${field.label} ${draft[fieldId(field)]?.value ?? field.value}`.toLowerCase().includes(query.toLowerCase()))) ? <p className="p-5 text-center text-slate-500">No matching fields.</p> : null}
+        {!doc.groups.some(group => group.fields.some(field => `${field.label} ${draft[fieldId(field)]?.value ?? field.display_value ?? field.value}`.toLowerCase().includes(query.toLowerCase()))) ? <p className="p-5 text-center text-slate-500">No matching fields.</p> : null}
       </div>
     </>}
   </section>

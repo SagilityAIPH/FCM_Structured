@@ -60,7 +60,7 @@ Existing internal names are reused; displayed names follow the table:
 | Customer Name | Employer Name |
 | Customer Contact Name | Employer Contact Name |
 | Customer Contact Phone Number | Employer Contact Mobile |
-| Provider / Facility (facility names only) | Provider Name (First Name / Last Name) |
+| Doctor / Facility (doctor-first display; facility preserved) | Provider Name (First Name / Last Name) |
 | Provider Address Line 1 | Provider Address |
 | Provider Phone Number | Provider Phone |
 | Attorney Address-line-1 | Attorney Address |

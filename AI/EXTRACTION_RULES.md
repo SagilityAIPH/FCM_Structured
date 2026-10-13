@@ -19,7 +19,7 @@ changing them does not fine-tune the Bedrock model.
 | GT Lomas instead of George Lomas | For an undelimited email, use the independently documented surname as the boundary: georgelomas + Lomas supports George. Initials alone or an unknown surname do not support expansion. Retain unverified inference provenance. | `_email_name`, `test_contiguous_email_uses_documented_surname_anchor_and_keeps_provenance` |
 | Assigned vendor nurse omitted | An explicit instruction to send a referral to a named person at the nursing vendor identifies an NCM even without a dedicated label. Generic roles are not names. | shared prompt, `special_evidence` |
 | Diagnosis code left inside compensable description | Split literal codes from descriptions under a combined compensable/diagnosis heading. Claim Information's primary code wins; use Special Instructions only as fallback. Keep other codes separately. Never infer a code from prose. | shared prompt, `special_evidence`, parser code handling |
-| Doctor duplicated as a blank facility | Merge an unnamed visit only into its uniquely compatible named provider with matching street/date. Preserve distinct or ambiguous visits. | `provider_records.py`, `test_provider_records.py` |
+| Doctor duplicated as a blank facility | Default to one provider across source arrays; split only on conflicting known facility/doctor names, address components or appointment date. Missing values have no opinion and fill the first compatible source-priority record. Phone/time differences retain the higher-priority value. | `provider_records.py`, `test_provider_records.py` |
 | Provider identity omitted | A single explicit facility label may fill a missing identity when both street and phone match. Do not assign it to unrelated records. | `recover_provider_identity` |
 | Not found & Not found | Show Not found once when every value in that summary is missing. Mixed values retain alignment; JSON and the Providers worksheet keep every record. Address updates must use the same formatter. | `provider_summary`, `test_all_missing_summary_is_single_but_records_and_mixed_slots_stay_aligned` |
 | Special Instructions truncated at a page break | Copy the whole section from full source text through the Referrer Name boundary. Remove pagination and preserve wording and line breaks. | `document_sections.py`, `test_document_sections.py` |
@@ -54,9 +54,14 @@ changes; build and test both consumers when the workbook schema changes.
 - Determining if Doctor or Provider Name is one summary value: Doctor if any
   practitioner name is documented, otherwise Facility if a clinic is named,
   otherwise Not found. Doctor takes priority when both are present.
-- Merge complementary surname-only doctor records only with matching address,
-  appointment and surname evidence and no conflicting peer records. Do not
-  invent first names or relax required-name validation.
+- Merge complementary records, including surname-only doctors and name-only plus
+  address-only mentions, unless known names, addresses or appointment dates conflict.
+  Never invent first names or relax required-name validation. Compare addresses with
+  shared deterministic canonical expansion (Street/St, Suite/Ste, directionals); the
+  prompt also requests expanded addresses. Expand Dr only as a trailing street suffix.
+- Doctor / Facility is a display-only label: show First Last, or surname alone,
+  before the facility. Keep the facility in its canonical JSON/workbook key and
+  detailed export even when a doctor and facility merge at a shared address.
 - Separate combined clinic/doctor labels in either order, including DPM. A
   partial appointment may use the year explicitly documented for the uniquely
   matching provider visit; ambiguity keeps records separate.

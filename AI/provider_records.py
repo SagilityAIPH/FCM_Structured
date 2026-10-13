@@ -3,13 +3,15 @@ import re
 
 try:
     from .appointment_rules import parse_date
+    from .address_normalization import canonical_address
 except ImportError:
     from appointment_rules import parse_date
+    from address_normalization import canonical_address
 
 FACILITY = 'Provider Name (First Name / Last Name)'
 NAME_FIELDS = (FACILITY, 'Doctor First Name', 'Doctor Last Name')
 VISIT_FIELDS = ('Provider Address', 'Provider Address Line 2', 'Provider City',
-                'Provider State', 'Provider Zip', 'Appointment Date', 'Appointment Time')
+                'Provider State', 'Provider Zip', 'Appointment Date')
 
 
 def provider_summary(records, key):
@@ -27,6 +29,16 @@ def provider_summary(records, key):
     return ' & '.join(unique.values()) or 'Not found'
 
 
+def provider_display_name(record):
+    """Doctor-first presentation only; the facility key remains lossless."""
+    names = [record.get(key, 'Not found') for key in ('Doctor First Name', 'Doctor Last Name')]
+    return ' '.join(name for name in names if name != 'Not found') or record.get(FACILITY, 'Not found')
+
+
+def provider_display_summary(records):
+    return provider_summary([{'display': provider_display_name(record)} for record in records], 'display')
+
+
 def provider_identity(record):
     first, last = record.get('Doctor First Name', 'Not found'), record.get('Doctor Last Name', 'Not found')
     if first != 'Not found' and last != 'Not found':
@@ -39,6 +51,8 @@ def _value(record, key):
     value = record.get(key, 'Not found')
     if value == 'Not found':
         return None
+    if key in ('Provider Address', 'Provider Address Line 2'):
+        return canonical_address(value)
     if key == 'Appointment Date':
         parsed = parse_date(value)
         return parsed.isoformat() if parsed else value.casefold()
@@ -65,14 +79,6 @@ def _same_identity(left, right):
             or _value(left, FACILITY) is not None and _value(left, FACILITY) == _value(right, FACILITY))
 
 
-def _same_visit(left, right):
-    # An unnamed referral address is supporting evidence, not a second facility.
-    # Require both a street and an appointment date shared with exactly one
-    # compatible record. A date alone, or a shared clinic alone, is insufficient.
-    return all(_value(left, key) is not None and _value(left, key) == _value(right, key)
-               for key in ('Provider Address', 'Appointment Date'))
-
-
 def merge_provider_records(source_records):
     """Input order is source priority: Special, Referral, Provider sections."""
     source_records = [dict(record) for record in source_records]
@@ -91,50 +97,18 @@ def merge_provider_records(source_records):
                 dates.add(full.isoformat())
         if len(dates) == 1:
             record['Appointment Date'] = dates.pop()
-    named, anonymous = [], []
-
-    def entry(record, order):
-        return dict(record), {key: order for key, value in record.items() if value != 'Not found'}
-
-    def merge(target, incoming):
-        record, priorities = target
-        other, ranks = incoming
-        for key, rank in ranks.items():
-            if key not in priorities or rank < priorities[key]:
-                record[key], priorities[key] = other[key], rank
-
-    for order, record in enumerate(source_records):
-        incoming = entry(record, order)
-        if provider_identity(record) is None:
-            anonymous.append(incoming)
-            continue
-        matches = [old for old in named if _same_identity(old[0], record) and _compatible(old[0], record)]
-        if len(matches) == 1:
-            merge(matches[0], incoming)
-        elif not any(old[0] == record for old in named):
-            named.append(incoming)
-
-    # Match after collecting ALL named records: never attach an anonymous visit
-    # to the first doctor when a later doctor matches the same appointment.
-    unresolved = []
-    for incoming in anonymous:
-        record = incoming[0]
-        matches = [old for old in named if _compatible(old[0], record) and _same_visit(old[0], record)]
-        if len(matches) == 1:
-            merge(matches[0], incoming)
+    merged = []
+    for record in source_records:
+        # Missing evidence never creates another provider. On multiple compatible
+        # candidates, source order breaks the tie; never copy into every candidate.
+        target = next((old for old in merged if _compatible(old, record)), None)
+        if target is None:
+            merged.append(record)
         else:
-            # Missing first name does not erase documented surname evidence.
-            # Require the same visit AND surname, with no conflicting peers.
-            peers = [other for other in anonymous if
-                     _value(record, 'Doctor Last Name') is not None
-                     and _value(record, 'Doctor Last Name') == _value(other[0], 'Doctor Last Name')
-                     and _same_visit(record, other[0])]
-            safe = peers and all(_compatible(a[0], b[0]) for a in peers for b in peers)
-            partial = [old for old in unresolved if safe and _compatible(old[0], record)
-                       and _same_visit(old[0], record)
-                       and _value(old[0], 'Doctor Last Name') == _value(record, 'Doctor Last Name')]
-            if len(partial) == 1:
-                merge(partial[0], incoming)
-            elif not any(old[0] == record for old in unresolved):
-                unresolved.append(incoming)
-    return [record for record, _ in sorted(named + unresolved, key=lambda item: min(item[1].values()))]
+            for key, value in record.items():
+                if target.get(key, 'Not found') == 'Not found':
+                    target[key] = value
+    for record in merged:
+        record['Determining if Doctor or Provider Name'] = provider_summary(
+            [record], 'Determining if Doctor or Provider Name')
+    return merged

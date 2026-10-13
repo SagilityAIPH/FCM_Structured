@@ -23,7 +23,7 @@ def main():
     api = WorkbenchAPI()
     window = webview.create_window("AI PDF Reader · FCM Workbench", str(index), js_api=api,
                                     width=WINDOW_WIDTH, height=WINDOW_HEIGHT, min_size=(WINDOW_WIDTH, MIN_HEIGHT),
-                                    resizable=True, background_color="#f8fafc")
+                                    resizable=True, on_top=True, background_color="#f8fafc")
     api._window = window
     window.events.before_show += lambda: constrain_window(window)
     def closing():

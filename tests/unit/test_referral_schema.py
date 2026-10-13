@@ -150,7 +150,8 @@ def test_completeness_requires_one_whole_provider_not_combined_partial_records()
     _, fields = core.force_exact_field_output(json.dumps(data))
     assert core.completeness(fields)["status"] == "Passed"
     exported = core.export_payload(fields)
-    assert exported["Provider Information"][0]["Provider / Facility"] == "Clinic A & B"
+    assert exported["Provider Information"][0]["Doctor / Facility"] == "Documented value Documented value"
+    assert exported["Provider Information"][0]["Provider Name (First Name / Last Name)"] == "Clinic A & B"
     assert exported["NEXT STEP"]["status"] == "Passed"
     assert list(exported)[:len(core.FIELD_GROUPS)] == list(core.FIELD_GROUPS)
 

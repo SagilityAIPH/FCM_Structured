@@ -4,7 +4,7 @@ import re
 try:
     from .appointment_rules import appointment_checks, parse_date
     from .address_normalization import split_address
-    from .provider_records import merge_provider_records, provider_identity, provider_summary
+    from .provider_records import merge_provider_records, provider_identity, provider_summary, provider_display_name, provider_display_summary
     from .source_evidence import explicit_form_fields, special_evidence, recover_provider_identity, enforce_source_roles, ICD
     from .provider_evidence import recover_provider_records
     from .document_sections import clean_special_instructions, extract_special_instructions
@@ -12,7 +12,7 @@ try:
 except ImportError:
     from appointment_rules import appointment_checks, parse_date
     from address_normalization import split_address
-    from provider_records import merge_provider_records, provider_identity, provider_summary
+    from provider_records import merge_provider_records, provider_identity, provider_summary, provider_display_name, provider_display_summary
     from source_evidence import explicit_form_fields, special_evidence, recover_provider_identity, enforce_source_roles, ICD
     from provider_evidence import recover_provider_records
     from document_sections import clean_special_instructions, extract_special_instructions
@@ -36,7 +36,7 @@ FIELD_GROUPS = {
         "Send Referral Response To",
     ],
     "Provider Information": [
-        "Provider / Facility", "Doctor First Name", "Doctor Last Name", "Phone Number",
+        "Doctor / Facility", "Doctor First Name", "Doctor Last Name", "Phone Number",
         "Provider Address Line 1", "Provider Address Line 2", "City", "State", "Zip",
         "Appointment Date", "Appointment Time",
     ],
@@ -175,7 +175,7 @@ Rules:
 - Preserve actual claims manager and nurse email addresses in their respective fields.
 - Provider Information is an array: include every distinct provider/facility and appointment.
   Keep phone, city, state, zip, appointment date and time associated with their own provider.
-  Provider / Facility uses the existing Provider Name (First Name / Last Name) key
+  Doctor / Facility displays the doctor first; the existing Provider Name (First Name / Last Name) key is
   ONLY for a facility name. Doctor First Name and Doctor Last Name hold practitioners;
   never put a doctor in the facility field. If both are documented for the same visit,
   preserve both. Remove credentials from doctor names. Determining if Doctor or Provider Name
@@ -186,16 +186,23 @@ Rules:
   the facility and practitioner fields of the same record.
   Never substitute another
   party's contact details. An email is not a phone number.
-- Most Complete Info: combine complementary details ONLY when the document clearly
-  identifies the same provider at the same location and the same appointment. Prefer the
-  most complete supported record; retain separate providers, locations and appointments.
+- Most Complete Info: all provider mentions across Special Instructions, Referral
+  Instructions and Provider Information describe ONE provider unless a facility name,
+  doctor name, address or appointment date genuinely conflicts. A missing value is
+  never a conflict: merge name-only and address-only mentions to fill the same record.
+  Phone or appointment-time differences do not create another provider; source priority
+  is Special Instructions, then Referral Instructions, then Provider Information.
+  A doctor and facility at the same address with no conflict are ONE record with
+  the doctor as identity. Preserve the facility name in its own key, never overwrite it.
+  Emit addresses in canonical expanded form: Street not St, Suite not Ste, Avenue
+  not Ave; expand common street suffixes, units and directionals. Dr means Drive
+  only as a trailing street suffix, never at the start. Never invent address parts.
   Sort records by completeness, most complete first. Do not drop less complete providers.
 - One doctor without a named facility is ONE provider record. Leave that record's
   facility field Not found; never add an empty facility record alongside the doctor.
   A repeated mention in another section is supporting evidence, not automatically
-  another provider. This includes surname-only doctors: when the surname, address
-  and appointment uniquely match with no conflict, combine their complementary
-  details without inventing the first name. Split clinic/doctor names into the
+  another provider. This includes surname-only doctors: with no name, address or
+  appointment-date conflict, combine complementary details without inventing the first name. Split clinic/doctor names into the
   fields of that same record. Keep genuinely distinct providers/visits separate.
   Each provider-array field contains one value or Not found, never a joined
   summary such as WV & WV or a known value & Not found. Python produces unique
@@ -439,8 +446,8 @@ def field_rows(fields):
     for group, labels in FIELD_GROUPS.items():
         for label in labels:
             key = output_key(group, label)
-            rows.append({"Section": group, "Field": label, "Value": fields.get(key, "Not found"),
-                         "Optional": "Conditional" if label in ('Provider / Facility', 'Doctor First Name', 'Doctor Last Name')
+            rows.append({"Section": group, "Field": label, "Value": provider_display_summary(getattr(fields, "providers", [fields])) if group == "Provider Information" and label == "Doctor / Facility" else fields.get(key, "Not found"),
+                         "Optional": "Conditional" if label in ('Doctor / Facility', 'Doctor First Name', 'Doctor Last Name')
                          else "Yes" if key in OPTIONAL_FIELDS else "No"})
     rows.extend({"Section": "Additional extracted information", "Field": key,
                  "Value": fields[key], "Optional": "Yes"} for key in SUPPLEMENTAL_FIELDS)
@@ -459,7 +466,7 @@ def field_rows(fields):
 
 def output_key(group, label):
     if group == "Provider Information":
-        return {"Provider / Facility": "Provider Name (First Name / Last Name)",
+        return {"Doctor / Facility": "Provider Name (First Name / Last Name)",
                 "Provider / Facility Name": "Provider Name (First Name / Last Name)",
                 "Provider Address Line 1": "Provider Address",
                 "Phone Number": "Provider Phone", "City": "Provider City",
@@ -483,7 +490,7 @@ def completeness(fields, today=None):
                 missing.append(f"{group} / {label}")
     labels = [label for label in FIELD_GROUPS['Provider Information']
               if output_key('Provider Information', label) not in OPTIONAL_FIELDS
-              and label not in ('Provider / Facility', 'Doctor First Name', 'Doctor Last Name')]
+              and label not in ('Doctor / Facility', 'Doctor First Name', 'Doctor Last Name')]
     records = getattr(fields, 'providers', None)
     if records is None:
         columns = {key: str(fields.get(key, 'Not found')).split(' & ') for key in PROVIDER_FIELDS}
@@ -517,7 +524,8 @@ def export_payload(fields):
                 columns = {key: fields.get(key, "Not found").split(" & ") for key in PROVIDER_FIELDS}
                 records = [{key: values[index] if index < len(values) else "Not found"
                             for key, values in columns.items()} for index in range(max(map(len, columns.values())))]
-            output[group] = [{**{label: record.get(output_key(group, label), 'Not found') for label in labels},
+            output[group] = [{**{label: provider_display_name(record) if label == 'Doctor / Facility' else record.get(output_key(group, label), 'Not found') for label in labels},
+                              'Provider Name (First Name / Last Name)': record.get('Provider Name (First Name / Last Name)', 'Not found'),
                               'Date Only': parse_date(record.get('Appointment Date')) is not None
                               and record.get('Appointment Time', 'Not found') == 'Not found'} for record in records]
         else:

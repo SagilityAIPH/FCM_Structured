@@ -1,17 +1,22 @@
 """Shared legacy UI steps. Invoke through subject_line_flow, not directly."""
 
-def CreateSubjectLineBuilder(app = None):
+def CreateSubjectLineBuilder(app=None, *, allData=None, emaiDisplay=None, skip_capture=False, skip_cms=False):
+    if skip_capture:
+        if allData is None:
+            raise ValueError("skip_capture=True requires allData")
+        if emaiDisplay is None:
+            raise ValueError("skip_capture=True requires emaiDisplay")
     try:
         global isManualEntered
         global botStop
         global data
         global correctZipCode
         botStop = True
-        main = Desktop(backend="uia").window(title_re=r"Referral Routing System*",control_type="Window")
-        focus_control(main)
+        if not skip_capture: main = Desktop(backend="uia").window(title_re=r"Referral Routing System*",control_type="Window")
+        if not skip_capture: focus_control(main)
         # pid = main.element_info.process_id
-        allData = {}
-        grid = main.child_window(auto_id="dgWorkWindow",control_type="Table")#.wrapper_object()
+        if not skip_capture: allData = {}
+        if not skip_capture: grid = main.child_window(auto_id="dgWorkWindow",control_type="Table")#.wrapper_object()
         # Selecting from DatagridView
         # try:
         #     rowtbCount = grid.iface_grid.CurrentRowCount
@@ -31,23 +36,23 @@ def CreateSubjectLineBuilder(app = None):
         # cell = cells[4]
         # print(repr(cell.window_text()))
 
-        cell_el = grid.child_window(title="Claimant Row 0",control_type="Edit").wrapper_object()
-        ClaimantRRS = cell_el.iface_value.CurrentValue
+        if not skip_capture: cell_el = grid.child_window(title="Claimant Row 0",control_type="Edit").wrapper_object()
+        if not skip_capture: ClaimantRRS = cell_el.iface_value.CurrentValue
 
         # cell_el = grid.iface_grid.GetItem(0,4)
         # cell = UIAWrapper(UIAElementInfo(cell_el))
         # ClaimantRRS = cell.iface_value.CurrentValue
-        FNameRRS = re.split(r"\s+",ClaimantRRS)[0]
+        if not skip_capture: FNameRRS = re.split(r"\s+",ClaimantRRS)[0]
         # print(FNameRRS)
-        cell_el.double_click_input()
+        if not skip_capture: cell_el.double_click_input()
 
-        emaiDisplay = Desktop(backend="uia").window(title_re=r"Email Display*",control_type="Window")
-        focus_control(emaiDisplay)
+        if not skip_capture: emaiDisplay = Desktop(backend="uia").window(title_re=r"Email Display*",control_type="Window")
+        if not skip_capture: focus_control(emaiDisplay)
 
-        grid = emaiDisplay.child_window(auto_id="dgAttach",control_type="Table")
-        AttachRow = grid.iface_grid.CurrentRowCount
+        if not skip_capture: grid = emaiDisplay.child_window(auto_id="dgAttach",control_type="Table")
+        if not skip_capture: AttachRow = grid.iface_grid.CurrentRowCount
 
-        for r in range(AttachRow):
+        for r in range(0 if skip_capture else AttachRow):
             # cell_el = grid.iface_grid.GetItem(r,2)
             # cell = UIAWrapper(UIAElementInfo(cell_el))
 
@@ -800,12 +805,13 @@ def CreateSubjectLineBuilder(app = None):
         # pprint(allData)
         correctZipCode = allData['providerZip']
         ######
-        print('Checking CMS cases and validating customer')
-        process_result = run_reopen_flow(allData, app=app, notify=notify)
-        if process_result['status'] != 'completed':
-            botStop = True
-            sys.exit()
-        allData['customer'] = process_result['customer']
+        if not skip_cms:
+            print('Checking CMS cases and validating customer')
+            process_result = run_reopen_flow(allData, app=app, notify=notify)
+            if process_result['status'] != 'completed':
+                botStop = True
+                sys.exit()
+            allData['customer'] = process_result['customer']
         print(f"Valid Employer: {allData['customer']}")
             
 
