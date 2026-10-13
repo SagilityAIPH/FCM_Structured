@@ -42,7 +42,8 @@ def test_loaded_core_runs_production_post_processing_with_stubbed_model():
         full_document_text="Provider / Facility Name: Example Clinic\nPhone Number: 555-555-0100",
     )
 
-    assert list(final_fields) == fields
+    # Extracted canonical keys, then the three RRS classification values chosen after extraction.
+    assert list(final_fields) == fields + core["DERIVED_FIELDS"]
     assert final_fields["Provider Phone"] == "555-555-0100"
     assert final_fields["Determining if Doctor or Provider Name"] == "Facility"
 

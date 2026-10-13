@@ -10,6 +10,9 @@ if not ie_driver.is_file():
 datas = [(str(here / "scenarios"), "Processes/Reopen-Check/Stand-Alone/scenarios"),
          (str(here.parent / "Deploy-Ready" / "reopen_flow.py"), "Processes/Reopen-Check/Deploy-Ready")]
 datas += [(str(ie_driver), 'drivers')]
+# AI.referral_schema reads the live RRS dropdown lists when present (provisional lists otherwise).
+if (root / 'AI' / 'rrs_dropdowns.json').exists():
+    datas += [(str(root / 'AI' / 'rrs_dropdowns.json'), 'AI')]
 ui_dist = here / "ui" / "dist"
 if not ui_dist.is_dir():
     raise SystemExit('Run "npm install && npm run build" inside Stand-Alone/ui before building CMSCustomerSearch.')

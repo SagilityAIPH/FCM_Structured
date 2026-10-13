@@ -59,6 +59,16 @@ The current engine provides no calibrated confidence percentages. The form shows
 address/name inference provenance inline. Manual edit history is session-only;
 the edited values and existing address/appointment review metadata persist in Excel.
 
+**RRS Classification** (Body Part, Injury Type, Injury Cause) is chosen after
+extraction from the RRS dropdown lists: the AI's pick when it is a list item,
+otherwise the legacy rules. Each field shows its source (AI, legacy rules, manual).
+AI/rule disagreements appear under "RRS classification review". Editing a description
+re-runs the classification; an operator's own choice is kept. Values are saved to the
+`RRS Classification` sheet of the daily workbook. Capture the live lists once with
+`python -m AI.export_rrs_dropdowns` while the RRS Subject Line Builder is open, then
+rebuild; until then the form notes that provisional lists are in use. See
+`AI/EXTRACTION_RULES.md`.
+
 ## Structure
 
 ```text

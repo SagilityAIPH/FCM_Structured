@@ -69,6 +69,9 @@ Selenium, database credentials or installed Python are needed by the EXE.
 - `Deploy-Ready/manual_flow.py`: standalone schema, validation and guided workflow.
 - `Deploy-Ready/excel_input.py`: Excel template and reusable workbook reader.
 - `Deploy-Ready/rrs_ui.py`: focused RRS controls and submission boundary.
+- `Deploy-Ready/body_part.py`, `injury_match.py`: re-export the RRS Body Part / Injury
+  Type / Injury Cause rules and matcher, which the AI PDF Reader owns
+  (`AI/injury_classification.py`). The EXE bundles that module.
 - `Stand-Alone/backend.py`: worker, progress, review gates and cancellation.
 - `Stand-Alone/frontend`: manual form; `launcher.py` hosts WebView2.
 - `Deploy-Ready/legacy_steps.py` and `subject_line_flow.py`: unchanged main-app

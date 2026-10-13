@@ -17,8 +17,9 @@ from AI import bedrock_runtime as core
 from AI.address_enrichment import suggest_addresses, apply_suggestions
 from AI.appointment_rules import confirm_appointments
 from AI.daily_output import output_directory, save_daily_output
+from AI.injury_classification import classify
 from AI.provider_records import provider_summary
-from AI.referral_schema import FIELD_GROUPS, OPTIONAL_FIELDS, PROVIDER_FIELDS, output_key, clean_value
+from AI.referral_schema import FIELD_GROUPS, OPTIONAL_FIELDS, PROVIDER_FIELDS, DERIVED_FIELDS, output_key, clean_value
 
 
 def response(method):
@@ -146,6 +147,7 @@ class WorkbenchAPI:
             groups = []
             if fields is not None:
                 edited = {(e["key"], e["provider_index"]) for e in doc["edits"]}
+                sources = {item["field"]: item["source"] for item in getattr(fields, "classification", [])}
                 for group, labels in FIELD_GROUPS.items():
                     records = list(enumerate(fields.providers or [{}])) if group == "Provider Information" else [(None, fields)]
                     for index, record in records:
@@ -155,6 +157,7 @@ class WorkbenchAPI:
                                                    "provider_index": index, "confidence": None,
                                                    "manual": (output_key(group, label), index) in edited,
                                                    "optional": output_key(group, label) in OPTIONAL_FIELDS,
+                                                   "source": sources.get(output_key(group, label)) if index is None else None,
                                                    "conditional": label in ("Provider / Facility", "Doctor First Name", "Doctor Last Name")}
                                                   for label in labels]})
             return self._summary(doc) | {"groups": groups, "raw": doc["raw"], "text": doc["text"],
@@ -163,6 +166,7 @@ class WorkbenchAPI:
                     "address_report": deepcopy(doc["address_report"]), "edits": deepcopy(doc["edits"]),
                     "name_inference": getattr(fields, "name_inference", []),
                     "address_review": getattr(fields, "address_review", []),
+                    "classification": getattr(fields, "classification", []),
                     "sent_characters": doc["sent_characters"], "total_characters": len(doc["text"])}
 
     @response
@@ -333,6 +337,11 @@ class WorkbenchAPI:
                     record[key] = value
             for key in PROVIDER_FIELDS:
                 fields[key] = provider_summary(fields.providers, key)
+            # Re-run the RRS classification on edited descriptions; an operator's own choice always wins.
+            manual = {e["key"]: e["after"] for e in doc["edits"] + history
+                      if e["key"] in DERIVED_FIELDS and e["provider_index"] is None}
+            ai = {item["field"]: item["ai_value"] for item in getattr(fields, "classification", [])}
+            fields.classification = classify(fields, ai, manual)
             doc.update(fields=fields, address_report=[])
             doc["edits"].extend(history)
             doc['revision'] += 1

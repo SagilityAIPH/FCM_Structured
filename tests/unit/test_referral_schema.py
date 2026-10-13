@@ -40,7 +40,8 @@ def test_multiple_providers_keep_matching_slots_and_most_complete_first():
     assert "City: Boston" in text
     assert len(fields.providers) == 3
     assert fields.providers[-1]['Provider Phone'] == 'Not found'
-    assert len(core.fields_to_table_df(fields)) == 64  # 59 matrix + 2 extras + 3 appointment rows
+    # 59 matrix + 3 RRS classification + 2 extras + 3 appointment rows + 3 classification detail rows
+    assert len(core.fields_to_table_df(fields)) == 70
 
 
 def test_optional_absence_does_not_retry_and_roles_are_separate():

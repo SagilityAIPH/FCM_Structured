@@ -17,9 +17,11 @@ from openpyxl import Workbook, load_workbook
 from openpyxl.styles import Font, PatternFill
 
 try:
-    from .referral_schema import REQUIRED_FIELDS, PROVIDER_FIELDS, ReferralFields, completeness, split_claims_manager_name
+    from .referral_schema import (REQUIRED_FIELDS, PROVIDER_FIELDS, DERIVED_FIELDS, ReferralFields, completeness,
+                                  split_claims_manager_name)
 except ImportError:
-    from referral_schema import REQUIRED_FIELDS, PROVIDER_FIELDS, ReferralFields, completeness, split_claims_manager_name
+    from referral_schema import (REQUIRED_FIELDS, PROVIDER_FIELDS, DERIVED_FIELDS, ReferralFields, completeness,
+                                 split_claims_manager_name)
 
 VERSION = "3"
 HEADERS = ["Record ID", "Extracted At", "Source File", "NEXT STEP", "Missing Required Fields"] + REQUIRED_FIELDS
@@ -31,6 +33,9 @@ V2_HEADERS = [h for h in HEADERS if h not in ('Claims Case Manager First Name', 
 LEGACY_HEADERS = [h for h in HEADERS if h not in NEW_FIELDS]
 LEGACY_PROVIDER_HEADERS = [h for h in ['Record ID', 'Provider Index'] + PROVIDER_FIELDS if h not in NEW_FIELDS]
 REVIEW_SHEETS = ('Address Review', 'Appointment Review', 'Name Inference')
+# Separate sheet so the Referrals/Providers layout (and every existing reader) is unchanged.
+CLASSIFICATION_SHEET = 'RRS Classification'
+CLASSIFICATION_HEADERS = ['Record ID'] + DERIVED_FIELDS + ['Review', 'Detail JSON']
 
 
 def output_directory():
@@ -132,7 +137,7 @@ def save_daily_output(fields, source_file, *, directory=None, record_id=None, ex
             if record_id in existing and not update_existing:
                 return path, record_id
             if record_id in existing:
-                for name in ["Referrals", "Providers", *REVIEW_SHEETS]:
+                for name in ["Referrals", "Providers", *REVIEW_SHEETS, CLASSIFICATION_SHEET]:
                     if name in book:
                         sheet = book[name]
                         for row in range(sheet.max_row, 1, -1):
@@ -153,7 +158,16 @@ def save_daily_output(fields, source_file, *, directory=None, record_id=None, ex
                         append_text(book.create_sheet(name), ['Record ID', 'Review JSON'])
                     for review in reviews:
                         append_text(book[name], [record_id, json.dumps(review, ensure_ascii=False)])
-            for name in ["Referrals", "Providers"]:
+            detail = getattr(fields, 'classification', None)
+            if detail is not None or any(fields.get(key, 'Not found') != 'Not found' for key in DERIVED_FIELDS):
+                if CLASSIFICATION_SHEET not in book:
+                    append_text(book.create_sheet(CLASSIFICATION_SHEET), CLASSIFICATION_HEADERS)
+                review = '\n'.join(f"{item['field']}: {item['review']}" for item in detail or [] if item.get('review'))
+                append_text(book[CLASSIFICATION_SHEET], [record_id] + [fields.get(key, 'Not found') for key in DERIVED_FIELDS]
+                            + [review, json.dumps(detail or [], ensure_ascii=False)])
+            for name in ["Referrals", "Providers", CLASSIFICATION_SHEET]:
+                if name not in book:
+                    continue
                 sheet = book[name]
                 sheet.freeze_panes = "A2"
                 sheet.auto_filter.ref = sheet.dimensions
@@ -184,6 +198,22 @@ def _load_reviews(book, record_id, fields):
             setattr(fields, name.lower().replace(' ', '_'), reviews)
 
 
+def _load_classification(book, record_id, fields):
+    for key in DERIVED_FIELDS:
+        fields.setdefault(key, 'Not found')
+    if CLASSIFICATION_SHEET not in book:
+        return
+    headers = [cell.value for cell in book[CLASSIFICATION_SHEET][1]]
+    for cells in book[CLASSIFICATION_SHEET].iter_rows(min_row=2):
+        if cells[0].value == record_id:
+            if any(cell.data_type == 'f' for cell in cells):
+                raise ValueError('Formula cells are not supported in classification input.')
+            row = dict(zip(headers, [cell.value for cell in cells]))
+            for key in DERIVED_FIELDS:
+                fields[key] = row.get(key) or 'Not found'
+            fields.classification = json.loads(row.get('Detail JSON') or '[]')
+
+
 def read_record(path, record_id):
     """Shared standalone reader; never executes Excel formulas."""
     book = load_workbook(path, read_only=True, data_only=False)
@@ -210,6 +240,7 @@ def read_record(path, record_id):
         fields = ReferralFields({key: record.get(key) or "Not found" for key in REQUIRED_FIELDS}, providers)
         split_claims_manager_name(fields)
         _load_reviews(book, record_id, fields)
+        _load_classification(book, record_id, fields)
         return fields, completeness(fields)
     finally:
         book.close()

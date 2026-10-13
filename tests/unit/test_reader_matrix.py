@@ -17,7 +17,8 @@ def parse(data):
 
 def test_matrix_fields_unique_and_source_priority():
     assert len(schema.REQUIRED_FIELDS) == len(set(schema.REQUIRED_FIELDS)) == 63
-    assert sum(map(len, schema.FIELD_GROUPS.values())) == 59
+    # 59 owner-matrix fields + 3 RRS classification fields (Body Part, Injury Type, Injury Cause).
+    assert sum(map(len, schema.FIELD_GROUPS.values())) == 62
     data = payload()
     data.update({'Attorney Name': 'Section Attorney', 'Accident Description': 'Section description',
                  'Employer Contact Name': 'Customer contact', 'Employer First Name': 'Section',

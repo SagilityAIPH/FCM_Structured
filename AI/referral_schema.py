@@ -8,6 +8,7 @@ try:
     from .source_evidence import explicit_form_fields, special_evidence, recover_provider_identity, enforce_source_roles, ICD
     from .provider_evidence import recover_provider_records
     from .document_sections import clean_special_instructions, extract_special_instructions
+    from .injury_classification import FIELDS as CLASSIFICATION_FIELDS, classify, prompt_lists
 except ImportError:
     from appointment_rules import appointment_checks, parse_date
     from address_normalization import split_address
@@ -15,6 +16,7 @@ except ImportError:
     from source_evidence import explicit_form_fields, special_evidence, recover_provider_identity, enforce_source_roles, ICD
     from provider_evidence import recover_provider_records
     from document_sections import clean_special_instructions, extract_special_instructions
+    from injury_classification import FIELDS as CLASSIFICATION_FIELDS, classify, prompt_lists
 
 FIELD_GROUPS = {
     "Claimant Information": [
@@ -26,6 +28,8 @@ FIELD_GROUPS = {
         "Claim Number", "Claim ID", "Claim Type", "Date of Injury/Accident/Illness",
         "State/Jurisdiction of Claim", "Accident Description", "Injury Description", "Diagnosis Code", "Compensable Body/Part(s)",
     ],
+    # Chosen after extraction from the RRS dropdown lists (injury_classification.py).
+    "RRS Classification": list(CLASSIFICATION_FIELDS),
     "Case Manager Information": [
         "Company / Market", "Claims Case Manager First Name", "Claims Case Manager Last Name", "Claims Office Number",
         "Claims Office Name", "Office Phone Number", "Claims Case Manager E-mail Address",
@@ -81,6 +85,9 @@ OPTIONAL_FIELDS += ["Employer Contact Name", "Employer Contact Mobile", "Diagnos
 OPTIONAL_FIELDS += ["Compensable Body/Part(s)", "Additional Diagnosis Codes", "Provider Phone", "Appointment Time",
                     "Provider Address Line 2", "Employer First Name", "Employer Last Name", "Employer Contact Email",
                     "Employer Mobile", "Language", "NCM", "Claims Case Manager Name"]
+# Python-derived after extraction: never workbook Referrals columns or completeness requirements.
+DERIVED_FIELDS = list(CLASSIFICATION_FIELDS)
+OPTIONAL_FIELDS += DERIVED_FIELDS
 SUPPLEMENTAL_FIELDS = ["Determining if Doctor or Provider Name", "Additional Diagnosis Codes"]
 # Claims Case Manager Name and Referral Instructions remain internal workbook
 # columns for older consumers, but are no longer duplicate visible matrix rows.
@@ -101,6 +108,7 @@ _TEMPLATE["Provider Information"] = [{field: "Not found" for field in PROVIDER_F
 _TEMPLATE["Special Instruction Fields"] = {key: "Not found" for key in SPECIAL_INSTRUCTION_FIELDS}
 _TEMPLATE["Special Instruction Fields"]["Provider Information"] = _TEMPLATE["Provider Information"]
 _TEMPLATE["Referral Instruction Providers"] = []
+_TEMPLATE["RRS Classification"] = {key: "Not found" for key in DERIVED_FIELDS}
 FIELD_ONLY_PROMPT = """Extract the referral fields from the document below.
 Return only a JSON object matching this template, with all keys present:
 """ + json.dumps(_TEMPLATE, indent=2) + """
@@ -254,6 +262,16 @@ Rules:
   of Special Instructions. Do not put the full Special Instructions narrative
   into Referral Instructions. Compensable Body/Part(s) requires explicit
   compensability evidence; do not copy Injury Description into it automatically.
+- RRS Classification holds Body Part, Injury Type and Injury Cause. Read Accident
+  Description, Injury Description and Special Instructions (including compensable
+  body parts), then copy exactly one item from each allowed list below, character for
+  character. Never invent, shorten or combine items. Use Not found when the document
+  does not describe the injury. Body Part is the injured part; choose Multiple Body
+  Parts only when different body parts were injured. Words that are not about the
+  injury, such as a face-to-face visit or hand delivery, are not body parts. Injury
+  Type is the nature of the injury (a torn meniscus is a tear). Injury Cause is how the
+  injury happened. Python checks these choices against the RRS lists.
+""" + prompt_lists() + """
 
 DOCUMENT:
 {DOCUMENT_TEXT}
@@ -410,6 +428,9 @@ def parse_field_block(text, source_text=''):
             fields[key] = "Not found"
     result = ReferralFields({key: fields[key] for key in REQUIRED_FIELDS}, records)
     result.name_inference = name_inference
+    # After extraction: RRS dropdown items from the model, checked against the lists and legacy rules.
+    ai_classification = data.get("RRS Classification")
+    result.classification = classify(result, ai_classification if isinstance(ai_classification, dict) else {})
     return result
 
 
@@ -418,7 +439,7 @@ def field_rows(fields):
     for group, labels in FIELD_GROUPS.items():
         for label in labels:
             key = output_key(group, label)
-            rows.append({"Section": group, "Field": label, "Value": fields[key],
+            rows.append({"Section": group, "Field": label, "Value": fields.get(key, "Not found"),
                          "Optional": "Conditional" if label in ('Provider / Facility', 'Doctor First Name', 'Doctor Last Name')
                          else "Yes" if key in OPTIONAL_FIELDS else "No"})
     rows.extend({"Section": "Additional extracted information", "Field": key,
@@ -431,6 +452,8 @@ def field_rows(fields):
                  "Optional": "No"} for item in appointment_checks(fields))
     rows.extend({"Section": "Name Inference", "Field": item['field'], "Value": json.dumps(item), "Optional": "Yes"}
                 for item in getattr(fields, 'name_inference', []))
+    rows.extend({"Section": "RRS Classification Detail", "Field": item['field'], "Value": json.dumps(item), "Optional": "Yes"}
+                for item in getattr(fields, 'classification', []))
     return rows
 
 
@@ -498,7 +521,7 @@ def export_payload(fields):
                               'Date Only': parse_date(record.get('Appointment Date')) is not None
                               and record.get('Appointment Time', 'Not found') == 'Not found'} for record in records]
         else:
-            output[group] = {label: fields[output_key(group, label)] for label in labels}
+            output[group] = {label: fields.get(output_key(group, label), "Not found") for label in labels}
     output["Additional extracted information"] = {key: fields[key] for key in SUPPLEMENTAL_FIELDS}
     output["NEXT STEP"] = completeness(fields)
     if getattr(fields, "address_review", None):
@@ -507,6 +530,8 @@ def export_payload(fields):
         output['Appointment Review'] = fields.appointment_review
     if getattr(fields, 'name_inference', None):
         output['Name Inference'] = fields.name_inference
+    if getattr(fields, 'classification', None):
+        output['RRS Classification Detail'] = fields.classification
     return output
 
 

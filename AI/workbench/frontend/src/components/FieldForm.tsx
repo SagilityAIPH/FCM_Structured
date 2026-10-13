@@ -1,12 +1,13 @@
 import { useState } from 'react'
-import { Check, CheckCheck, ChevronDown, CircleAlert, FileCheck2, LoaderCircle, Sparkles, UserRound, ClipboardList, Briefcase, Building2, Scale, Send, Users, Info, HeartPulse } from 'lucide-react'
+import { Check, CheckCheck, ChevronDown, CircleAlert, FileCheck2, LoaderCircle, Sparkles, UserRound, ClipboardList, Briefcase, Building2, Scale, Send, Users, Info, HeartPulse, Tags } from 'lucide-react'
 import { Button } from './ui/button'
 import { Input } from './ui/input'
 import type { DocumentDetail, Edit, Field } from '@/types'
 import { cn } from '@/lib/utils'
 
 const fieldId = (field: Pick<Field, 'key' | 'provider_index'>) => `${field.provider_index ?? 'main'}:${field.key}`
-const groupIcons = { 'Claimant Information': UserRound, 'Claim Information': ClipboardList, 'Case Manager Information': Briefcase, 'Attorney Information': Scale, 'Referral Information': Send, 'Employer Information': Users, 'Other Information': Info, 'NCM Information': HeartPulse }
+const groupIcons = { 'Claimant Information': UserRound, 'Claim Information': ClipboardList, 'RRS Classification': Tags, 'Case Manager Information': Briefcase, 'Attorney Information': Scale, 'Referral Information': Send, 'Employer Information': Users, 'Other Information': Info, 'NCM Information': HeartPulse }
+const sourceLabels = { AI: 'AI · from RRS list', Rules: 'Legacy rules', Manual: 'Manually edited', None: 'No injury details found' }
 export default function FieldForm({ doc, busy, draft, onDraft, onConfirm, onRetrySave }: {
   doc: DocumentDetail | null; busy: boolean; draft: Record<string, Edit>; onDraft: (draft: Record<string, Edit>) => void; onConfirm: (index: number) => void; onRetrySave: () => void
 }) {
@@ -32,6 +33,7 @@ export default function FieldForm({ doc, busy, draft, onDraft, onConfirm, onRetr
         {doc.validation?.appointments.filter(a => a.reasons.length).map(a => <div className={cn('note', a.confirmed ? 'success' : 'warning')} key={a.provider_index}><CircleAlert size={15} /><div><strong>Provider {a.provider_index} · {a.appointment_date}</strong><p>{a.reasons.join('. ')}.</p>{a.confirmed ? <span className="text-emerald-700">Appointment confirmed</span> : a.can_confirm ? <Button variant="outline" size="sm" className="mt-2" disabled={busy || !!edits.length} onClick={() => onConfirm(a.provider_index)}><Check />Confirm this appointment</Button> : null}</div></div>)}
         {doc.address_report.length ? <details className="automation-note"><summary><Sparkles size={14} />Automatic address check<span>{doc.address_report.filter(a => a.status === 'accepted').length} applied</span><ChevronDown size={13} /></summary><div>{doc.address_report.map((item, i) => <div key={i} className="address-result"><strong>{item.target} · {item.status === 'accepted' ? 'Applied automatically' : 'Unresolved'}</strong><p>{item.reason}</p>{Object.entries(item.changes).map(([key, change]) => <p key={key}>{key}: {change.original} → {change.suggested}</p>)}<small>{item.source}. {item.confidence}.</small></div>)}</div></details> : null}
         {doc.name_inference.length ? <details className="automation-note"><summary><CircleAlert size={14} />Inferred names require review<ChevronDown size={13} /></summary><div className="p-3">{doc.name_inference.map((item, i) => <p key={i} className="mb-2 text-xs">{Object.entries(item).map(([key, value]) => `${key}: ${String(value)}`).join(' · ')}</p>)}</div></details> : null}
+        {doc.classification?.some(item => item.review || item.list === 'provisional') ? <details className="automation-note"><summary><Tags size={14} />RRS classification review<span>{doc.classification.filter(item => item.review).length} to check</span><ChevronDown size={13} /></summary><div className="p-3">{doc.classification.filter(item => item.review).map(item => <p key={item.field} className="mb-2 text-xs"><strong>{item.field}:</strong> {item.review}</p>)}{doc.classification.some(item => item.list === 'provisional') ? <p className="text-xs text-slate-500">Using provisional RRS lists. Run AI/export_rrs_dropdowns.py with the RRS Subject Line Builder open to load the live lists.</p> : null}</div></details> : null}
         {doc.groups.map(group => {
           const visible = group.fields.filter(field => `${field.label} ${draft[fieldId(field)]?.value ?? field.value}`.toLowerCase().includes(query.toLowerCase()))
           if (!visible.length) return null
@@ -44,7 +46,7 @@ export default function FieldForm({ doc, busy, draft, onDraft, onConfirm, onRetr
             const wide = large || /Address|Email|E-mail|Customer Name|Contact Name|Claims Office Name|Response To|Provider \/ Facility/.test(field.label) || field.label.length > 25
             return <label key={id} className={cn('field-control', wide && 'field-wide')}><span className="field-label">{field.label}{field.optional ? <small>Optional</small> : field.conditional ? <small>Conditional</small> : <span className="required-mark" title="Required">*</span>}</span>
               {large ? <textarea aria-label={`${group.name} / ${field.label}`} className={cn('field-textarea', gap && 'has-gap')} value={value} disabled={busy} onChange={e => update(field, e.target.value)} rows={field.key === 'Special Instructions' ? 9 : 3} /> : <Input aria-label={`${group.name} / ${field.label}`} className={cn(gap && 'has-gap', value === 'Not found' && 'text-slate-400')} value={value} disabled={busy} onChange={e => update(field, e.target.value)} />}
-              <span className="field-meta">{gap ? <span className="text-amber-700">Required information missing</span> : field.manual || draft[id] ? <span className="text-blue-600">{draft[id] ? 'Unsaved edit' : 'Manually edited'}</span> : <span>{field.confidence === null ? 'Not scored' : `${field.confidence}% confidence`}</span>}</span>
+              <span className="field-meta">{gap ? <span className="text-amber-700">Required information missing</span> : field.manual || draft[id] ? <span className="text-blue-600">{draft[id] ? 'Unsaved edit' : 'Manually edited'}</span> : field.source ? <span>{sourceLabels[field.source]}</span> : <span>{field.confidence === null ? 'Not scored' : `${field.confidence}% confidence`}</span>}</span>
             </label>
           })}</div></details>
         })}

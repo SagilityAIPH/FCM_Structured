@@ -91,3 +91,25 @@ changes; build and test both consumers when the workbook schema changes.
 - October 6 verification uses offline replay of 18 compiled rows with full PDF
   text, plus synthetic regression tests. This is not a fresh Bedrock accuracy
   measurement and does not establish 100% accuracy on future documents.
+
+# October 13 RRS classification (Body Part, Injury Type, Injury Cause)
+
+- The AI PDF Reader owns these three RRS dropdown values (`injury_classification.py`).
+  They are chosen after extraction and shown in the "RRS Classification" form group.
+- Bedrock picks one item from each RRS list in the same extraction call (the lists are
+  in the prompt). Python accepts only an exact list item (case/spacing/punctuation
+  ignored). Otherwise the legacy rules decide.
+- Legacy rules, as chosen by the owner: Body Part reads Accident Description + Injury
+  Description + Special Instructions together; Injury Type and Cause read Accident +
+  Injury Description, with Special Instructions only as fallback. Known weaknesses
+  (for example "face-to-face visit" counts as a body part) are why the AI choice wins
+  and a disagreement is flagged for review instead of silently overridden.
+- Operator edits always win and survive re-classification after description edits.
+- Lists: `AI/rrs_dropdowns.json` from `python -m AI.export_rrs_dropdowns` (run with the
+  RRS Subject Line Builder open). Without it, provisional lists built from the legacy
+  rule values are used and the form says so. The export prints rule values with no RRS
+  item; add those as aliases.
+- Output: separate `RRS Classification` workbook sheet (values, review, detail JSON),
+  so the Referrals/Providers layout and existing readers are unchanged. These are
+  derived fields: not in `REQUIRED_FIELDS`, optional for NEXT STEP.
+- The Subject Line Builder's `body_part.py`/`injury_match.py` now re-export this module.
