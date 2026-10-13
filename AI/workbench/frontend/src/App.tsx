@@ -108,7 +108,7 @@ export default function App() {
   const progress = state?.progress || {done: 0, total: 0}
   const indeterminate = busy && (progress.total === 0 || progress.done === progress.total || !!state?.stage.startsWith('Checking missing addresses'))
   return <div className={cn("compact-shell", compact && "is-compact")}>
-    <header className="app-header"><div className="title-row"><span className="app-icon"><FileText size={19} /></span><div><h1>AI PDF Reader</h1><p>Referral intake form</p></div><Button size="sm" disabled={busy || !state} onClick={() => {
+    <header className="app-header"><div className="title-row"><span className="app-icon"><FileText size={19} /></span><div><h1>{state?.memory_only ? 'Referral Intake' : 'AI PDF Reader'}</h1><p>{state?.memory_only ? 'Captured from RRS' : 'Referral intake form'}</p></div>{state?.memory_only ? null : <Button size="sm" disabled={busy || !state} onClick={() => {
       if (leave()) void act(async api => {
         const ids = await api.choose_documents()
         if (ids[0]) {
@@ -116,7 +116,7 @@ export default function App() {
           setDraft({}); setScrollTarget('Fields')
         }
       })
-    }}><Plus />{previewMode ? 'Load examples' : 'Open'}</Button><Button variant="ghost" size="icon" disabled={!state} aria-label={compact ? 'Exit compact mode' : 'Enter compact mode'} aria-pressed={compact} onClick={() => {
+    }}><Plus />{previewMode ? 'Load examples' : 'Open'}</Button>}<Button variant="ghost" size="icon" disabled={!state} aria-label={compact ? 'Exit compact mode' : 'Enter compact mode'} aria-pressed={compact} onClick={() => {
       if (!compact && formRef.current) normalScroll.current = formRef.current.scrollTop
       void act(api => api.set_compact(!compact))
     }}>{compact ? <Maximize2 /> : <Minimize2 />}</Button></div>
@@ -143,9 +143,9 @@ export default function App() {
             <div className="document-actions"><StatusBadge status={doc.status} />{['Failed', 'Completed', 'Needs Review'].includes(doc.status) ? <Button variant="ghost" size="icon" disabled={busy} aria-label={`Retry extraction for ${doc.name}`} onClick={() => {
               if ((doc.id !== selected || leave()) && window.confirm('Run extraction again? This creates a new daily Excel record.')) void act(api => api.start_processing([doc.id]))
             }}><RotateCcw /></Button> : null}</div>
-          </div>)}</div>{!filtered.length ? <p className="empty-text">{documents.length ? 'No matching documents.' : 'Open a PDF, DOCX, or TXT document to begin.'}</p> : null}</div> : null}
-        {panel === 'Output' ? <div className="group-content"><p className="output-path">{state?.output_directory}</p><Button variant="outline" size="sm" disabled={busy} onClick={() => void act(api => api.open_output())}><FolderOpen />Open output folder</Button>
-          <p className="output-help">Every completed extraction is saved to the daily workbook, including Passed and Failed results.</p>
+          </div>)}</div>{!filtered.length ? <p className="empty-text">{documents.length ? 'No matching documents.' : state?.memory_only ? 'Waiting for the referral capture from RRS.' : 'Open a PDF, DOCX, or TXT document to begin.'}</p> : null}</div> : null}
+        {panel === 'Output' ? <div className="group-content">{state?.memory_only ? <p className="output-path">No file output. The referral is captured from RRS and stays in memory for this run.</p> : <><p className="output-path">{state?.output_directory}</p><Button variant="outline" size="sm" disabled={busy} onClick={() => void act(api => api.open_output())}><FolderOpen />Open output folder</Button></>}
+          <p className="output-help">{state?.memory_only ? 'Nothing is written to disk. The extraction is handed straight to CMS and the Subject Line Builder.' : 'Every completed extraction is saved to the daily workbook, including Passed and Failed results.'}</p>
           {shownDetail?.groups.length ? <><p className="output-file">{shownDetail.name}</p><div className="export-actions">{['json', 'csv', 'txt'].map(kind => <Button key={kind} variant="outline" size="sm" disabled={busy || dirty} onClick={() => void act(api => api.export_document(selected, kind))}><ArrowDownToLine />{kind.toUpperCase()}</Button>)}</div>
           {shownDetail.save_error ? <div className="note warning"><p>{shownDetail.save_error}</p><Button variant="outline" size="sm" disabled={busy} onClick={() => void act(api => api.retry_save(selected), 'Daily Excel saved.')}>Retry Excel save</Button></div> : null}</> : <p className="empty-text">Extracted output will be available here.</p>}</div> : null}
       </section>)}

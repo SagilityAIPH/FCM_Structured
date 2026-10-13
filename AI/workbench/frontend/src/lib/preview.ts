@@ -2,7 +2,7 @@
 import type { API, DocumentDetail, Field, State } from '@/types'
 
 const state: State = {
-  documents: [], busy: false, compact: false, stage: 'Preview mode · example data only', bedrock: 'Preview only', elapsed: 0,
+  documents: [], busy: false, compact: false, memory_only: false, stage: 'Preview mode · example data only', bedrock: 'Preview only', elapsed: 0,
   progress: {done: 0, total: 0}, key_configured: true, output_directory: 'Preview / Output / AI',
   settings: {region: 'us-east-2', model: 'openai.gpt-oss-120b-1:0', max_tokens: 32768, temperature: 0, document_limit: 100000},
 }
