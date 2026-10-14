@@ -595,6 +595,7 @@ class RRSAdapter:
             self.injury_type(data['injuryType'])
         if data['injuryCause']:
             self.injury_cause(data['injuryCause'])
+        self.select_claim_type('Lost Time')
         self.radio('rbVoc' if data['referralType'] == 'Vocational' else 'rbMed')
         if data['refSource'] == 'Adjuster':
             self.radio('rbAdjuster')
@@ -710,13 +711,36 @@ class RRSAdapter:
                 pass
         return False
 
+    def select_claim_type(self, text):
+        """The Claim Type list items only exist while the dropdown is open, and SetValue alone does not
+        register a selection, so open it and click the real item."""
+        combo = self.control(self.builder, 'cbClaimType', 'ComboBox')
+        if self._combo_current(combo).lower() == text.lower():
+            return
+        for _ in range(3):
+            combo.set_focus()
+            combo.children(control_type='Button')[0].click_input()
+            deadline = time.monotonic() + 3
+            while time.monotonic() < deadline:
+                items = [i for i in combo.descendants(control_type='ListItem') if i.window_text() == text]
+                if items:
+                    items[0].click_input()
+                    time.sleep(.5)
+                    if self._combo_current(combo).lower() == text.lower():
+                        return
+                    break
+                time.sleep(.2)
+        raise RuntimeError(f'Could not select Claim Type "{text}". Submission stopped.')
+
     def create(self, data):
         # Recheck the same handle/claim immediately before submission.
         value = self.control(self.builder, 'tbClaimNumber', 'Edit').iface_value.CurrentValue
         if value.strip() != data['claimNumber']:
             raise RuntimeError('The RRS claim number changed. Submission stopped; review the intended claim.')
+        self.select_claim_type('Lost Time')
+        self.select_claim_type('Lost Time')
         self.click(self.builder, 'btnCreate')
-        handle = getattr(self, 'builder_handle', None) or self.builder.wrapper_object().handle
+        handle =  getattr(self, 'builder_handle', None) or self.builder.wrapper_object().handle
         deadline = time.monotonic() + 30
         while time.monotonic() < deadline:
             if self.window_gone(handle):
