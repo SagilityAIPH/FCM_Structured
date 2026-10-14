@@ -1,0 +1,99 @@
+import { useEffect, useRef, useState } from 'react'
+import { createRoot } from 'react-dom/client'
+import { ClipboardList, FileSpreadsheet, Play, ShieldCheck } from 'lucide-react'
+import { Button } from './components/ui/button'
+import { Input } from './components/ui/input'
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from './components/ui/dialog'
+import fixture from './schema.json'
+import './styles.css'
+
+type Data = Record<string,string>
+type Field = {key:string; label:string; required:boolean; choices:string[]|null; date:boolean}
+type Group = {title:string; fields:Field[]}
+type Prompt = {id:string;kind:string;title:string;message:string}
+type Result = {status:string;reason:string;steps:string[];error:Record<string,unknown>;attachment:string}
+type State = {status:string;busy:boolean;stage:string;elapsed:number;prompt:Prompt|null;result:Result|null;error:string;warnings:string[]}
+type Row = {row:number;label:string;warning:string}
+type Reply<T=unknown> = {ok:boolean;data?:T;error?:string}
+type API = {
+ initialize():Promise<{schema:Group[];defaults:Data;state:State;jurisdictions:string[]}>
+ get_state():Promise<State>
+ open_excel():Promise<Reply<{filename:string;rows:Row[]}|null>>
+ select_excel_row(row:number):Promise<Reply<{data:Data;warning:string}>>
+ save_excel_template():Promise<Reply>
+ validate_fields(data:Data,stage:string,jurisdiction:string):Promise<Reply<{fields:Data;warnings:string[];derived:Data}>>
+ start(data:Data,stage:string,tracking:boolean,jurisdiction:string):Promise<Reply>
+ answer_prompt(id:string,answer:boolean):Promise<Reply>
+}
+declare global {interface Window {pywebview?:{api:API}}}
+const initial:State={status:'idle',busy:false,stage:'',elapsed:0,prompt:null,result:null,error:'',warnings:[]}
+const preview = new URLSearchParams(location.search).get('mock') === '1'
+let mockState = {...initial}
+const mock:API = {
+ async initialize(){return {...fixture,state:mockState}},
+ async get_state(){return {...mockState}},
+ async open_excel(){return {ok:false,error:'Workbook dialogs are available in the desktop app.'}},
+ async select_excel_row(){return {ok:false,error:'Open a workbook in the desktop app.'}},
+ async save_excel_template(){return {ok:false,error:'Use the supplied Unity-Input.xlsx template.'}},
+ async validate_fields(data,stage,jurisdiction){
+  const keys=stage==='assign'?['claimNumber']:['claimNumber','customer','claimantFirst','claimantLast']
+  if(keys.some(k=>!data[k]?.trim()))return {ok:false,error:'Required: '+keys.filter(k=>!data[k]?.trim()).join(', ')}
+  return {ok:true,data:{fields:data,warnings:['Browser preview uses synthetic behavior. Desktop performs full validation.'],derived:{claimStateAbbr:jurisdiction,serviceType:data.serviceType||'Medical Full'}}}
+ },
+ async start(data,stage,tracking,jurisdiction){
+  const r=await mock.validate_fields(data,stage,jurisdiction); if(!r.ok)return r
+  mockState={...initial,status:'running',busy:true,stage,warnings:[`Preview only · tracking ${tracking?'enabled':'disabled'}`]}
+  setTimeout(()=>{if(stage==='unity')mockState={...mockState,busy:false,status:'completed',result:{status:'completed',reason:'',steps:['resolve_attachment','run_unity','record_assignment'],error:{},attachment:'synthetic-referral.pdf'}}
+   else mockState={...mockState,prompt:{id:crypto.randomUUID(),kind:'confirm',title:'Complete Assignment Stopper',message:'Confirm the referral is approved in iCaseManager. Preview only.'}}},500)
+  return {ok:true}
+ },
+ async answer_prompt(id,answer){if(mockState.prompt?.id!==id)return {ok:false,error:'Prompt is no longer pending.'}; mockState={...mockState,busy:false,prompt:null,status:answer?'completed':'stopped',result:{status:answer?'completed':'stopped',reason:answer?'':'icasemanager_declined',steps:['await_icasemanager_approval'],error:{},attachment:''}};return {ok:true}}
+}
+const api=()=>preview?mock:window.pywebview?.api
+const stopReasons:Record<string,string>={attachment_missing:'Stopped: no exported referral attachment. Export this referral through Complete Triage, then retry.',attachment_ambiguous:'Stopped: more than one attachment. Clear the export folder and re-export this referral.',icasemanager_declined:'Stopped: iCaseManager approval was declined. Complete Assignment did not run.'}
+
+function App(){
+ const [groups,setGroups]=useState<Group[]>([]),[data,setData]=useState<Data>({})
+ const [jurisdictions,setJurisdictions]=useState<string[]>([]),[jurisdiction,setJurisdiction]=useState('')
+ const [state,setState]=useState<State>(initial),[connected,setConnected]=useState(false)
+ const [stage,setStage]=useState('all'),[tracking,setTracking]=useState(true),[pending,setPending]=useState(false)
+ const [error,setError]=useState(''),[note,setNote]=useState(''),[rows,setRows]=useState<Row[]>([]),[row,setRow]=useState(0)
+ const [review,setReview]=useState<{warnings:string[];derived:Data}|null>(null)
+ const main=useRef<HTMLElement>(null)
+ useEffect(()=>{if(state.result&&!state.busy)main.current?.scrollTo({top:0})},[state.result?.status,state.result?.reason,state.busy])
+ useEffect(()=>{
+  let cancelled=false, initialized=false,timer:ReturnType<typeof setTimeout>
+  async function poll(){try{const bridge=api();if(bridge){if(!initialized){const r=await bridge.initialize();if(cancelled)return;setGroups(r.schema);setData(r.defaults);setJurisdictions(r.jurisdictions);setConnected(true);initialized=true}const s=await bridge.get_state();if(cancelled)return;setState(s)}}catch(e){if(!cancelled)setError(String(e))}if(!cancelled)timer=setTimeout(poll,350)}
+  void poll();return()=>{cancelled=true;clearTimeout(timer)}
+ },[])
+ async function act(work:()=>Promise<Reply>){setPending(true);setError('');try{const r=await work();if(!r.ok)setError(r.error||'Action failed')}catch(e){setError(String(e))}finally{setPending(false)}}
+ const locked=state.busy||pending
+ return <div className="shell">
+  <header><div className="brand"><span className="app-icon"><ClipboardList size={22}/></span><div><h1>Unity</h1><p>FCM Workbench · Assignment</p></div><span className={'badge '+state.status}>{state.status}</span></div></header>
+  <main ref={main}>
+   <p className="intro">Load a workbook row or enter a referral. Review the intended RRS claim and exported attachment before starting.</p>
+   {preview?<div className="notice">Browser preview · synthetic flow only</div>:!connected?<div className="notice">Waiting for desktop bridge. Use <code>?mock=1</code> for browser preview.</div>:null}
+   {(error||state.error)?<div role="alert" className="error">{error||state.error}</div>:null}
+   {state.result?<section aria-live="polite" className={'outcome '+state.status}><h2>{state.status==='stopped'?'Process stopped':state.status==='failed'?'Process failed':'Process completed'}</h2><p>{stopReasons[state.result.reason]||state.result.reason||'Selected stage completed.'}</p>{Object.keys(state.result.error).length?<p>{Object.entries(state.result.error).map(([k,v])=>`${k}: ${String(v)}`).join(' · ')}</p>:null}<p className="muted">{state.result.steps.join(' → ')}</p></section>:null}
+   <section className="card"><h2><FileSpreadsheet size={15}/>Excel input</h2><div className="content">
+    <div className="actions"><Button disabled={!connected||locked} onClick={()=>void act(async()=>{const r=await api()!.open_excel();if(r.ok&&r.data){setRows(r.data.rows);setRow(r.data.rows[0]?.row||0);setNote(r.data.filename+' · choose a row to load')}return r})}>Open workbook</Button><Button variant="outline" disabled={!connected||locked} onClick={()=>void act(()=>api()!.save_excel_template())}>Save template</Button></div>
+    {rows.length?<div className="actions"><select aria-label="Workbook row" value={row} disabled={locked} onChange={e=>setRow(Number(e.target.value))}>{rows.map(r=><option key={r.row} value={r.row}>{r.label}</option>)}</select><Button variant="outline" disabled={locked} onClick={()=>void act(async()=>{const r=await api()!.select_excel_row(row);if(r.ok&&r.data){setData(r.data.data);setJurisdiction('');setReview(null);setNote(r.data.warning||'Row loaded. Review before running.')}return r})}>Load row</Button></div>:null}
+    <p className="muted" role="status">{note||'One referral and one provider per row. Loading replaces fields and resets jurisdiction.'}</p>
+   </div></section>
+   <fieldset disabled={locked}>
+   {groups.map(group=><details className="card" open key={group.title}><summary><ClipboardList size={14}/>{group.title}</summary><div className="field-grid">{group.fields.map(f=><label key={f.key}><span>{f.label}{(f.key==='claimNumber'||f.required&&stage!=='assign')?' *':''}</span>{f.choices?<select value={data[f.key]||''} onChange={e=>{setData(d=>({...d,[f.key]:e.target.value}));setReview(null)}}>{f.choices.map(c=><option value={c} key={c}>{c||'Leave blank'}</option>)}</select>:<Input name={f.key} maxLength={1000} value={data[f.key]||''} placeholder={f.date?'MM/DD/YYYY':undefined} onChange={e=>{setData(d=>({...d,[f.key]:e.target.value}));setReview(null)}}/>}</label>)}</div></details>)}
+   <section className="card"><h2><ShieldCheck size={15}/>Review and run</h2><div className="content">
+    <label>Claim jurisdiction (optional derivation context)<select aria-label="Claim jurisdiction (optional derivation context)" value={jurisdiction} onChange={e=>{setJurisdiction(e.target.value);setReview(null)}}>{jurisdictions.map(s=><option key={s} value={s}>{s||'Unknown — review in Unity'}</option>)}</select></label>
+    <p className="muted">Claim jurisdiction is separate from claimant State. Blank service type uses Medical Full; Continental Tire / Auto / MI derives Medical Task. An explicit service type overrides that fallback.</p>
+    <label>Stage<select aria-label="Stage" value={stage} onChange={e=>{setStage(e.target.value);setReview(null)}}><option value="all">All · Unity + assignment</option><option value="unity">Unity · portal + tracking</option><option value="assign">Assign · approval + RRS completion</option></select></label>
+    <label className="checkbox"><input type="checkbox" checked={tracking} onChange={e=>setTracking(e.target.checked)}/>Record tracking attempt even when Unity fails (legacy default)</label>
+    <Button variant="outline" disabled={!connected||locked} onClick={()=>void act(async()=>{const r=await api()!.validate_fields(data,stage,jurisdiction);if(r.ok&&r.data){setData(r.data.fields);setReview(r.data)}return r})}>Validate fields</Button>
+    {review?<div className="review"><p>Derived values</p><dl>{Object.entries(review.derived).map(([k,v])=><div key={k}><dt>{k}</dt><dd>{v||'Unknown'}</dd></div>)}</dl>{review.warnings.map(w=><p className="muted" key={w}>{w}</p>)}</div>:null}
+   </div></section></fieldset>
+   <details className="card"><summary>Workflow help</summary><div className="content muted">Save the template, fill it in Excel, open it and load the intended row. Only claim number is required for Assign; Unity and All also require customer and claimant names. All other fields may be blank, but supplied values must be valid. Complete Triage must export exactly one attachment. Complete Assignment waits for your iCaseManager approval. There is no mid-operation cancellation; finish pending prompts before closing. Changes in live systems remain after any stop or failure.</div></details>
+  </main>
+  <footer><div className="actions"><Button disabled={!connected||locked} onClick={()=>void act(()=>api()!.start(data,stage,tracking,jurisdiction))}><Play size={14}/>{state.busy?'Running…':'Run selected stage'}</Button><span role="status">{state.busy?`${state.stage} · ${state.elapsed}s`:preview?'Preview ready':'Live desktop wiring'}</span></div></footer>
+  <Dialog open={!!state.prompt} onOpenChange={()=>{}}>{state.prompt?<DialogContent className="prompt operator-prompt" onEscapeKeyDown={e=>e.preventDefault()} onPointerDownOutside={e=>e.preventDefault()}><DialogTitle>{state.prompt.title}</DialogTitle><DialogDescription>{state.prompt.message}</DialogDescription><div className="actions"><Button autoFocus disabled={pending} onClick={()=>void act(()=>api()!.answer_prompt(state.prompt!.id,true))}>{state.prompt.kind==='notify'?'Acknowledge':'Yes · approved'}</Button>{state.prompt.kind==='confirm'?<Button variant="outline" disabled={pending} onClick={()=>void act(()=>api()!.answer_prompt(state.prompt!.id,false))}>No · stop</Button>:null}</div></DialogContent>:null}</Dialog>
+ </div>
+}
+createRoot(document.getElementById('root')!).render(<App/> )

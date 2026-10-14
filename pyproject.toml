@@ -14,6 +14,8 @@ dependencies = [
   "python-dateutil",
   "webdriver-manager",
   "python-dotenv",
+  "titlecase",
+  "comtypes",
 ]
 
 [project.optional-dependencies]

@@ -1,0 +1,533 @@
+{
+  "schema": [
+    {
+      "title": "Claim",
+      "fields": [
+        {
+          "key": "claimNumber",
+          "label": "Claim number",
+          "required": true,
+          "choices": null,
+          "date": false
+        },
+        {
+          "key": "customer",
+          "label": "Employer / customer",
+          "required": true,
+          "choices": null,
+          "date": false
+        },
+        {
+          "key": "claimID",
+          "label": "Claim ID",
+          "required": false,
+          "choices": null,
+          "date": false
+        },
+        {
+          "key": "claimType",
+          "label": "Line of insurance",
+          "required": false,
+          "choices": null,
+          "date": false
+        },
+        {
+          "key": "serviceType",
+          "label": "Service type",
+          "required": false,
+          "choices": [
+            "",
+            "Medical Full",
+            "Medical Task",
+            "Vocational Full",
+            "Vocational Task",
+            "Employer",
+            "Other Services"
+          ],
+          "date": false
+        },
+        {
+          "key": "bodyPart",
+          "label": "Body part",
+          "required": false,
+          "choices": null,
+          "date": false
+        },
+        {
+          "key": "injuryType",
+          "label": "Injury type",
+          "required": false,
+          "choices": null,
+          "date": false
+        },
+        {
+          "key": "injuryCause",
+          "label": "Injury cause",
+          "required": false,
+          "choices": null,
+          "date": false
+        },
+        {
+          "key": "specialInstructions",
+          "label": "Special instructions",
+          "required": false,
+          "choices": null,
+          "date": false
+        }
+      ]
+    },
+    {
+      "title": "Claimant",
+      "fields": [
+        {
+          "key": "claimantFirst",
+          "label": "First name",
+          "required": true,
+          "choices": null,
+          "date": false
+        },
+        {
+          "key": "claimantLast",
+          "label": "Last name",
+          "required": true,
+          "choices": null,
+          "date": false
+        },
+        {
+          "key": "dob",
+          "label": "Date of birth",
+          "required": false,
+          "choices": null,
+          "date": true
+        },
+        {
+          "key": "gender",
+          "label": "Gender",
+          "required": false,
+          "choices": [
+            "",
+            "Male",
+            "Female",
+            "Unknown"
+          ],
+          "date": false
+        },
+        {
+          "key": "addressLine1",
+          "label": "Address line 1",
+          "required": false,
+          "choices": null,
+          "date": false
+        },
+        {
+          "key": "city",
+          "label": "City",
+          "required": false,
+          "choices": null,
+          "date": false
+        },
+        {
+          "key": "state",
+          "label": "State",
+          "required": false,
+          "choices": [
+            "",
+            "AL",
+            "AK",
+            "AZ",
+            "AR",
+            "CA",
+            "CO",
+            "CT",
+            "DE",
+            "FL",
+            "GA",
+            "HI",
+            "ID",
+            "IL",
+            "IN",
+            "IA",
+            "KS",
+            "KY",
+            "LA",
+            "ME",
+            "MD",
+            "MA",
+            "MI",
+            "MN",
+            "MS",
+            "MO",
+            "MT",
+            "NE",
+            "NV",
+            "NH",
+            "NJ",
+            "NM",
+            "NY",
+            "NC",
+            "ND",
+            "OH",
+            "OK",
+            "OR",
+            "PA",
+            "RI",
+            "SC",
+            "SD",
+            "TN",
+            "TX",
+            "UT",
+            "VT",
+            "VA",
+            "WA",
+            "WV",
+            "WI",
+            "WY"
+          ],
+          "date": false
+        },
+        {
+          "key": "zip",
+          "label": "ZIP",
+          "required": false,
+          "choices": null,
+          "date": false
+        },
+        {
+          "key": "phoneNumber",
+          "label": "Phone",
+          "required": false,
+          "choices": null,
+          "date": false
+        }
+      ]
+    },
+    {
+      "title": "Provider",
+      "fields": [
+        {
+          "key": "providerName",
+          "label": "Facility name",
+          "required": false,
+          "choices": null,
+          "date": false
+        },
+        {
+          "key": "providerFirst",
+          "label": "Doctor first name",
+          "required": false,
+          "choices": null,
+          "date": false
+        },
+        {
+          "key": "providerLast",
+          "label": "Doctor last name",
+          "required": false,
+          "choices": null,
+          "date": false
+        },
+        {
+          "key": "providerAddr",
+          "label": "Address",
+          "required": false,
+          "choices": null,
+          "date": false
+        },
+        {
+          "key": "providerCity",
+          "label": "City",
+          "required": false,
+          "choices": null,
+          "date": false
+        },
+        {
+          "key": "providerState",
+          "label": "State",
+          "required": false,
+          "choices": [
+            "",
+            "AL",
+            "AK",
+            "AZ",
+            "AR",
+            "CA",
+            "CO",
+            "CT",
+            "DE",
+            "FL",
+            "GA",
+            "HI",
+            "ID",
+            "IL",
+            "IN",
+            "IA",
+            "KS",
+            "KY",
+            "LA",
+            "ME",
+            "MD",
+            "MA",
+            "MI",
+            "MN",
+            "MS",
+            "MO",
+            "MT",
+            "NE",
+            "NV",
+            "NH",
+            "NJ",
+            "NM",
+            "NY",
+            "NC",
+            "ND",
+            "OH",
+            "OK",
+            "OR",
+            "PA",
+            "RI",
+            "SC",
+            "SD",
+            "TN",
+            "TX",
+            "UT",
+            "VT",
+            "VA",
+            "WA",
+            "WV",
+            "WI",
+            "WY"
+          ],
+          "date": false
+        },
+        {
+          "key": "providerZip",
+          "label": "ZIP",
+          "required": false,
+          "choices": null,
+          "date": false
+        },
+        {
+          "key": "nextApptDate",
+          "label": "Appointment date",
+          "required": false,
+          "choices": null,
+          "date": true
+        },
+        {
+          "key": "nextApptTime",
+          "label": "Appointment time",
+          "required": false,
+          "choices": null,
+          "date": false
+        }
+      ]
+    },
+    {
+      "title": "Adjuster",
+      "fields": [
+        {
+          "key": "adjuster",
+          "label": "Name",
+          "required": false,
+          "choices": null,
+          "date": false
+        },
+        {
+          "key": "adjAddrFull",
+          "label": "Full office address",
+          "required": false,
+          "choices": null,
+          "date": false
+        }
+      ]
+    },
+    {
+      "title": "Attorney",
+      "fields": [
+        {
+          "key": "claimantAttyName",
+          "label": "Name",
+          "required": false,
+          "choices": null,
+          "date": false
+        },
+        {
+          "key": "claimantAttyAddr1",
+          "label": "Address line 1",
+          "required": false,
+          "choices": null,
+          "date": false
+        },
+        {
+          "key": "claimantAttyAddr2",
+          "label": "Address line 2",
+          "required": false,
+          "choices": null,
+          "date": false
+        },
+        {
+          "key": "claimantAttyState",
+          "label": "State",
+          "required": false,
+          "choices": [
+            "",
+            "AL",
+            "AK",
+            "AZ",
+            "AR",
+            "CA",
+            "CO",
+            "CT",
+            "DE",
+            "FL",
+            "GA",
+            "HI",
+            "ID",
+            "IL",
+            "IN",
+            "IA",
+            "KS",
+            "KY",
+            "LA",
+            "ME",
+            "MD",
+            "MA",
+            "MI",
+            "MN",
+            "MS",
+            "MO",
+            "MT",
+            "NE",
+            "NV",
+            "NH",
+            "NJ",
+            "NM",
+            "NY",
+            "NC",
+            "ND",
+            "OH",
+            "OK",
+            "OR",
+            "PA",
+            "RI",
+            "SC",
+            "SD",
+            "TN",
+            "TX",
+            "UT",
+            "VT",
+            "VA",
+            "WA",
+            "WV",
+            "WI",
+            "WY"
+          ],
+          "date": false
+        },
+        {
+          "key": "claimantAttyZip",
+          "label": "ZIP",
+          "required": false,
+          "choices": null,
+          "date": false
+        },
+        {
+          "key": "claimantAttyPhone",
+          "label": "Phone",
+          "required": false,
+          "choices": null,
+          "date": false
+        }
+      ]
+    }
+  ],
+  "defaults": {
+    "claimNumber": "",
+    "customer": "",
+    "claimID": "",
+    "claimType": "",
+    "serviceType": "",
+    "bodyPart": "",
+    "injuryType": "",
+    "injuryCause": "",
+    "specialInstructions": "",
+    "claimantFirst": "",
+    "claimantLast": "",
+    "dob": "",
+    "gender": "",
+    "addressLine1": "",
+    "city": "",
+    "state": "",
+    "zip": "",
+    "phoneNumber": "",
+    "providerName": "",
+    "providerFirst": "",
+    "providerLast": "",
+    "providerAddr": "",
+    "providerCity": "",
+    "providerState": "",
+    "providerZip": "",
+    "nextApptDate": "",
+    "nextApptTime": "",
+    "adjuster": "",
+    "adjAddrFull": "",
+    "claimantAttyName": "",
+    "claimantAttyAddr1": "",
+    "claimantAttyAddr2": "",
+    "claimantAttyState": "",
+    "claimantAttyZip": "",
+    "claimantAttyPhone": ""
+  },
+  "jurisdictions": [
+    "",
+    "AL",
+    "AK",
+    "AZ",
+    "AR",
+    "CA",
+    "CO",
+    "CT",
+    "DE",
+    "FL",
+    "GA",
+    "HI",
+    "ID",
+    "IL",
+    "IN",
+    "IA",
+    "KS",
+    "KY",
+    "LA",
+    "ME",
+    "MD",
+    "MA",
+    "MI",
+    "MN",
+    "MS",
+    "MO",
+    "MT",
+    "NE",
+    "NV",
+    "NH",
+    "NJ",
+    "NM",
+    "NY",
+    "NC",
+    "ND",
+    "OH",
+    "OK",
+    "OR",
+    "PA",
+    "RI",
+    "SC",
+    "SD",
+    "TN",
+    "TX",
+    "UT",
+    "VT",
+    "VA",
+    "WA",
+    "WV",
+    "WI",
+    "WY"
+  ]
+}

@@ -32,6 +32,9 @@ def main(argv=None):
                         help="Run every scenario in scenarios/ and summarise the outcomes.")
     parser.add_argument("--live", action="store_true",
                         help="Use the real Unity portal, database and RRS; requires Windows and configured dependencies.")
+    parser.add_argument("--desktop", action="store_true", help="Open the Unity desktop form (live wiring).")
+    parser.add_argument("--self-test", action="store_true", help="Run the synthetic desktop smoke check.")
+    parser.add_argument("--report", type=Path, help="Write self-test output to this UTF-8 file.")
     parser.add_argument("--claim-number")
     parser.add_argument("--customer")
     parser.add_argument("--claimant-first")
@@ -41,6 +44,29 @@ def main(argv=None):
     args = parser.parse_args(argv)
 
     try:
+        if args.self_test:
+            from contextlib import redirect_stdout, redirect_stderr
+            from io import StringIO
+            import traceback
+            import tempfile
+            report = args.report or Path(tempfile.gettempdir()) / "UnityAssignment-self-test.txt"
+            captured = StringIO()
+            with redirect_stdout(captured), redirect_stderr(captured):
+                try:
+                    from smoke import main as smoke
+                    code = smoke()
+                except BaseException:
+                    traceback.print_exc()
+                    code = 1
+            report.parent.mkdir(parents=True, exist_ok=True)
+            report.write_text(captured.getvalue(), encoding="utf-8")
+            if sys.stdout is not None:
+                print(captured.getvalue(), end="")
+            return code
+        if args.desktop:
+            from launcher import main as launch
+            launch()
+            return 0
         core = load_core()
         if args.all_scenarios:
             rows = []
