@@ -1,0 +1,14 @@
+{
+  "input": {
+    "customer": "Fictional Moonbeam Widgets",
+    "claimantFirst": "Invented",
+    "claimantLast": "Starling",
+    "claimNumber": "FAKE-UNITY-001"
+  },
+  "attachments": [
+    "synthetic-referral.pdf"
+  ],
+  "icasemanager_approved": true,
+  "unity_error": "Synthetic portal failure",
+  "record_attempt_on_failure": false
+}

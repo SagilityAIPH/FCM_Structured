@@ -1,0 +1,12 @@
+{
+  "input": {
+    "customer": "Fictional Moonbeam Widgets",
+    "claimantFirst": "Invented",
+    "claimantLast": "Starling",
+    "claimNumber": "FAKE-UNITY-001"
+  },
+  "attachments": [
+    "synthetic-referral.pdf"
+  ],
+  "icasemanager_approved": false
+}
