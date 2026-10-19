@@ -25,3 +25,8 @@ node_modules/
 /Processes/SubjectLineBuilder/Stand-Alone/frontend/dist/
 *.tsbuildinfo
 
+
+# Obsidian per-machine state (shared vault settings remain trackable).
+/docs/.obsidian/workspace.json
+/docs/.obsidian/workspace-mobile.json
+/docs/.obsidian/cache/

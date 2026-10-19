@@ -1,0 +1,10 @@
+{
+  "alwaysUpdateLinks": true,
+  "newLinkFormat": "shortest",
+  "attachmentFolderPath": "./",
+  "userIgnoreFilters": [
+    "Sample A.png",
+    "more info IE.png",
+    "Liberty Mutual Claims Office Matrix_08-29-19.xlsx"
+  ]
+}

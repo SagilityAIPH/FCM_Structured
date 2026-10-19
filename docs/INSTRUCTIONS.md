@@ -1,0 +1,77 @@
+# Active work instructions
+
+## Rules
+
+- **ID rule:** Every item gets a permanent, incrementing ID -- `FCM-1.1-NN`. When adding a new item, use the next number after the highest ID used anywhere in this file or `docs/completed.md`. IDs are never reused or renumbered, even after an item moves to `docs/completed.md`.
+- **Status legend:** `[ ]` not started - `[~]` in progress - `[X]` completed
+- **Completed-item format:** When an item is finished, cut it from its active-priority section and append it under **Completed** at the bottom using exactly: `- [X] [Date Completed: MM/DD/YYYY] **FCM-1.1-NN -- Item title.** Supporting note.`
+- **Completed-item date placement:** Repeat the same `[Date Completed: MM/DD/YYYY]` marker at the end of the completed item line. The complete line is `- [X] [Date Completed: MM/DD/YYYY] **FCM-1.1-NN -- Item title.** Supporting note. [Date Completed: MM/DD/YYYY]`
+- **Follow-up rule:** If finishing one item surfaces a risk, a possible bug, or a worthwhile improvement that is out of scope for that item, add it as a NEW item and note which item's execution uncovered it -- do not expand the item you were shipping to cover it.
+- **Closing an item:** Note the test or packaged-build evidence that shows it works when you check it off. If live behavior was not tested, say so.
+
+## Mission and working rules
+
+1. Get the process out of the original legacy code.
+2. Break it into stand-alone and deploy-ready form (`Processes/`).
+3. Merge the mini processes into a final code (`Final Code/`).
+4. Create a Visio flowchart afterwards -- **only on the owner's explicit signal**.
+5. Merge another local repo containing the further post-Unity process; the owner will supply that repo later.
+6. Use graphify for mapping; orient with the knowledge graph before changing code.
+
+Delegate coding to workers; use at most two workers. Do not infer authorization for steps 4 or 5 from completion of earlier steps.
+
+## Orientation
+
+| Topic | Working instruction |
+| --- | --- |
+| Process layout | `Processes/<Name>/Deploy-Ready/` holds the shared controller/integration source; `Stand-Alone/` holds an independent runner, offline scenarios, tests and possibly a desktop/EXE. Both use the same implementation; the folder name does not prove live deployment readiness. Current folders: `Reopen-Check`, `SubjectLineBuilder`, `Unity`. |
+| Merged chain | `Final Code/finalcode/` contains the orchestrator and adapters. Read `Final Code/PROCESS-MAP.md` for the architecture/data contracts, but verify its historical line numbers and baseline counts against current code. |
+| One implementation | Do not introduce a third copy of a business rule. Reuse shared logic in `AI/`; keep integration adapters thin. |
+| PHI | Do not put real claims, names, DOBs, addresses, identifiers or excerpts into docs, tests or reports. Treat `Samples for AI/`, `Output/`, `AI/.sample_runs/` and sample PDFs as sensitive; use synthetic examples. |
+| Python | From the repo root use `.venv-bedrock/Scripts/python.exe` (`python3` is unavailable). |
+
+Baseline checks (last verified 10/15/2026; these are not live RRS/CMS/Unity tests):
+
+```bash
+.venv-bedrock/Scripts/python.exe -m pytest tests/unit -q -p no:cacheprovider
+# Expected: 366 passed, 1 skipped, 56 subtests passed
+.venv-bedrock/Scripts/python.exe -m unittest discover -s Processes/SubjectLineBuilder/Stand-Alone -p "test_*.py"
+# Expected: 36 tests, OK
+```
+
+## Current state
+
+`Final Code/finalcode/orchestrator.py:34` defines `run(*, capture, extract, review, cms, subject_line, on_stage=None, today=None, adapt=None)`. Implemented order: `capture()` → `extract()` → `review()` → `completeness()` gate → `cms()` → one-way field adapter → `subject_line()`. CMS must resolve a nonblank customer before the Subject Line Builder stage. The chain does not persist run data.
+
+| Condition | Outcome / reason | Source |
+| --- | --- | --- |
+| No attachment (`attachment_name is None`) | `ended / no_referral_attached` | `Final Code/finalcode/orchestrator.py:77-78` |
+| Review returns `None` | `ended / operator_cancelled` | `Final Code/finalcode/orchestrator.py:84-88` |
+| Completeness gate is not `Passed` | `ended / incomplete` | `Final Code/finalcode/orchestrator.py:90-96` |
+| Required CMS inputs missing | `failed / missing_cms_inputs` | `Final Code/finalcode/orchestrator.py:98-106` |
+| CMS returns stopped or failed | `stopped` / `failed`, with returned reason (or fallback) | `Final Code/finalcode/orchestrator.py:107-115` |
+| CMS claims completion without a resolved nonblank customer | `failed / exception` | `Final Code/finalcode/orchestrator.py:116-120,135-139` |
+| Callback raises, including `SystemExit` | `failed / exception` | `Final Code/finalcode/orchestrator.py:135-139` |
+
+**Unity is deliberately standalone and is NOT wired into Final Code.** `Final Code/PROCESS-MAP.md` mentions it as prose, but no `.py`, `.spec` or `.ps1` in `Final Code/` references Unity. Its process runs through `Processes/Unity/Stand-Alone/`; do not treat its absence from the chain as a defect.
+
+## Blocked on owner signal or input
+
+- [ ] **FCM-1.1-19 -- Draw the step-4 Visio flowchart only after explicit owner signal.** Follow `Flowcharts/Whole-Process-Visio-Specs.md`; blocked until the signal. Acceptance: owner authorization recorded, diagram checked against the style guide and the agreed process, with the source file reviewed.
+- [ ] **FCM-1.1-20 -- Merge the separate repo's post-Unity process (step 5).** Blocked until the owner supplies its local repository and scope. Acceptance: supplied source mapped, integrated according to the agreed boundary, with process/integration tests and any applicable packaged-build evidence recorded.
+
+## Housekeeping and investigation
+
+- [ ] **FCM-1.1-21 -- Investigate graphify's 27 source files with zero nodes.** A refreshed graph reported 6,899 nodes, 10,529 edges and 801 communities from 336 files; why those 27 produced zero nodes is unverified. Acceptance: enumerate and classify the zero-node files, explain causes with graph/source evidence and record any follow-up as a separate ID.
+- [ ] **FCM-1.1-22 -- Correct stale Final Code plan status.** `Final Code/PLAN.md:9` still says spec only/no code written, despite implemented `Final Code/finalcode/` modules. Acceptance: status reflects implemented scope without overstating live validation; review the doc diff and run relevant documentation/link checks.
+- [ ] **FCM-1.1-23 -- Remove the duplicate claim-type selection in Subject Line Builder Create.** `Processes/SubjectLineBuilder/Deploy-Ready/rrs_ui.py:740-741` calls `select_claim_type('Lost Time')` twice in succession; the duplicate is apparently harmless. The hardcoded **'Lost Time' value is intentional per the owner and must NOT be changed**. Acceptance: only the redundant call is removed, the intended selection still executes and the standalone tests (plus relevant RRS UI tests) pass; live RRS remains unverified unless actually tested.
+- [ ] **FCM-1.1-24 -- Correct the stale Unity EXE statement in the process README.** `Processes/Unity/README.md:21` says "No Unity EXE is built", but commit `0208d01` added `Processes/Unity/Stand-Alone/unity_assignment.spec` and `dist/UnityAssignment.exe` plus its `.sha256` exist on disk. The adjacent sentence -- that `Deploy-Ready/` is integration source rather than an independently packaged EXE -- remains true and should be preserved; only the "no EXE is built" claim is false. Uncovered while archiving FCM-1.1-17. Acceptance: README states where the Unity EXE is built from and what packaging evidence exists, without claiming live Unity validation.
+- [ ] **FCM-1.1-25 -- Audit pre-existing address-like workbench test fixtures.** Address-like strings in `tests/unit/test_workbench.py` were introduced by commit `93a523a` and are already public, not newly introduced by this release; uncovered during the Start-gate release. Acceptance: confirm the fixtures are synthetic and record the evidence, or replace any that are not with clearly fictional placeholders without changing test coverage.
+
+## Next up
+
+Deliberately empty. The owner has not named the next piece of work after Unity; ask instead of assuming or wiring Unity into Final Code.
+
+## Completed
+
+Finished items `FCM-1.1-01` through `FCM-1.1-18` are archived in `docs/completed.md`. Move future finished items out of their active section and append there in ID history with both date markers and test/build evidence; do not renumber.
