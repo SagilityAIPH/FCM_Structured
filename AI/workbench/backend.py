@@ -52,7 +52,7 @@ class WorkbenchAPI:
         self._external_stage = None
         self._external_progress = None
         self._thread = None
-        self._stage = "Ready to import documents"
+        self._stage = "Waiting for RRS capture" if memory_only else "Ready to import documents"
         self._bedrock = "Not tested"
         self._started = None
         self._elapsed = 0
@@ -456,7 +456,8 @@ class WorkbenchAPI:
                 if not self._memory_only or len(identifiers) != 1:
                     raise ValueError("Prepared extraction requires one in-memory workflow document.")
                 doc = self._document(identifiers[0])
-                doc.update(fields=deepcopy(prepared_fields), error="")
+                doc.update(fields=deepcopy(prepared_fields), error="",
+                           sent_characters=len(doc["text"]))
                 self._assess(doc)
                 return True
             if not self._key:
@@ -497,7 +498,8 @@ class WorkbenchAPI:
                     with self._lock:
                         self._progress["done"] += 1
                 with self._lock:
-                    self._stage = "Queue finished. Review validation and Excel save status."
+                    self._stage = ("Queue finished. Review validation." if self._memory_only else
+                                   "Queue finished. Review validation and Excel save status.")
             self._start("Starting extraction…", work)
             return True
 
@@ -592,7 +594,8 @@ class WorkbenchAPI:
     def set_unsaved(self, value):
         # Pushed from React so the close handler never has to query the page:
         # evaluate_js inside pywebview's closing event deadlocks the UI thread.
-        self._unsaved = bool(value)
+        with self._lock:
+            self._unsaved = bool(value)
         return True
 
     @response

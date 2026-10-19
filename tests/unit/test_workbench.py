@@ -41,6 +41,47 @@ def finish(api):
     return api.get_state()['value']
 
 
+def test_prepared_capture_counts_full_text_and_reader_limit_remains_visible(workbench, monkeypatch):
+    reader, file_id, _ = workbench
+    extract(monkeypatch, complete_payload())
+    reader._settings['document_limit'] = 12
+    sent = []
+    original = backend.core.run_reasoning
+    def observed(*args):
+        sent.append(args[2])
+        return original(*args)
+    monkeypatch.setattr(backend.core, 'run_reasoning', observed)
+    assert reader.start_processing([file_id])['ok']
+    assert finish(reader)['stage'] == 'Queue finished. Review validation and Excel save status.'
+    detail = reader.get_document(file_id)['value']
+    assert len(sent[0]) == detail['sent_characters'] == 12
+    assert detail['total_characters'] > detail['sent_characters'] > 0
+
+    memory = WorkbenchAPI(memory_only=True)
+    assert memory.get_state()['value']['stage'] == 'Waiting for RRS capture'
+    assert WorkbenchAPI().get_state()['value']['stage'] == 'Ready to import documents'
+    capture_id = memory._import_text('synthetic capture', 'Synthetic referral captured from RRS.')
+    fields = backend.core.force_exact_field_output(json.dumps(complete_payload()))[1]
+    memory._settings['document_limit'] = 12  # Prepared extraction does not apply this limit.
+    assert memory.start_processing([capture_id], prepared_fields=fields)['ok']
+    captured = memory.get_document(capture_id)['value']
+    assert captured['sent_characters'] == captured['total_characters'] == len(captured['text'])
+    assert captured['sent_characters'] > memory._settings['document_limit']
+    assert captured['workbook'] == ''
+
+
+def test_memory_only_queue_stage_never_claims_excel(workbench, monkeypatch):
+    reader, _, _ = workbench
+    memory = WorkbenchAPI(memory_only=True)
+    memory._key = reader._key
+    monkeypatch.setattr(memory, '_enrich', lambda fields: (fields, []))
+    identifier = memory._import_text('synthetic capture', 'Synthetic captured referral.')
+    extract(monkeypatch, complete_payload())
+    assert memory.start_processing([identifier])['ok']
+    assert finish(memory)['stage'] == 'Queue finished. Review validation.'
+    assert memory.get_document(identifier)['value']['workbook'] == ''
+
+
 def test_import_auto_extracts_enriches_and_saves_daily(workbench, monkeypatch):
     api, identifier, path = workbench
     data = complete_payload()
@@ -546,10 +587,42 @@ def test_pending_review_is_visible_and_approval_returns_edited_fields(workbench,
     thread.start()
     review = _await_review(api)
     assert review['document_id'] == identifier
+    assert review['id'] != identifier
+    assert set(review) == {'id', 'document_id'}
+    review['document_id'] = 'mutated snapshot'
+    assert api.get_state()['value']['pending_review']['document_id'] == identifier
     assert api.answer_review(review['id'], True)['ok']
     thread.join(5)
     assert not thread.is_alive()
     assert answer['fields']['Claim Number'] == complete_payload()['Claim Number']
+    assert answer['fields'] is not api._documents[identifier]['fields']
+    assert api.get_state()['value']['pending_review'] is None
+
+
+def test_approval_returns_saved_fields_from_memory_only_review(monkeypatch):
+    from AI.workbench import window_layout
+    api = WorkbenchAPI(memory_only=True)
+    monkeypatch.setattr(window_layout, 'set_compact', lambda *_: None)
+    monkeypatch.setattr(address_enrichment, 'census_lookup', lambda _: [])
+    identifier = api._import_text('synthetic.txt', 'Synthetic captured text.')
+    fields = backend.core.force_exact_field_output(json.dumps(complete_payload()))[1]
+    assert api.start_processing([identifier], prepared_fields=fields)['ok']
+    returned = {}
+    thread = threading.Thread(target=lambda: returned.update(fields=api.wait_for_review(identifier)), daemon=True)
+    thread.start()
+    review = _await_review(api)
+    try:
+        detail = api.get_document(identifier)['value']
+        assert api.save_fields(identifier, [{'key': 'Accident Description', 'provider_index': None,
+                                            'value': 'Synthetic correction'}], detail['revision'])['ok']
+        finish(api)
+        assert api.set_unsaved(False)['ok']
+        assert api.answer_review(review['id'], True)['ok']
+    finally:
+        api.answer_review(review['id'], False)
+    thread.join(5)
+    assert not thread.is_alive()
+    assert returned['fields']['Accident Description'] == 'Synthetic correction'
     assert api.get_state()['value']['pending_review'] is None
 
 
@@ -563,7 +636,29 @@ def test_review_cancel_returns_none(workbench, monkeypatch):
     review = _await_review(api)
     assert api.answer_review(review['id'], False)['ok']
     thread.join(5)
+    assert not thread.is_alive()
     assert answer['fields'] is None
+    assert api.get_state()['value']['pending_review'] is None
+
+
+def test_unsaved_review_approval_is_rejected_until_saved(workbench, monkeypatch):
+    api, identifier, _ = workbench
+    _extracted(api, identifier, monkeypatch)
+    thread = threading.Thread(target=lambda: api.wait_for_review(identifier), daemon=True)
+    thread.start()
+    review = _await_review(api)
+    try:
+        assert api.set_unsaved(True)['ok']
+        assert api.answer_review(review['id'], True) == {
+            'ok': False, 'error': 'Save field changes before approving.'}
+        assert thread.is_alive()
+        assert api.get_state()['value']['pending_review'] == review
+        assert api.set_unsaved(False)['ok']
+        assert api.answer_review(review['id'], True)['ok']
+    finally:
+        api.answer_review(review['id'], False)
+    thread.join(5)
+    assert not thread.is_alive()
 
 
 def test_polling_and_editing_survive_a_parked_review_worker(workbench, monkeypatch):
@@ -601,8 +696,12 @@ def test_stale_or_unknown_review_identifier_is_rejected(workbench, monkeypatch):
     thread = threading.Thread(target=lambda: api.wait_for_review(identifier), daemon=True)
     thread.start()
     review = _await_review(api)
+    assert not api.answer_review(identifier, True)['ok']  # Document id is not the review UUID.
+    assert not api.answer_review('wrong-review', False)['ok']
+    assert thread.is_alive()
     assert api.answer_review(review['id'], True)['ok']
     thread.join(5)
+    assert not thread.is_alive()
     assert not api.answer_review(review['id'], True)['ok']
 
 

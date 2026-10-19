@@ -28,6 +28,9 @@ export default function App() {
   const [notice, setNotice] = useState('')
   const [error, setError] = useState('')
   const [pending, setPending] = useState(false)
+  const [reviewSubmitting, setReviewSubmitting] = useState(false)
+  const [reviewError, setReviewError] = useState('')
+  const reviewAnswered = useRef<string | null>(null)
   const [draft, setDraft] = useState<Record<string, Edit>>({})
   const [settingsDirty, setSettingsDirty] = useState(false)
   const formRef = useRef<HTMLElement>(null)
@@ -54,7 +57,14 @@ export default function App() {
       await api.set_compact(false)
       next.compact = false
     }
-    if (mounted.current) { setState(next); setSelected(value => value || next.documents[0]?.id || '') }
+    if (next.memory_only && next.pending_review && next.compact) {
+      await api.set_compact(false)
+      next.compact = false
+    }
+    if (mounted.current) {
+      setState(next)
+      setSelected(value => (next.memory_only && next.pending_review?.document_id) || value || next.documents[0]?.id || '')
+    }
   }, [])
   useEffect(() => {
     mounted.current = true
@@ -66,7 +76,11 @@ export default function App() {
     void tick()
     return () => { mounted.current = false; clearTimeout(timer) }
   }, [refresh])
+  const review = state?.memory_only ? state.pending_review : null
   const row = state?.documents.find(d => d.id === selected)
+  useEffect(() => {
+    if (review?.id !== reviewAnswered.current) setReviewError('')
+  }, [review?.id])
   useEffect(() => {
     let active = true
     if (!selected) { setDetail(null); return }
@@ -88,6 +102,25 @@ export default function App() {
     try { await work(await getAPI()); await refresh(); setNotice(success); return true }
     catch (err) { setError((err as Error).message); return false }
     finally { setPending(false) }
+  }
+  const answerReview = async (id: string, approve: boolean) => {
+    if (reviewSubmitting || reviewAnswered.current === id || !state?.memory_only || state.pending_review?.id !== id) return
+    if (approve && (dirty || settingsDirty)) { setReviewError('Save field changes before approving.'); return }
+    if (approve && (busy || !detail || detail.id !== state.pending_review.document_id)) return
+    reviewAnswered.current = id
+    setReviewSubmitting(true); setReviewError('')
+    let answered = false
+    try {
+      const api = await getAPI()
+      if (approve) await api.set_unsaved(false)
+      await api.answer_review(id, approve)
+      answered = true
+      await refresh()
+    } catch (err) {
+      if (!answered) reviewAnswered.current = null
+      const message = (err as Error).message
+      setReviewError(message.includes('Save field changes before approving') ? 'Save field changes before approving.' : message)
+    } finally { setReviewSubmitting(false) }
   }
   const leave = () => !dirty || window.confirm('Discard unsaved field edits?')
   const choose = (id: string) => {
@@ -130,8 +163,8 @@ export default function App() {
       {!state?.key_configured && state ? <div className="setup-banner"><span>Configure Bedrock to start automatic extraction.</span><button onClick={() => show('Settings')}>Open settings</button></div> : null}
       {state?.memory_only && !state.workflow_active && !state.workflow_result ? <div className="setup-banner" role="status">Waiting for Start. Select Start when ready to capture from RRS.</div> : null}
       <CmsSection result={state?.workflow_result} />
-      <FieldForm key={`${shownDetail?.id}-${shownDetail?.revision}`} doc={shownDetail} busy={busy} draft={draft} onDraft={setDraft}
-        onConfirm={index => { if (window.confirm(`Confirm that Provider ${index}'s appointment is correct despite the displayed warnings?`)) void act(api => api.confirm_appointment(selected, index), 'Appointment confirmed and Excel updated.') }}
+      <FieldForm key={`${shownDetail?.id}-${shownDetail?.revision}-${state?.memory_only}`} doc={shownDetail} memoryOnly={!!state?.memory_only} busy={busy} draft={draft} onDraft={setDraft}
+              onConfirm={index => { if (window.confirm(`Confirm that Provider ${index}'s appointment is correct despite the displayed warnings?`)) void act(api => api.confirm_appointment(selected, index), state?.memory_only ? 'Appointment confirmed for this run.' : 'Appointment confirmed and Excel updated.') }}
         onRetrySave={() => void act(api => api.retry_save(selected), 'Daily Excel saved.')} />
       {panels.map(panel => <section id={`group-${panel}`} key={panel} className="extra-group" hidden={!visible.includes(panel)} aria-label={`${panel} group`}>
         <div className="group-heading"><h2>{panel === 'PDF' ? 'Document preview' : panel}</h2><Button variant="ghost" size="icon" aria-label={`Hide ${panel}`} onClick={() => toggle(panel)}><X /></Button></div>
@@ -140,15 +173,15 @@ export default function App() {
         {panel === 'PDF' ? <PdfPreview doc={shownDetail} /> : null}
         {panel === 'Documents' ? <div className="group-content"><div className="document-filters"><Input aria-label="Search documents" placeholder="Search documents or claims…" value={query} onChange={e => setQuery(e.target.value)} /><select aria-label="Filter document status" value={filter} onChange={e => setFilter(e.target.value)}>{['All statuses', 'Ready', 'Queued', 'Processing', 'Completed', 'Needs Review', 'Failed'].map(value => <option key={value}>{value}</option>)}</select></div>
           <div className="document-list">{filtered.map(doc => <div className={cn('document-item', selected === doc.id && 'selected')} key={doc.id}>
-            <button className="document-name" onClick={() => choose(doc.id)} aria-pressed={selected === doc.id}><FileText size={16} /><span><strong>{doc.name}</strong><small>{doc.claimant} · {doc.claim}</small><small>{doc.pages} pages{doc.save_error ? ' · Excel save needs attention' : doc.workbook ? ' · Saved to daily Excel' : ''}</small></span></button>
-            <div className="document-actions"><StatusBadge status={doc.status} />{['Failed', 'Completed', 'Needs Review'].includes(doc.status) ? <Button variant="ghost" size="icon" disabled={busy} aria-label={`Retry extraction for ${doc.name}`} onClick={() => {
+            <button className="document-name" onClick={() => choose(doc.id)} aria-pressed={selected === doc.id}><FileText size={16} /><span><strong>{doc.name}</strong><small>{doc.claimant} · {doc.claim}</small><small>{doc.pages} pages{state?.memory_only ? '' : doc.save_error ? ' · Excel save needs attention' : doc.workbook ? ' · Saved to daily Excel' : ''}</small></span></button>
+            <div className="document-actions"><StatusBadge status={doc.status} />{!state?.memory_only && ['Failed', 'Completed', 'Needs Review'].includes(doc.status) ? <Button variant="ghost" size="icon" disabled={busy} aria-label={`Retry extraction for ${doc.name}`} onClick={() => {
               if ((doc.id !== selected || leave()) && window.confirm('Run extraction again? This creates a new daily Excel record.')) void act(api => api.start_processing([doc.id]))
             }}><RotateCcw /></Button> : null}</div>
           </div>)}</div>{!filtered.length ? <p className="empty-text">{documents.length ? 'No matching documents.' : state?.memory_only ? 'Waiting for the referral capture from RRS.' : 'Open a PDF, DOCX, or TXT document to begin.'}</p> : null}</div> : null}
         {panel === 'Output' ? <div className="group-content">{state?.memory_only ? <p className="output-path">No file output. The referral is captured from RRS and stays in memory for this run.</p> : <><p className="output-path">{state?.output_directory}</p><Button variant="outline" size="sm" disabled={busy} onClick={() => void act(api => api.open_output())}><FolderOpen />Open output folder</Button></>}
           <p className="output-help">{state?.memory_only ? 'Nothing is written to disk. The extraction is handed straight to CMS and the Subject Line Builder.' : 'Every completed extraction is saved to the daily workbook, including Passed and Failed results.'}</p>
           {shownDetail?.groups.length ? <><p className="output-file">{shownDetail.name}</p><div className="export-actions">{['json', 'csv', 'txt'].map(kind => <Button key={kind} variant="outline" size="sm" disabled={busy || dirty} onClick={() => void act(api => api.export_document(selected, kind))}><ArrowDownToLine />{kind.toUpperCase()}</Button>)}</div>
-          {shownDetail.save_error ? <div className="note warning"><p>{shownDetail.save_error}</p><Button variant="outline" size="sm" disabled={busy} onClick={() => void act(api => api.retry_save(selected), 'Daily Excel saved.')}>Retry Excel save</Button></div> : null}</> : <p className="empty-text">Extracted output will be available here.</p>}</div> : null}
+          {shownDetail.save_error && !state?.memory_only ? <div className="note warning"><p>{shownDetail.save_error}</p><Button variant="outline" size="sm" disabled={busy} onClick={() => void act(api => api.retry_save(selected), 'Daily Excel saved.')}>Retry Excel save</Button></div> : null}</> : <p className="empty-text">Extracted output will be available here.</p>}</div> : null}
       </section>)}
     </main>
     {state?.pending_prompt && <LivePrompt key={state.pending_prompt.id} prompt={state.pending_prompt} answer={async (id, value) => {
@@ -156,7 +189,12 @@ export default function App() {
       await refresh()
     }} />}
     <footer className="bottom-dock">
-      <div className="save-row"><Button size="sm" disabled={busy || !dirty || !shownDetail} onClick={() => void act(api => api.save_fields(selected, edits, shownDetail!.revision), 'Changes saved. Address checks and validation run automatically.')}><Save />Save field changes{dirty ? ` (${edits.length})` : ''}</Button><span>{dirty ? 'Unsaved edits' : shownDetail?.save_error ? 'Excel save failed' : shownDetail?.workbook ? 'Saved to daily Excel' : 'Awaiting extraction'}</span></div>
+      <div className="save-row"><Button size="sm" disabled={busy || !dirty || !shownDetail} onClick={() => void act(api => api.save_fields(selected, edits, shownDetail!.revision), 'Changes saved. Address checks and validation run automatically.')}><Save />Save field changes{dirty ? ` (${edits.length})` : ''}</Button><span>{dirty ? 'Unsaved edits' : state?.memory_only ? shownDetail ? 'Changes kept in memory' : 'Awaiting RRS capture' : shownDetail?.save_error ? 'Excel save failed' : shownDetail?.workbook ? 'Saved to daily Excel' : 'Awaiting extraction'}</span></div>
+      {state?.memory_only && state.pending_review ? <div className="review-row" role="group" aria-label="Attended review actions">
+        <div className="review-actions"><Button size="sm" disabled={busy || reviewSubmitting || reviewAnswered.current === state.pending_review.id || dirty || settingsDirty || !shownDetail || shownDetail.id !== state.pending_review.document_id} onClick={() => void answerReview(state.pending_review!.id, true)}><CheckCheck />Approve and continue</Button>
+          <Button size="sm" variant="outline" disabled={reviewSubmitting || reviewAnswered.current === state.pending_review.id} onClick={() => void answerReview(state.pending_review!.id, false)}>Cancel run</Button></div>
+        {reviewError ? <span className="review-hint" role="alert">{reviewError}</span> : dirty || settingsDirty ? <span className="review-hint">Save field changes before approving.</span> : null}
+      </div> : null}
       <div className="processing-status" role="status"><span title={state?.stage}>{busy ? <LoaderCircle size={12} className="animate-spin" /> : null}{state?.stage || 'Connecting to desktop…'}</span><small>{progress.total ? `${progress.done}/${progress.total} complete · ` : ''}{state?.elapsed.toFixed(1) || '0.0'}s</small></div>
       <div className="progress-wrap"><progress className="processing-progress" aria-label="Processing progress" aria-valuetext={indeterminate ? state?.stage : `${progress.done} of ${progress.total} documents complete`} max={progress.total || 1} value={indeterminate ? undefined : progress.done} />{indeterminate ? <span className="progress-indicator" aria-hidden="true" /> : null}</div>
       <div className="connection-status">Bedrock: {state?.bedrock || '—'}</div>

@@ -88,6 +88,47 @@ def test_review_cancel_returns_none_so_orchestrator_ends_the_run():
     assert app.make_review(api, app.CaptureHolder())({}) is None
 
 
+def test_cancelled_review_handoff_ends_orchestrator_without_downstream_calls():
+    from AI.workbench.backend import WorkbenchAPI
+    from finalcode import orchestrator
+    from tests.unit.test_referral_schema import complete_payload
+    from AI.workbench import backend
+    import json
+    import time
+
+    api = WorkbenchAPI(memory_only=True)
+    fields = backend.core.force_exact_field_output(json.dumps(complete_payload()))[1]
+    holder = app.CaptureHolder()
+    called = []
+    outcome = {}
+    thread = threading.Thread(target=lambda: outcome.update(result=orchestrator.run(
+        capture=app.make_capture(lambda: {'attachment_name': 'synthetic.txt',
+                                           'document_text': 'Synthetic captured text.'}, holder),
+        extract=lambda text: fields, review=app.make_review(api, holder),
+        cms=lambda _: called.append('CMS'), subject_line=lambda _: called.append('SLB'))), daemon=True)
+    thread.start()
+    deadline = time.monotonic() + 5
+    review = None
+    try:
+        while time.monotonic() < deadline:
+            review = api.get_state()['value']['pending_review']
+            if review:
+                break
+            time.sleep(.01)
+        assert review and thread.is_alive()
+        assert api.answer_review(review['id'], False)['ok']
+    finally:
+        if review:
+            api.answer_review(review['id'], False)
+    thread.join(5)
+    assert not thread.is_alive()
+    assert outcome['result']['outcome'] == 'ended'
+    assert outcome['result']['reason'] == 'operator_cancelled'
+    assert outcome['result']['stages'] == ['CAPTURE', 'EXTRACT', 'REVIEW']
+    assert called == []
+    assert api.get_state()['value']['pending_review'] is None
+
+
 def test_review_raises_the_redacted_bridge_error():
     api = ReviewApi(None, fail_import=True)
     with pytest.raises(RuntimeError, match="Synthetic import failure"):
@@ -234,5 +275,6 @@ def test_reader_api_has_no_attended_entry_point():
     api = WorkbenchAPI(memory_only=False)
     state = api.get_state()["value"]
     assert state["memory_only"] is False
+    assert state["pending_review"] is None
     assert "workflow_active" not in state
     assert not hasattr(api, "start_attended")

@@ -2,7 +2,7 @@
 import type { API, DocumentDetail, Field, State } from '@/types'
 
 const state: State = {
-  documents: [], busy: false, compact: false, memory_only: false, workflow_active: false, stage: 'Preview mode · example data only', bedrock: 'Preview only', elapsed: 0,
+  documents: [], busy: false, compact: false, memory_only: false, pending_review: null, workflow_active: false, stage: 'Preview mode · example data only', bedrock: 'Preview only', elapsed: 0,
   progress: {done: 0, total: 0}, key_configured: true, output_directory: 'Preview / Output / AI',
   settings: {region: 'us-east-2', model: 'openai.gpt-oss-120b-1:0', max_tokens: 32768, temperature: 0, document_limit: 100000},
 }
@@ -28,6 +28,7 @@ function sync() { state.documents = Array.from(records.values()).map(copy) }
 export const previewAPI: API = {
   async get_state() { return copy(state) },
   async start_attended() { throw new Error('Attended runs require Final Code.') },
+  async answer_review() { throw new Error('Attended reviews require Final Code.') },
   async set_workflow_result(result) { state.workflow_result = copy(result); return true },
   async answer_prompt(id, answer) {
     if (!state.pending_prompt || state.pending_prompt.id !== id) throw new Error('Prompt is no longer pending.')
