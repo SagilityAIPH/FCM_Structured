@@ -164,3 +164,75 @@ def test_self_test_entry_point_reports_and_exits_zero(tmp_path):
     report = tmp_path / "selftest.json"
     assert app.main(["--self-test", "--report", str(report)]) == 0
     assert '"outcome": "completed"' in report.read_text(encoding="utf-8")
+
+
+def test_launch_waits_for_operator_even_after_frontend_loaded(monkeypatch):
+    from AI.workbench import launcher
+    captured = {}
+
+    def fake_window(**kwargs):
+        captured.update(kwargs)
+        if kwargs.get("on_loaded"):
+            kwargs["on_loaded"]()
+
+    monkeypatch.setattr(launcher, "launch_window", fake_window)
+    monkeypatch.setattr(app, "build_live_callables", lambda *a, **k: pytest.fail("built before Start"))
+    api = app.launch()
+    assert captured["api"] is api
+    assert "on_loaded" not in captured
+    assert api.get_state()["value"]["stage"] == "Waiting for Start"
+    assert api.get_state()["value"]["workflow_active"] is False
+
+
+def test_operator_start_runs_injected_chain_and_rejects_concurrent_start(monkeypatch):
+    from finalcode.api import FinalCodeAPI
+    entered, release = threading.Event(), threading.Event()
+    calls = []
+
+    def capture():
+        calls.append("CAPTURE")
+        entered.set()
+        assert release.wait(timeout=10)
+        return {}
+
+    fake = dict(capture=capture, extract=lambda text: calls.append("EXTRACT"),
+                review=lambda fields: calls.append("REVIEW"), cms=lambda fields: calls.append("CMS"),
+                subject_line=lambda fields: calls.append("SUBJECT LINE BUILDER"))
+    def runner(**kwargs):
+        for name in ("capture", "extract", "review", "cms", "subject_line"):
+            kwargs[name](None) if name != "capture" else kwargs[name]()
+        return {"outcome": "completed", "reason": "completed", "stages": list(calls)}
+
+    from finalcode import orchestrator
+    monkeypatch.setattr(orchestrator, "run", runner)
+    monkeypatch.setattr("finalcode.api.build_live_callables", lambda api, **kwargs: fake)
+    api = FinalCodeAPI()
+    assert api.start_attended() == {"ok": True, "value": True}
+    assert entered.wait(timeout=10)
+    try:
+        assert api.get_state()["value"]["workflow_active"] is True
+        assert api.start_attended() == {"ok": False, "error": "The attended run is already active."}
+        assert calls == ["CAPTURE"]
+    finally:
+        release.set()
+    # Poll the published result instead of assuming the worker finished as soon as capture returns.
+    import time
+    end = time.monotonic() + 10
+    while api.get_state()["value"]["workflow_result"] is None and time.monotonic() < end:
+        time.sleep(.01)
+    state = api.get_state()["value"]
+    assert state["workflow_result"]["outcome"] == "completed"
+    end = time.monotonic() + 10
+    while api.get_state()["value"]["workflow_active"] and time.monotonic() < end:
+        time.sleep(.01)
+    assert api.get_state()["value"]["workflow_active"] is False
+    assert calls == ["CAPTURE", "EXTRACT", "REVIEW", "CMS", "SUBJECT LINE BUILDER"]
+
+
+def test_reader_api_has_no_attended_entry_point():
+    from AI.workbench.backend import WorkbenchAPI
+    api = WorkbenchAPI(memory_only=False)
+    state = api.get_state()["value"]
+    assert state["memory_only"] is False
+    assert "workflow_active" not in state
+    assert not hasattr(api, "start_attended")

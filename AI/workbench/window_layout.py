@@ -24,13 +24,17 @@ def constrain_window(window):
     """Set native limits on the UI thread, including on DPI/work-area changes."""
     from System import Action
     from System.Drawing import Size
-    from System.Windows.Forms import Screen
+    from System.Windows.Forms import FormWindowState, Screen
 
     form = window.native
     compact = False
     normal_height = WINDOW_HEIGHT
 
     def apply(initial=False, restore=False):
+        # A minimized WinForms form reports 160x28 at (-32000, -32000).
+        # Changing limits or position here destroys its normal RestoreBounds.
+        if form.WindowState == FormWindowState.Minimized:
+            return
         # WinForms reports physical sizes; preserve a 480px logical width at 96 DPI.
         scale = form.DeviceDpi / 96.0
         width = round(WINDOW_WIDTH * scale)
@@ -58,7 +62,7 @@ def constrain_window(window):
             nonlocal compact, normal_height
             if value == compact:
                 return
-            if value:
+            if value and form.WindowState != FormWindowState.Minimized:
                 normal_height = form.Height / (form.DeviceDpi / 96.0)
             compact = value
             apply(restore=not value)

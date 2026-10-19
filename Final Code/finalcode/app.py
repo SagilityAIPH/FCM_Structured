@@ -12,8 +12,8 @@ Threading contract, which is the whole reason this module is careful:
     continuously. The orchestrator blocks for minutes - RRS capture, a Bedrock
     call, an unbounded operator review, then CMS and the Subject Line Builder -
     so it must never run on the UI thread.
-  * The workflow therefore runs on a daemon thread started from the window's
-    loaded event. It blocks in api.wait_for_review() and api.confirm(), both of
+  * The workflow therefore runs on a daemon thread started by the operator's
+    Start action. It blocks in api.wait_for_review() and api.confirm(), both of
     which register their waiter under the state lock and then release it before
     waiting on an Event. get_state() keeps answering while the worker is parked,
     so the operator can actually reach the button that unblocks the run.
@@ -172,28 +172,30 @@ def run_workflow(api, *, capture, extract, review, cms, subject_line,
     return result
 
 
-def start_workflow(api, callables, *, thread_factory=None, **kwargs):
+def start_workflow(api, callables, *, thread_factory=None, on_finished=None, **kwargs):
     """Run the workflow off the UI thread. Returns the worker thread."""
     factory = thread_factory if thread_factory is not None else threading.Thread
-    thread = factory(target=lambda: run_workflow(api, **callables, **kwargs), daemon=True)
+    def worker():
+        try:
+            run_workflow(api, **callables, **kwargs)
+        finally:
+            if on_finished is not None:
+                on_finished()
+    thread = factory(target=worker, daemon=True)
     thread.start()
     return thread
 
 
 def launch(*, app=None, runtime=None, root=None):
-    """Open the window and start one attended run when the frontend loads."""
+    """Open the window idle until the operator starts the attended run."""
     bootstrap_paths(root)
-    from AI.workbench.backend import WorkbenchAPI
     from AI.workbench.launcher import launch_window
+    from .api import FinalCodeAPI
 
     # memory_only keeps the run off disk and is what start_processing requires
     # before it will accept prepared_fields.
-    api = WorkbenchAPI(memory_only=True)
-
-    def on_loaded():
-        start_workflow(api, build_live_callables(api, app=app, runtime=runtime))
-
-    launch_window(api=api, on_loaded=on_loaded, title=WINDOW_TITLE)
+    api = FinalCodeAPI(app=app, runtime=runtime)
+    launch_window(api=api, title=WINDOW_TITLE)
     return api
 
 

@@ -296,6 +296,68 @@ def test_text_capture_can_extract_save_fields_validate_and_export(workbench, mon
     assert 'SYNTHETIC-TEXT-ONLY' in target.read_text(encoding='utf-8')
 
 
+def test_minimized_layout_preserves_restore_bounds_and_compact_height(monkeypatch):
+    from AI.workbench import window_layout
+
+    class Size:
+        def __init__(self, width, height):
+            self.Width, self.Height = width, height
+
+    class Event:
+        def __init__(self):
+            self.handler = None
+        def __iadd__(self, handler):
+            self.handler = handler
+            return self
+
+    class Form:
+        DeviceDpi = 96
+        InvokeRequired = False
+        WindowState = 'Normal'
+        Left = 78
+        Top = 78
+        MaximizeBox = True
+        def __init__(self):
+            self.Size = Size(480, 900)
+            self.MinimumSize = Size(0, 0)
+            self.MaximumSize = Size(0, 0)
+            self.DpiChanged = Event()
+            self.ResizeEnd = Event()
+        @property
+        def Height(self):
+            return self.Size.Height
+        def BeginInvoke(self, callback):
+            callback()
+
+    form = Form()
+    screen = SimpleNamespace(FromControl=lambda _: SimpleNamespace(
+        WorkingArea=SimpleNamespace(Height=1392, Left=0, Top=0, Right=1920, Bottom=1392)))
+    monkeypatch.setitem(sys.modules, 'System', SimpleNamespace(Action=lambda callback: callback))
+    monkeypatch.setitem(sys.modules, 'System.Drawing', SimpleNamespace(Size=Size))
+    monkeypatch.setitem(sys.modules, 'System.Windows.Forms', SimpleNamespace(
+        FormWindowState=SimpleNamespace(Minimized='Minimized'), Screen=screen))
+    window = SimpleNamespace(native=form)
+    window_layout.constrain_window(window)
+    assert (form.Size.Width, form.Size.Height) == (480, 900)
+    form.WindowState = 'Minimized'
+    form.Size = Size(160, 28)
+    form.Left = form.Top = -32000
+    assert form.ResizeEnd.handler is not None
+    form.ResizeEnd.handler()
+    assert (form.Size.Width, form.Size.Height, form.Left, form.Top) == (160, 28, -32000, -32000)
+    window._set_compact_layout(True)
+    assert form.Size.Height == 28
+    form.WindowState = 'Normal'
+    form.Size = Size(480, 900)  # WinForms applies its intact RestoreBounds.
+    form.Left = form.Top = 78
+    window._set_compact_layout(False)
+    assert (form.Size.Width, form.Size.Height) == (480, 900)
+    window._set_compact_layout(True)
+    assert form.Size.Height == window_layout.COMPACT_HEIGHT
+    window._set_compact_layout(False)
+    assert form.Size.Height == 900
+
+
 def test_compact_state_headless_and_injected_resize(workbench):
     api, _, _ = workbench
     assert api.get_state()['value']['compact'] is False

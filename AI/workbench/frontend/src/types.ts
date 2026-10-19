@@ -4,7 +4,7 @@ export interface DocumentRow { id: string; name: string; status: Status; pages: 
 export type Outcome = 'completed' | 'ended' | 'stopped' | 'failed'
 export interface WorkflowResult { outcome: Outcome; reason: string | null; customer: string | null; cases: {cms_caseNum?: string; caseType?: string; case_status?: string; message?: string}[]; missing_fields: string[]; confirmation_required?: string[]; stages: string[]; payloads: Record<string, unknown>; error?: {stage: string; type: string; message: string} }
 export interface PendingPrompt { id: string; kind: 'notify' | 'confirm'; title: string; message: string }
-export interface State { workflow_result?: WorkflowResult | null; pending_prompt?: PendingPrompt | null; documents: DocumentRow[]; busy: boolean; compact: boolean; memory_only: boolean; stage: string; bedrock: string; elapsed: number; progress: { done: number; total: number }; settings: Settings; key_configured: boolean; output_directory: string }
+export interface State { workflow_result?: WorkflowResult | null; pending_prompt?: PendingPrompt | null; documents: DocumentRow[]; busy: boolean; compact: boolean; memory_only: boolean; workflow_active?: boolean; stage: string; bedrock: string; elapsed: number; progress: { done: number; total: number }; settings: Settings; key_configured: boolean; output_directory: string }
 export type ClassificationSource = 'AI' | 'Rules' | 'Manual' | 'None'
 export interface Field { key: string; label: string; value: string; display_value?: string | null; provider_index: number | null; confidence: number | null; manual: boolean; optional: boolean; conditional: boolean; source?: ClassificationSource | null }
 export interface Classification { field: string; value: string; source: ClassificationSource; ai_value: string; rule_value: string; review: string; list: 'RRS' | 'provisional' }
@@ -14,6 +14,7 @@ export interface Validation { status: 'Passed' | 'Failed'; missing_fields: strin
 export interface DocumentDetail extends DocumentRow { groups: {name: string; fields: Field[]}[]; preview_message?: string | null; is_pdf: boolean; text: string; raw: string; record_id: string | null; validation: Validation | null; address_report: AddressReport[]; name_inference: Record<string, unknown>[]; address_review: AddressReport[]; classification: Classification[]; edits: {key: string; provider_index: number | null; before: string; after: string; at: string}[]; sent_characters: number; total_characters: number }
 export interface API {
   get_state(): Promise<State>
+  start_attended(): Promise<boolean>
   answer_prompt(id: string, answer: boolean): Promise<boolean>
   set_workflow_result(result: WorkflowResult | null): Promise<boolean>
   set_compact(value: boolean): Promise<boolean>

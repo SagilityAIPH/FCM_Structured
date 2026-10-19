@@ -106,9 +106,9 @@ export default function App() {
   const filtered = documents.filter(d => (filter === 'All statuses' || d.status === filter) && `${d.name} ${d.claim} ${d.claimant}`.toLowerCase().includes(query.toLowerCase()))
   const shownDetail = detail?.id === selected ? detail : null
   const progress = state?.progress || {done: 0, total: 0}
-  const indeterminate = busy && (progress.total === 0 || progress.done === progress.total || !!state?.stage.startsWith('Checking missing addresses'))
+  const indeterminate = (busy || !!state?.workflow_active) && (progress.total === 0 || progress.done === progress.total || !!state?.stage.startsWith('Checking missing addresses'))
   return <div className={cn("compact-shell", compact && "is-compact")}>
-    <header className="app-header"><div className="title-row"><span className="app-icon"><FileText size={19} /></span><div><h1>{state?.memory_only ? 'Referral Intake' : 'AI PDF Reader'}</h1><p>{state?.memory_only ? 'Captured from RRS' : 'Referral intake form'}</p></div>{state?.memory_only ? null : <Button size="sm" disabled={busy || !state} onClick={() => {
+    <header className="app-header"><div className="title-row"><span className="app-icon"><FileText size={19} /></span><div><h1>{state?.memory_only ? 'Referral Intake' : 'AI PDF Reader'}</h1><p>{state?.memory_only ? 'Captured from RRS' : 'Referral intake form'}</p></div>{state?.memory_only ? <Button size="sm" disabled={!state || busy || !!state.workflow_active} onClick={() => void act(api => api.start_attended())}>Start</Button> : <Button size="sm" disabled={busy || !state} onClick={() => {
       if (leave()) void act(async api => {
         const ids = await api.choose_documents()
         if (ids[0]) {
@@ -128,6 +128,7 @@ export default function App() {
       {error ? <div className="message error" role="alert"><CircleAlert size={15} /><span>{error}</span><button aria-label="Dismiss error" onClick={() => setError('')}><X size={14} /></button></div> : null}
       {notice ? <div className="message success" role="status"><CheckCheck size={15} /><span>{notice}</span><button aria-label="Dismiss message" onClick={() => setNotice('')}><X size={14} /></button></div> : null}
       {!state?.key_configured && state ? <div className="setup-banner"><span>Configure Bedrock to start automatic extraction.</span><button onClick={() => show('Settings')}>Open settings</button></div> : null}
+      {state?.memory_only && !state.workflow_active && !state.workflow_result ? <div className="setup-banner" role="status">Waiting for Start. Select Start when ready to capture from RRS.</div> : null}
       <CmsSection result={state?.workflow_result} />
       <FieldForm key={`${shownDetail?.id}-${shownDetail?.revision}`} doc={shownDetail} busy={busy} draft={draft} onDraft={setDraft}
         onConfirm={index => { if (window.confirm(`Confirm that Provider ${index}'s appointment is correct despite the displayed warnings?`)) void act(api => api.confirm_appointment(selected, index), 'Appointment confirmed and Excel updated.') }}
