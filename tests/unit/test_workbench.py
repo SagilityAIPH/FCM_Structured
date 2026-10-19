@@ -709,3 +709,98 @@ def test_review_requires_an_extracted_document(workbench):
     api, identifier, _ = workbench
     with pytest.raises(ValueError, match='Extract this document first'):
         api.wait_for_review(identifier)
+
+
+def test_cms_credential_prompt_is_keyed_private_and_lock_free(workbench, monkeypatch):
+    from AI.workbench import window_layout
+    api, _, _ = workbench
+    api._memory_only = True
+    api._compact = True
+    polled = threading.Event()
+
+    def resize(window, compact):
+        reader = threading.Thread(target=lambda: (api.get_state(), polled.set()), daemon=True)
+        reader.start()
+        assert polled.wait(2), 'Resize held the state lock'
+        assert compact is False
+
+    monkeypatch.setattr(window_layout, 'set_compact', resize)
+    returned = []
+    worker = threading.Thread(target=lambda: returned.append(api.request_cms_credentials()), daemon=True)
+    worker.start()
+    assert polled.wait(2)
+    prompt = api.get_state()['value']['pending_prompt']
+    assert prompt['kind'] == 'credentials'
+    assert worker.is_alive()
+    assert not api.answer_prompt('stale-id', {'username': 'synthetic-user', 'password': 'synthetic-secret'})['ok']
+    with pytest.raises(RuntimeError, match='already pending'):
+        api.confirm('Concurrent prompt', 'Synthetic instruction')
+    wrong = api.answer_prompt(prompt['id'], {'username': '', 'password': 'synthetic-secret'})
+    assert not wrong['ok'] and 'synthetic-secret' not in wrong['error']
+    assert not api.answer_prompt(prompt['id'], True)['ok']
+    assert not api.set_compact(True)['ok']
+    # An independent thread polls while the worker is parked on its Event.
+    seen = []
+    poll = threading.Thread(target=lambda: seen.append(api.get_state()['value']), daemon=True)
+    poll.start(); poll.join(2)
+    assert seen and seen[0]['pending_prompt']['id'] == prompt['id']
+    assert 'synthetic-secret' not in json.dumps(seen)
+    assert api.answer_prompt(prompt['id'], {'username': 'synthetic-user', 'password': 'synthetic-secret', 'remember': False}) == {'ok': True, 'value': True}
+    worker.join(2)
+    assert not worker.is_alive()
+    assert returned == [('synthetic-user', 'synthetic-secret')]
+    assert 'synthetic-secret' not in json.dumps(api.get_state())
+    stale = api.answer_prompt(prompt['id'], {'username': 'synthetic-user', 'password': 'synthetic-secret'})
+    assert not stale['ok'] and 'synthetic-secret' not in str(stale)
+    assert api.get_state()['value']['compact'] is False
+
+
+def test_cms_credential_cancel_and_reader_isolation(workbench):
+    reader, _, _ = workbench
+    with pytest.raises(RuntimeError, match='attended'):
+        reader.request_cms_credentials()
+    assert reader.get_state()['value']['pending_prompt'] is None
+    api = WorkbenchAPI(memory_only=True)
+    answers = []
+    worker = threading.Thread(target=lambda: answers.append(api.request_cms_credentials()), daemon=True)
+    worker.start()
+    deadline = time.monotonic() + 2
+    while not api.get_state()['value']['pending_prompt'] and time.monotonic() < deadline:
+        time.sleep(.01)
+    prompt = api.get_state()['value']['pending_prompt']
+    assert prompt and api.answer_prompt(prompt['id'], None)['ok']
+    worker.join(2)
+    assert answers == [None]
+
+
+def test_final_code_cms_wiring_requests_credentials_before_search(monkeypatch):
+    import importlib.util
+    from pathlib import Path
+    import sys
+    from unittest.mock import Mock
+    path = Path(__file__).resolve().parents[2] / 'Final Code' / 'finalcode' / 'live_wiring.py'
+    spec = importlib.util.spec_from_file_location('synthetic_cms_wiring', path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    make_cms = module.make_cms
+    calls = []
+    session = SimpleNamespace(set_credentials=lambda user, secret: calls.append(('set', bool(user), bool(secret))), CmsAuthenticationRejected=type('CmsAuthenticationRejected', (RuntimeError,), {}))
+    runner = SimpleNamespace(run_live=lambda data, **kwargs: (calls.append(('search',)), {'status': 'completed'})[1])
+    monkeypatch.setitem(sys.modules, 'fcm_intake.cms.session', session)
+    monkeypatch.setitem(sys.modules, 'fcm_intake.workflows.reopen_flow', runner)
+    api = WorkbenchAPI(memory_only=True)
+    monkeypatch.setattr(api, 'request_cms_credentials', lambda: ('synthetic-user', 'synthetic-secret'))
+    cms = make_cms(notify=api.notify, confirm=api.confirm)
+    assert cms({'customer': 'SYNTHETIC'})['status'] == 'completed'
+    assert calls == [('set', True, True), ('search',), ('set', False, False)]
+    calls.clear()
+    monkeypatch.setattr(api, 'request_cms_credentials', lambda: None)
+    assert cms({'customer': 'SYNTHETIC'})['reason'] == 'cms_sign_in_cancelled'
+    assert not calls
+    monkeypatch.setattr(api, 'request_cms_credentials', lambda: ('synthetic-user', 'synthetic-secret'))
+    runner.run_live = Mock(side_effect=RuntimeError('synthetic-secret'))
+    failing_cms = make_cms(notify=api.notify, confirm=api.confirm)
+    with pytest.raises(RuntimeError) as caught:
+        failing_cms({'customer': 'SYNTHETIC'})
+    assert 'synthetic-secret' not in str(caught.value)
+    assert calls[-1] == ('set', False, False)

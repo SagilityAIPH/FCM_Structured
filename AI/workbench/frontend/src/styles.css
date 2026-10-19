@@ -165,3 +165,18 @@ select { min-width: 0; border: 1px solid #e2e8f0; border-radius: 5px; height: 29
 .is-compact .app-header { padding-block: 8px; }
 .is-compact .bottom-dock { padding-bottom: 8px; }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
+
+/* Operator actions remain outside the scrolling form and below the title bar. */
+.urgent-banner { flex-shrink: 0; max-height: min(55dvh, 320px); overflow-y: auto; padding: 10px 13px; border-bottom: 2px solid #d97706; background: #fffbeb; color: #78350f; font-size: 11px; line-height: 1.5; overflow-wrap: anywhere; }
+.urgent-banner > strong { margin-left: 7px; font-size: 12px; }
+.urgent-banner p { margin: 5px 0; }
+.urgent-copy { margin-top: 5px; }
+.urgent-actions { display: flex; gap: 7px; flex-wrap: wrap; margin-top: 7px; }
+.urgent-credentials { display: grid; gap: 6px; margin-top: 8px; }
+.urgent-credentials label { display: grid; gap: 3px; }
+.urgent-credentials input { width: 100%; max-width: 400px; background: white; }
+.attention-marker, .start-attention { color: #b45309; }
+.attention-marker { display: inline-block; width: 9px; height: 9px; border-radius: 50%; background: #b45309; animation: attention-pulse 1.1s ease-in-out infinite alternate; }
+.start-attention { flex-shrink: 0; display: inline-flex; align-items: center; animation: attention-pulse 1.1s ease-in-out infinite alternate; }
+@keyframes attention-pulse { from { opacity: 1; } to { opacity: .35; } }
+@media (prefers-reduced-motion: reduce) { .attention-marker, .start-attention { animation: none; } }

@@ -296,6 +296,10 @@ def _looks_logged_in(driver):
         return False
 
 
+class CmsAuthenticationRejected(RuntimeError):
+    """Login remained on the sign-in page; never carry entered values in errors."""
+
+
 def init_shared_cms_session(username: str | None = None, password: str | None = None):
     global _logged_in
     with _lock:
@@ -330,6 +334,14 @@ def init_shared_cms_session(username: str | None = None, password: str | None = 
         report_status('Submitting CMS login.')
         element_click(login_btn)
         time.sleep(3)
+        # A rejected password leaves the browser on Login.aspx. Detect this
+        # before any search so a remembered value cannot loop indefinitely.
+        # Only retry a known authentication rejection. Other CMS failures stop.
+        if isinstance(driver.current_url, str) and "Login.aspx" in driver.current_url:
+            try:
+                WebDriverWait(driver, 8).until(_looks_logged_in)
+            except TimeoutException:
+                raise CmsAuthenticationRejected("CMS sign-in was rejected.") from None
         _logged_in = True
         return driver
 

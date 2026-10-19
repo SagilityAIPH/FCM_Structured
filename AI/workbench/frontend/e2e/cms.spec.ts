@@ -54,16 +54,14 @@ for (const choice of ['Yes', 'No', 'Acknowledge'] as const) test(`live ${choice}
       return true
     }
   }, choice)
-  const dialog = page.getByRole('dialog', {name: 'Synthetic live prompt'})
+  const dialog = page.getByRole('status', {name: 'Action required', exact: true})
   await expect(dialog).toBeVisible()
+  await expect(dialog).toContainText('Synthetic live prompt')
   await expect(page.locator('.compact-shell')).not.toHaveClass(/is-compact/)
   expect(await dialog.evaluate(el => {
     const rect = el.getBoundingClientRect()
-    return el.contains(document.elementFromPoint(rect.x + rect.width / 2, rect.y + rect.height / 2)) && !document.querySelector('#root')!.contains(el) && Number(getComputedStyle(el).zIndex) >= 50 && rect.left >= 0 && rect.right <= innerWidth && rect.top >= 0 && rect.bottom <= innerHeight
+    return rect.top < 100 && rect.left >= 0 && rect.right <= innerWidth && rect.bottom <= innerHeight
   })).toBeTruthy()
-  await page.keyboard.press('Escape')
-  await expect(dialog).toBeVisible()
-  await expect(dialog.getByRole('button', {name: 'Close', exact: true})).toBeHidden()
   await dialog.getByRole('button', {name: choice, exact: true}).click()
   await expect(dialog).toHaveCount(0)
   await expect(page.locator('html')).toHaveAttribute('data-prompt-answer', JSON.stringify({id: 'synthetic-prompt', answer: choice !== 'No'}))

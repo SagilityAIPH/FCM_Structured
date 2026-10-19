@@ -33,10 +33,46 @@ def make_extract(*, client_factory, model_id, max_tokens, temperature=0.0):
     return invoke
 
 
-def make_cms(*, app=None, notify=None, confirm=None):
+def make_cms(*, app=None, notify=None, confirm=None, credentials=None):
     from fcm_intake.workflows.reopen_flow import run_live
 
     def invoke(data):
+        # The standalone CMS launcher supplies these separately; Final Code has
+        # no standalone login window. Request them before opening the CMS browser.
+        # Final Code passes api.notify as a bound callback; standalone callers
+        # without that bridge retain their existing credential setup.
+        source = getattr(notify, "__self__", None)
+        ask = credentials or (source.request_cms_credentials if getattr(source, "_memory_only", False)
+                              and hasattr(source, "request_cms_credentials") else None)
+        if ask is not None:
+            from fcm_intake.cms.session import set_credentials, CmsAuthenticationRejected
+            remembered = (credentials is None and source is not None and getattr(source, "_memory_only", False)
+                          and bool(source._secrets.load("cms")))
+            # No automatic retry for newly typed credentials or other failures.
+            try:
+                for attempt in range(2 if remembered else 1):
+                    pair = ask() if attempt == 0 else source.request_cms_credentials(retry=True)  # type: ignore[union-attr]
+                    if pair is None:
+                        return {"status": "stopped", "reason": "cms_sign_in_cancelled", "customer": data.get("customer", ""), "cases": []}
+                    try:
+                        set_credentials(*pair)
+                        del pair
+                        try:
+                            return run_live(data, app=app, notify=notify, confirm=confirm, stage="all")
+                        except Exception as error:
+                            if isinstance(error, CmsAuthenticationRejected):
+                                if source is not None and hasattr(source, "_secrets"):
+                                    source._secrets.forget("cms")
+                                if not remembered or attempt:
+                                    raise RuntimeError("CMS sign-in was rejected. Check the credentials and try again.") from None
+                                continue
+                            raise RuntimeError("CMS processing failed. Check the CMS window and contact support if needed.") from None
+                    finally:
+                        set_credentials("", "")
+            finally:
+                if source is not None and hasattr(source, "_cms_secrets"):
+                    with source._lock:
+                        source._cms_secrets.clear()
         return run_live(data, app=app, notify=notify, confirm=confirm, stage="all")
     return invoke
 

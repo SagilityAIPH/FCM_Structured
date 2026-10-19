@@ -20,6 +20,7 @@ from AI.daily_output import output_directory, save_daily_output
 from AI.injury_classification import classify
 from AI.provider_records import provider_summary, provider_display_name
 from AI.referral_schema import FIELD_GROUPS, OPTIONAL_FIELDS, PROVIDER_FIELDS, DERIVED_FIELDS, output_key, clean_value
+from AI.workbench.secret_store import SecretStore
 
 
 def response(method):
@@ -47,6 +48,7 @@ class WorkbenchAPI:
         self._compact = False
         self._pending_prompt = None
         self._prompt_waiter = None
+        self._prompt_committing = False
         self._workflow_result = None
         self._compact_lock = threading.Lock()
         self._external_stage = None
@@ -58,14 +60,21 @@ class WorkbenchAPI:
         self._elapsed = 0
         self._progress = {"done": 0, "total": 0}
         self._directory = Path(directory) if directory else output_directory()
-        self._key = core.resolve_bedrock_api_key()
+        self._secrets = SecretStore()
+        self._key = core.resolve_bedrock_api_key() or self._secrets.load("bedrock") or ""
+        self._cms_secrets = set()
         self._settings = {"region": core.DEFAULT_BEDROCK_REGION, "model": core.DEFAULT_BEDROCK_MODEL,
                           "max_tokens": core.DEFAULT_MAX_TOKENS, "temperature": core.DEFAULT_TEMP,
                           "document_limit": core.DEFAULT_MAX_DOC_CHARS}
 
     def _error(self, error):
         message = str(error)
-        return message.replace(self._key, "[redacted]") if self._key else message
+        with self._lock:
+            values = (self._key, *self._cms_secrets)
+        for value in values:
+            if value:
+                message = message.replace(value, "[redacted]")
+        return message
 
     def _idle(self):
         if self._busy:
@@ -91,6 +100,9 @@ class WorkbenchAPI:
 
     @response
     def get_state(self):
+        # Disk I/O is outside the state lock, including the status check.
+        remembered_key = self._secrets.exists("bedrock")
+        remembered_cms = self._memory_only and self._secrets.exists("cms")
         with self._lock:
             return {"documents": [self._summary(d) for d in self._documents.values()],
                     "busy": self._busy, "compact": self._compact,
@@ -101,7 +113,9 @@ class WorkbenchAPI:
                     "stage": self._external_stage if self._external_stage is not None else self._stage, "bedrock": self._bedrock,
                     "elapsed": round(time.monotonic() - self._started, 1) if self._busy and self._started else self._elapsed,
                     "progress": dict(self._external_progress if self._external_progress is not None else self._progress), "settings": dict(self._settings),
-                    "key_configured": bool(self._key), "output_directory": str(self._directory)}
+                    "key_configured": bool(self._key), "key_remembered": remembered_key,
+                    "cms_remembered": remembered_cms,
+                    "output_directory": str(self._directory)}
 
     @response
     def set_compact(self, value):
@@ -155,13 +169,14 @@ class WorkbenchAPI:
         A second concurrent prompt is rejected, not allowed to replace a waiter.
         notify also waits for acknowledgement so instructions cannot be lost.
         """
-        waiter = {"event": threading.Event(), "answer": False}
+        waiter = {"event": threading.Event(), "answer": None}
         prompt = {"id": str(uuid.uuid4()), "kind": kind,
                   "title": str(title), "message": str(message)}
         with self._lock:
             if self._pending_prompt is not None:
                 raise RuntimeError("Another operator prompt is already pending.")
             self._pending_prompt, self._prompt_waiter = prompt, waiter
+            self._prompt_committing = False
         try:
             resized = self.set_compact(False)
             if not resized["ok"]:
@@ -172,6 +187,7 @@ class WorkbenchAPI:
             with self._lock:
                 if self._pending_prompt and self._pending_prompt["id"] == prompt["id"]:
                     self._pending_prompt = self._prompt_waiter = None
+                    self._prompt_committing = False
 
     def notify(self, title, message):
         """Pass directly as run_live(notify=api.notify) from a worker thread."""
@@ -181,18 +197,79 @@ class WorkbenchAPI:
         """Raw boolean callback, deliberately not a bridge response envelope."""
         return self._ask_prompt("confirm", title, message)
 
+    def request_cms_credentials(self, *, retry=False):
+        """Return a remembered pair or ask the attended operator; never publish it."""
+        if not self._memory_only:
+            raise RuntimeError("CMS credentials require an attended workflow.")
+        if not retry:
+            saved = self._secrets.load("cms")
+            if saved:
+                try:
+                    pair = json.loads(saved)
+                    if (isinstance(pair, list) and len(pair) == 2 and
+                            all(isinstance(v, str) and v for v in pair)):
+                        with self._lock:
+                            self._cms_secrets.update(pair)
+                        return tuple(pair)
+                except (ValueError, TypeError):
+                    pass
+            retry = self._secrets.exists("cms")
+        pair = self._ask_prompt("credentials", "CMS sign-in required",
+                                "Saved CMS sign-in could not be used. Enter it again to continue."
+                                if retry else "Enter your CMS username and password to continue this run.")
+        return pair
+
+    @response
+    def forget_credential(self, name):
+        if name not in ("bedrock", "cms") or (name == "cms" and not self._memory_only):
+            raise ValueError("Unknown credential.")
+        # Forget controls operate on the blob, including corrupted blobs; the
+        # current in-memory key remains usable for this session.
+        self._secrets.forget(name)
+        return True
+
     @response
     def answer_prompt(self, identifier, answer):
+        pair = None
         with self._lock:
-            if self._pending_prompt is None or self._pending_prompt["id"] != identifier:
+            if self._pending_prompt is None or self._pending_prompt["id"] != identifier or self._prompt_committing:
                 raise ValueError("Prompt is no longer pending.")
-            if type(answer) is not bool:
-                raise ValueError("Prompt answer must be a boolean.")
-            if self._pending_prompt["kind"] == "notify" and not answer:
-                raise ValueError("Acknowledge the notification.")
+            kind = self._pending_prompt["kind"]
+            if kind == "credentials":
+                if answer is None:
+                    pass
+                elif (not isinstance(answer, dict) or set(answer) != {"username", "password", "remember"}
+                      or type(answer.get("remember")) is not bool
+                      or not isinstance(answer["username"], str) or not answer["username"].strip()
+                      or not isinstance(answer["password"], str) or not answer["password"]):
+                    raise ValueError("Enter a CMS username and password, or cancel the run.")
+                else:
+                    pair = (answer["username"].strip(), answer["password"])
+                    self._prompt_committing = True
+            else:
+                if type(answer) is not bool:
+                    raise ValueError("Prompt answer must be a boolean.")
+                if kind == "notify" and not answer:
+                    raise ValueError("Acknowledge the notification.")
+        # Do not hold _lock while encrypting, writing, or deleting credentials.
+        if kind == "credentials" and pair is not None and isinstance(answer, dict):
+            try:
+                if answer["remember"]:
+                    self._secrets.save("cms", json.dumps(pair))
+                else:
+                    self._secrets.forget("cms")
+            except Exception:
+                with self._lock:
+                    self._prompt_committing = False
+                raise
+            with self._lock:
+                self._cms_secrets.update(pair)
+                answer = pair
+        with self._lock:
             waiter = self._prompt_waiter
             waiter["answer"] = answer
             self._pending_prompt = self._prompt_waiter = None
+            self._prompt_committing = False
             waiter["event"].set()
         return True
 
@@ -383,7 +460,9 @@ class WorkbenchAPI:
         self._thread.start()
 
     @response
-    def save_settings(self, settings, api_key=""):
+    def save_settings(self, settings, api_key="", remember=False):
+        if type(remember) is not bool or not isinstance(api_key, str):
+            raise ValueError("Invalid credential preference.")
         with self._lock:
             self._idle()
             candidate = {"region": str(settings["region"]).strip(), "model": str(settings["model"]).strip(),
@@ -393,9 +472,20 @@ class WorkbenchAPI:
             if (not candidate["model"] or not 128 <= candidate["max_tokens"] <= core.MAX_OUTPUT_TOKENS
                     or not 0 <= candidate["temperature"] <= .5 or not 5000 <= candidate["document_limit"] <= 400000):
                 raise ValueError("Use 128–16,384 tokens, temperature 0–0.5, and 5,000–400,000 document characters.")
+        new_key = api_key.strip()
+        # File I/O is outside the state lock. An unchecked box explicitly forgets.
+        if remember:
+            if new_key:
+                self._secrets.save("bedrock", new_key)
+            elif not self._secrets.load("bedrock"):
+                raise ValueError("Enter a key to remember it on this computer.")
+        else:
+            self._secrets.forget("bedrock")
+        with self._lock:
+            self._idle()
             self._settings = candidate
-            if api_key.strip():
-                self._key = api_key.strip()
+            if new_key:
+                self._key = new_key
             self._bedrock = "Not tested"
             self._queue_pending()
             return True
