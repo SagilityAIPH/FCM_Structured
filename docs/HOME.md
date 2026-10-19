@@ -4,6 +4,7 @@ This vault is the FCM_Structured documentation set.
 
 - [[INSTRUCTIONS]] — live task list and item ID rules.
 - [[completed]] — archive of finished items.
+- [[FINAL-CODE-FLOW]] — current attended Final Code chain, outcomes, data contract, and verification.
 
 ## Conventions
 
