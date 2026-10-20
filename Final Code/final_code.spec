@@ -50,7 +50,10 @@ datas.append((str(repo / "Processes" / "Reopen-Check" / "Deploy-Ready" / "reopen
               "Processes/Reopen-Check/Deploy-Ready"))
 
 # config.py points LEGACY_DIR at PROJECT_ROOT/src/fcm_intake/legacy when frozen.
-for name in ("legacy_reopencheck.py", "legacy_customerchecker.py", "legacy_cem.py"):
+# live_wiring loads legacy_fcm by path; legacy_loader's compatibility namespace
+# resolves its two legacy.* imports from that same directory.
+for name in ("legacy_reopencheck.py", "legacy_customerchecker.py", "legacy_cem.py",
+             "legacy_fcm.py", "legacy_providerresultchecker.py", "legacy_googlesearch.py"):
     datas.append((str(legacy / name), "src/fcm_intake/legacy"))
 
 # office_matrix.py checks _MEIPASS and the executable's own directory by name.
@@ -79,6 +82,10 @@ hiddenimports = [
     # Loaded by path at runtime, so PyInstaller cannot see these statically.
     "rrs_ui", "provider_match", "office_matrix", "body_part", "injury_match",
     "AI.injury_classification",
+    # Analyze dependencies, not legacy_fcm itself: that would also pull in its
+    # unused OpenUnity/CompleteAssignment imports, outside this app's boundary.
+    "win32clipboard", "win32com.client", "win32api", "titlecase", "openpyxl",
+    "tkinter", "tkinter.messagebox", "edge_auto",
 ]
 hiddenimports += collect_submodules("selenium.webdriver")
 hiddenimports += collect_submodules("pywinauto")

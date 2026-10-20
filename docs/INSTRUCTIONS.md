@@ -72,8 +72,8 @@ Baseline checks (last verified 10/15/2026; these are not live RRS/CMS/Unity test
 
 ## Next up
 
-Deliberately empty. The owner-approved post-builder triage/export source fix is archived as FCM-1.1-39. Final Code stops before Unity assignment; ask instead of inferring further integration.
+Deliberately empty. The owner-approved post-builder triage/export source fix is archived as FCM-1.1-39; its release-preparation runtime-source packaging correction is archived as FCM-1.1-40 with static, rebuilt EXE, packaged self-test and archive evidence. Live end-to-end completion remains unverified. Final Code stops before Unity assignment; ask instead of inferring further integration.
 
 ## Completed
 
-Finished items `FCM-1.1-01` through `FCM-1.1-18`, plus `FCM-1.1-27`, `FCM-1.1-28`, and `FCM-1.1-30` through `FCM-1.1-39`, are archived in `docs/completed.md`. Move future finished items out of their active section and append there in ID history with both date markers and test/build evidence; do not renumber.
+Finished items `FCM-1.1-01` through `FCM-1.1-18`, plus `FCM-1.1-27`, `FCM-1.1-28`, and `FCM-1.1-30` through `FCM-1.1-40`, are archived in `docs/completed.md`. Move future finished items out of their active section and append there in ID history with both date markers and test/build evidence; do not renumber.

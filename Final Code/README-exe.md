@@ -74,7 +74,8 @@ at the same relative path it occupies in the repository.
 | `frontend/dist` | the React UI | `launcher.py` as `_MEIPASS/frontend/dist/index.html` |
 | `Processes/SubjectLineBuilder/Deploy-Ready/` | 9 modules | `live_wiring` via `PROJECT_ROOT`; `subject_line_flow` then loads `legacy_steps.py` from its **own** directory |
 | `Processes/Reopen-Check/Deploy-Ready/reopen_flow.py` | CMS flow core | `fcm_intake.workflows.reopen_flow` at **import** time |
-| `src/fcm_intake/legacy/` | 3 legacy CMS modules | `config.LEGACY_DIR` |
+| `src/fcm_intake/legacy/` | `legacy_reopencheck.py`, `legacy_customerchecker.py`, `legacy_cem.py` | `config.LEGACY_DIR` (CMS) |
+| `src/fcm_intake/legacy/` | `legacy_fcm.py`, `legacy_providerresultchecker.py`, `legacy_googlesearch.py` | `live_wiring` via `config.FCM_SCRIPT`; `legacy_loader` supplies the `legacy.*` compatibility namespace for the two helpers |
 | `.` (bundle root) | Claims Office Matrix workbook | `office_matrix.py` checks `_MEIPASS` and the exe's own folder |
 | `drivers/` | IEDriverServer.exe | `config._DEFAULTS` when frozen |
 | `AI/` | `rrs_dropdowns.json`, when present | `AI.referral_schema` |
@@ -86,6 +87,33 @@ this table and to the spec.
 
 Unlike `CMSCustomerSearch.spec`, this build must **not** exclude `openai`: the
 Bedrock path uses an OpenAI-compatible client and needs its package metadata.
+
+The runtime-loaded legacy source also needs explicit hidden imports:
+`win32clipboard`, `win32com.client`, `win32api` (pywin32), `titlecase`,
+`openpyxl`, `tkinter`/`tkinter.messagebox` and the `edge_auto` compatibility
+shim. The shim imports `fcm_intake.cms.edge`, exposing its
+`webdriver_manager.microsoft` dependency to normal analysis. Existing
+`pyodbc`/`pythoncom` imports and Selenium/pywinauto collection remain required.
+The provider-result helper uses only standard-library imports; the Google
+helper uses Tk and Selenium plus `edge_auto`.
+
+Keep `legacy_fcm.py` as **data**, not a hidden import or a recursively collected
+legacy package: analyzing all its function bodies would also pull in unused
+Unity assignment dependencies. No Unity assignment module, `.env`, credentials,
+operator workbook, Google cache/browser profile or sample data is added by this
+runtime-source list. The Claims Office Matrix above is the only bundled workbook.
+
+Source-only packaging regression check (does not import the live legacy modules):
+
+```powershell
+python -m pytest tests\unit\test_final_code_package.py -q -p no:cacheprovider -o addopts=
+```
+
+This executes the real spec with stubbed PyInstaller hooks and inspects source
+ASTs for layout/import coverage. It does **not** prove packaged live-stage
+initialization. The synthetic `--self-test` above uses fake external callbacks,
+so a rebuilt EXE, archive-content inspection and eventual attended live testing
+remain separate checks.
 
 ## Known limitations
 
