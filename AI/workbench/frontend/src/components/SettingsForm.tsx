@@ -1,19 +1,26 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Cable, KeyRound, Save, ShieldCheck } from 'lucide-react'
 import { Button } from './ui/button'
 import { Input } from './ui/input'
 import type { Settings } from '@/types'
-export default function SettingsForm({settings, configured, remembered, busy, onSave, onForget, onTest, onDirty}: {settings: Settings; configured: boolean; remembered: boolean; busy: boolean; onSave: (settings: Settings, key: string, remember: boolean) => Promise<boolean>; onForget: () => Promise<boolean>; onTest: () => void; onDirty: (dirty: boolean) => void}) {
+export default function SettingsForm({settings, configured, remembered, needsModelTest, busy, onSave, onForget, onTest, onDirty}: {settings: Settings; configured: boolean; remembered: boolean; needsModelTest: boolean; busy: boolean; onSave: (settings: Settings, key: string, remember: boolean) => Promise<boolean>; onForget: () => Promise<boolean>; onTest: () => void; onDirty: (dirty: boolean) => void}) {
   const [draft, setDraft] = useState(settings)
   const [key, setKey] = useState('')
   const [remember, setRemember] = useState(false)
+  const previous = useRef(settings)
   const dirty = !!key || remember || JSON.stringify(draft) !== JSON.stringify(settings)
   useEffect(() => { onDirty(dirty) }, [dirty, onDirty])
+  useEffect(() => {
+    if (previous.current !== settings) {
+      setDraft(current => JSON.stringify(current) === JSON.stringify(previous.current) ? settings : current)
+      previous.current = settings
+    }
+  }, [settings])
   return <div className="settings-page"><div className="settings-title"><Cable size={19} /><div><h2>Amazon Bedrock</h2><p>Configure the extraction engine for this session.</p></div></div>
     <form onSubmit={async e => { e.preventDefault(); if (await onSave(draft, key, remember)) { setKey(''); setRemember(false) } }}>
-      <div className="settings-grid"><label className="col-span-2">AWS region<Input value={draft.region} disabled={busy} onChange={e => setDraft({...draft, region: e.target.value})} required /></label><label className="col-span-2">Model ID<Input value={draft.model} disabled={busy} onChange={e => setDraft({...draft, model: e.target.value})} required /></label>
+      <div className="settings-grid"><label className="col-span-2">AWS region<Input value={draft.region} disabled={busy} onChange={e => setDraft({...draft, region: e.target.value})} required /></label><div className="col-span-2"><label>Model ID<Input value={draft.model} disabled={busy} onChange={e => setDraft({...draft, model: e.target.value})} required /></label>{needsModelTest && <small role="status">Restored model needs a connection check before extraction. If unavailable, the default will be selected and this run stopped for review.</small>}</div>
       <label className="col-span-2">Bedrock API key<div className="relative"><KeyRound size={14} className="absolute left-3 top-2 text-slate-400" /><Input className="pl-8" type="password" autoComplete="off" value={key} disabled={busy} onChange={e => setKey(e.target.value)} placeholder={configured ? 'Configured · leave blank to keep current key' : 'Enter your Bedrock bearer token'} /></div><small>Kept in Python memory; only stored encrypted on this computer if you opt in. Never returned by the bridge.</small></label>
-      <div className="col-span-2 flex flex-wrap items-center gap-2"><label className="flex items-center gap-1 text-xs"><input type="checkbox" checked={remember} disabled={busy} onChange={e => setRemember(e.target.checked)} />Remember on this computer (Bedrock)</label>{remembered && <Button type="button" variant="outline" size="sm" disabled={busy} onClick={() => void onForget()}>Forget saved Bedrock key</Button>}</div>
+      <div className="col-span-2 flex flex-wrap items-center gap-2"><label className="flex items-center gap-1 text-xs"><input type="checkbox" checked={remember} disabled={busy} onChange={e => setRemember(e.target.checked)} />Remember on this computer (Bedrock)</label>{remembered && <Button type="button" variant="outline" size="sm" disabled={busy} onClick={() => void onForget()}>Forget saved Bedrock key and model</Button>}</div>
       <label>Output token budget<Input type="number" min={128} max={32768} value={draft.max_tokens} disabled={busy} onChange={e => setDraft({...draft, max_tokens: Number(e.target.value)})} required /></label><label>Temperature<Input type="number" step="0.05" min="0" max="0.5" value={draft.temperature} disabled={busy} onChange={e => setDraft({...draft, temperature: Number(e.target.value)})} required /></label>
       <label className="col-span-2">Document character limit<Input type="number" min={5000} max={400000} value={draft.document_limit} disabled={busy} onChange={e => setDraft({...draft, document_limit: Number(e.target.value)})} required /></label></div>
       <div className="note mt-5"><ShieldCheck size={16} /><p>Importing starts extraction automatically. Missing addresses are checked with the U.S. Census service; a single compatible match fills missing components. Conflicts remain unresolved. Every extracted result is saved to the daily workbook with its Passed/Failed status.</p></div>

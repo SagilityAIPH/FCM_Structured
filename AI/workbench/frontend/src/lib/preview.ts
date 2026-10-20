@@ -3,7 +3,7 @@ import type { API, DocumentDetail, Field, State } from '@/types'
 
 const state: State = {
   documents: [], busy: false, compact: false, memory_only: false, pending_review: null, workflow_active: false, stage: 'Preview mode · example data only', bedrock: 'Preview only', elapsed: 0,
-  progress: {done: 0, total: 0}, key_configured: true, key_remembered: false, cms_remembered: false, output_directory: 'Preview / Output / AI',
+  progress: {done: 0, total: 0}, remembered_model_needs_test: false, key_configured: true, key_remembered: false, cms_remembered: false, output_directory: 'Preview / Output / AI',
   settings: {region: 'us-east-2', model: 'openai.gpt-oss-120b-1:0', max_tokens: 32768, temperature: 0, document_limit: 100000},
 }
 const records = new Map<string, DocumentDetail>()
@@ -38,7 +38,7 @@ export const previewAPI: API = {
       throw new Error('Enter a CMS username and password, or cancel the run.')
     state.pending_prompt = null; return true
   },
-  async forget_credential(name) { if (name === 'cms') state.cms_remembered = false; else state.key_remembered = false; return true },
+  async forget_credential(name) { if (name === 'cms') state.cms_remembered = false; else { state.key_remembered = false; state.remembered_model_needs_test = false }; return true },
   async set_compact(value) { state.compact = value; return value },
   async set_stage(stage, done, total) {
     state.stage = stage
@@ -84,7 +84,7 @@ export const previewAPI: API = {
     ctx.fillStyle = '#94a3b8'; ctx.font = '9px Segoe UI'; ctx.fillText('This is a generated preview fixture, not a real referral or model output.', 45, 753)
     return canvas.toDataURL('image/png')
   },
-  async save_settings(settings, _key, remember = false) { state.settings = copy(settings); state.key_remembered = remember; return true },
+  async save_settings(settings, _key, remember = false) { state.settings = copy(settings); state.key_remembered = remember; state.remembered_model_needs_test = false; return true },
   async test_connection() { throw new Error('Live connection tests are available only in the Python desktop app.') },
   async start_processing() { throw new Error('Real extraction requires the Python desktop app. These are synthetic examples.') },
   async save_fields(id, edits, revision) {

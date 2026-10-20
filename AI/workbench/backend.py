@@ -23,6 +23,26 @@ from AI.referral_schema import FIELD_GROUPS, OPTIONAL_FIELDS, PROVIDER_FIELDS, D
 from AI.workbench.secret_store import SecretStore
 
 
+def _saved_bedrock(value):
+    """Read versioned Bedrock data, retaining legacy key-only plaintext blobs."""
+    if not value:
+        return "", None
+    try:
+        payload = json.loads(value)
+    except (ValueError, TypeError):
+        return value, None
+    if (isinstance(payload, dict) and payload.get("version") == 1
+            and isinstance(payload.get("key"), str) and payload["key"]
+            and isinstance(payload.get("model"), str)):
+        return payload["key"], payload["model"].strip() or None
+    # A former key can itself be valid JSON; don't erase it.
+    return value, None
+
+
+def _bedrock_payload(key, model):
+    return json.dumps({"version": 1, "key": key, "model": model})
+
+
 def response(method):
     """Expose a small, JSON-only API and redact credentials from errors."""
     @wraps(method)
@@ -61,11 +81,21 @@ class WorkbenchAPI:
         self._progress = {"done": 0, "total": 0}
         self._directory = Path(directory) if directory else output_directory()
         self._secrets = SecretStore()
-        self._key = core.resolve_bedrock_api_key() or self._secrets.load("bedrock") or ""
+        saved_key, saved_model = _saved_bedrock(self._secrets.load("bedrock"))
+        # Environment configuration still takes priority over the remembered key.
+        self._key = core.resolve_bedrock_api_key() or saved_key
         self._cms_secrets = set()
         self._settings = {"region": core.DEFAULT_BEDROCK_REGION, "model": core.DEFAULT_BEDROCK_MODEL,
                           "max_tokens": core.DEFAULT_MAX_TOKENS, "temperature": core.DEFAULT_TEMP,
                           "document_limit": core.DEFAULT_MAX_DOC_CHARS}
+        # A remembered non-default ID may have been retired or access revoked.
+        # Verify it with Bedrock before any extraction; never silently send to it.
+        self._remembered_model_pending = bool(saved_model and saved_model.strip()
+                                              and saved_model.strip() != core.DEFAULT_BEDROCK_MODEL)
+        if saved_model and saved_model.strip():
+            self._settings["model"] = saved_model.strip()
+        if self._remembered_model_pending:
+            self._bedrock = "Remembered model pending verification"
 
     def _error(self, error):
         message = str(error)
@@ -113,6 +143,7 @@ class WorkbenchAPI:
                     "stage": self._external_stage if self._external_stage is not None else self._stage, "bedrock": self._bedrock,
                     "elapsed": round(time.monotonic() - self._started, 1) if self._busy and self._started else self._elapsed,
                     "progress": dict(self._external_progress if self._external_progress is not None else self._progress), "settings": dict(self._settings),
+                    "remembered_model_needs_test": self._remembered_model_pending,
                     "key_configured": bool(self._key), "key_remembered": remembered_key,
                     "cms_remembered": remembered_cms,
                     "output_directory": str(self._directory)}
@@ -224,8 +255,11 @@ class WorkbenchAPI:
         if name not in ("bedrock", "cms") or (name == "cms" and not self._memory_only):
             raise ValueError("Unknown credential.")
         # Forget controls operate on the blob, including corrupted blobs; the
-        # current in-memory key remains usable for this session.
+        # current in-memory key/model remain usable for this session.
         self._secrets.forget(name)
+        if name == "bedrock":
+            with self._lock:
+                self._remembered_model_pending = False
         return True
 
     @response
@@ -475,15 +509,17 @@ class WorkbenchAPI:
         new_key = api_key.strip()
         # File I/O is outside the state lock. An unchecked box explicitly forgets.
         if remember:
-            if new_key:
-                self._secrets.save("bedrock", new_key)
-            elif not self._secrets.load("bedrock"):
+            saved_key, _ = _saved_bedrock(self._secrets.load("bedrock"))
+            key_to_save = new_key or saved_key or self._key
+            if not key_to_save:
                 raise ValueError("Enter a key to remember it on this computer.")
+            self._secrets.save("bedrock", _bedrock_payload(key_to_save, candidate["model"]))
         else:
             self._secrets.forget("bedrock")
         with self._lock:
             self._idle()
             self._settings = candidate
+            self._remembered_model_pending = False
             if new_key:
                 self._key = new_key
             self._bedrock = "Not tested"
@@ -493,6 +529,26 @@ class WorkbenchAPI:
     def _client(self):
         return core.create_bedrock_client(self._key, core.build_bedrock_base_url(self._settings["region"]))
 
+    def _check_remembered_model(self, client):
+        """Gate restored custom models on a live access check before inference."""
+        with self._lock:
+            if not self._remembered_model_pending:
+                return
+            model = self._settings["model"]
+        try:
+            core.test_bedrock_connection(client, model)
+        except Exception:
+            with self._lock:
+                if self._settings["model"] == model:
+                    self._settings["model"] = core.DEFAULT_BEDROCK_MODEL
+                    self._remembered_model_pending = False
+                    self._bedrock = "Remembered model unavailable; default selected"
+                    self._stage = "Remembered model unavailable. Default selected; review Settings before retrying."
+            # Do not erase the saved key or quietly send a request to another model.
+            raise ValueError("Remembered Bedrock model could not be verified. Default selected; review Settings and retry.") from None
+        with self._lock:
+            self._remembered_model_pending = False
+
     @response
     def test_connection(self):
         with self._lock:
@@ -501,10 +557,12 @@ class WorkbenchAPI:
             def work():
                 try:
                     with self._client() as client:
+                        self._check_remembered_model(client)
                         core.test_bedrock_connection(client, self._settings["model"])
                 except Exception:
                     with self._lock:
-                        self._bedrock = "Connection failed"
+                        if self._bedrock != "Remembered model unavailable; default selected":
+                            self._bedrock = "Connection failed"
                     raise
                 with self._lock:
                     self._bedrock, self._stage = "Connected", "Bedrock connection verified"
@@ -569,6 +627,8 @@ class WorkbenchAPI:
                     try:
                         settings = self._settings
                         with self._client() as client:
+                            self._check_remembered_model(client)
+                            settings = self._settings
                             _, fields, raw, elapsed = core.run_reasoning(client, settings["model"],
                                 doc["text"][:settings["document_limit"]], doc["text"],
                                 settings["max_tokens"], settings["temperature"])

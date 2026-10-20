@@ -122,6 +122,11 @@ def make_extract(api):
     def invoke(document_text):
         from . import live_wiring
         settings = dict(api._settings)
+        if getattr(api, "_remembered_model_pending", False):
+            # Check the restored ID before selecting a model for this run.
+            with api._client() as client:
+                api._check_remembered_model(client)
+            settings = dict(api._settings)
         inner = live_wiring.make_extract(
             client_factory=api._client, model_id=settings["model"],
             max_tokens=settings["max_tokens"], temperature=settings["temperature"])
