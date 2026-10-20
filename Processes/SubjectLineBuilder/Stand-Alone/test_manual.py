@@ -3,6 +3,7 @@ import importlib.util
 from pathlib import Path
 import time
 import unittest
+from unittest.mock import Mock, patch
 
 HERE = Path(__file__).resolve().parent
 spec = importlib.util.spec_from_file_location('manual_subject_backend', HERE / 'backend.py')
@@ -27,6 +28,120 @@ class Adapter:
 
 
 class ManualTests(unittest.TestCase):
+    def test_actual_triage_prompts_export_confirmation_and_exit(self):
+        import itertools
+        import sys
+        from types import SimpleNamespace
+
+        spec = importlib.util.spec_from_file_location(
+            'rrs_ui_export_sequence', HERE.parent / 'Deploy-Ready' / 'rrs_ui.py')
+        rrs = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(rrs)
+
+        for confirmed in (True, False):
+            with self.subTest(export_confirmed=confirmed):
+                events = []
+                state = {'email': True, 'triage': False, 'export': False}
+                clock = itertools.count(step=100)
+                rrs.time = SimpleNamespace(monotonic=lambda: next(clock), sleep=lambda _: None)
+
+                class Window:
+                    def __init__(self, title, handle, label=None):
+                        self.title, self.handle, self.label = title, handle, label
+                        self.element_info = SimpleNamespace(process_id=123)
+                    def window_text(self): return self.title
+                    def class_name(self): return '#32770' if self.label else 'SyntheticWindow'
+                    def set_focus(self): pass
+                    def wait(self, *_args, **_kwargs): pass
+                    def descendants(self, control_type=None):
+                        if control_type == 'Edit' and self.title == 'Zip Code?':
+                            return [SimpleNamespace(iface_value=SimpleNamespace(
+                                SetValue=lambda value: events.append(('zip', value))))]
+                        if control_type == 'Button' and self.label:
+                            return [SimpleNamespace(
+                                window_text=lambda: '&' + self.label, click_input=self.answer)]
+                        if control_type == 'Text':
+                            return [SimpleNamespace(window_text=lambda: 'Synthetic message')]
+                        return []
+                    def answer(self):
+                        events.append((self.title, self.label))
+                        if self is not export_box:
+                            prompts.pop(0)
+
+                email, main, entry = (Window('Email Display', 1),
+                                      Window('Referral Routing System', 2), Window('Unity Entry', 3))
+                prompts = [Window(title, i + 4, answer) for i, (title, answer) in enumerate([
+                    ('Zip Code?', 'OK'), ('Information Complete?', 'Yes'), ('Unity ReTrigger', 'Yes'),
+                    ('Customer Check', 'Yes'), ('ReferralRoutingSystem', 'OK')])]
+                export_box = Window('ReferralRoutingSystem', 9, 'OK')
+                handles = {w.handle: w for w in [email, main, entry]}
+                desktop = Mock()
+
+                def windows(**kwargs):
+                    if kwargs.get('title_re') == r'^Email Display.*':
+                        return [email] if state['email'] else []
+                    if kwargs.get('title_re') == r'^Unity Entry.*':
+                        return [entry] if state['triage'] and not prompts else []
+                    if kwargs.get('process') == 123:
+                        return prompts[:1] if prompts else (
+                            [export_box] if state['export'] and confirmed else [])
+                    self.fail(f'Unexpected window search: {kwargs}')
+
+                desktop.windows.side_effect = windows
+                desktop.window.side_effect = lambda handle: handles[handle]
+                adapter = rrs.RRSAdapter.__new__(rrs.RRSAdapter)
+                adapter.desktop, adapter.check = desktop, lambda: None
+                adapter.unique = Mock(return_value=main)
+                adapter.window_gone = lambda handle: not state['email']
+
+                cells = [SimpleNamespace(
+                    window_text=lambda: 'Subject Row 2',
+                    iface_value=SimpleNamespace(CurrentValue='Synthetic TEST-001')),
+                    SimpleNamespace(window_text=lambda: 'Select Row 2', get_toggle_state=lambda: 0,
+                                    click_input=lambda: events.append('select row 2'))]
+                grid = SimpleNamespace(descendants=lambda: cells)
+                download = SimpleNamespace(set_focus=lambda: events.append('export focus'))
+
+                def control(parent, ident, kind):
+                    self.assertIn((parent, ident, kind),
+                                  [(main, 'dgWorkWindow', 'Table'), (entry, 'btnDownload', 'Button')])
+                    return grid if ident == 'dgWorkWindow' else download
+
+                def click(parent, ident):
+                    events.append((parent.title, ident))
+                    if parent is email and ident == 'btnExit':
+                        state['email'] = False
+                    if parent is main and ident == 'btnTriage':
+                        state['triage'] = True
+
+                def send_keys(keys):
+                    self.assertEqual(keys, '{SPACE}')
+                    events.append('export space')
+                    state['export'] = True
+
+                adapter.control, adapter.click = control, click
+                keyboard = SimpleNamespace(send_keys=send_keys)
+                with patch.dict(sys.modules, {'pywinauto.keyboard': keyboard}):
+                    data = payload() | {'referralType': 'Full Case Management',
+                                        'providerZip': '00001-1234', 'zip': '00002'}
+                    if confirmed:
+                        messages = adapter.complete_triage(data)
+                        self.assertEqual(len(messages), 6)
+                        self.assertEqual(messages[0], 'Zip Code? -> 00001')
+                        self.assertEqual(messages[-1], 'Export: Synthetic message')
+                    else:
+                        with self.assertRaisesRegex(RuntimeError, 'Attachment export did not confirm'):
+                            adapter.complete_triage(data)
+                expected = [('Email Display', 'btnExit'), 'select row 2',
+                            ('Referral Routing System', 'btnTriage'), ('zip', '00001'),
+                            ('Zip Code?', 'OK'), ('Information Complete?', 'Yes'),
+                            ('Unity ReTrigger', 'Yes'), ('Customer Check', 'Yes'),
+                            ('ReferralRoutingSystem', 'OK'), 'export focus', 'export space']
+                if confirmed:
+                    expected += [('ReferralRoutingSystem', 'OK'), ('Unity Entry', 'btnExit')]
+                self.assertEqual(events, expected)
+                adapter.unique.assert_called_once_with(r'^Referral Routing System.*')
+
     def test_validation_and_date_only_appointment(self):
         data = validate(payload() | {'nextApptDate': '2027-03-04'})
         self.assertEqual(data['nextApptDate'], '03/04/2027')
@@ -476,6 +591,30 @@ class ManualTests(unittest.TestCase):
             adapter.control = lambda parent, ident, kind, combo=combo: combo
             self.assertEqual(adapter.injury_cause(text), expected, (current, text))
             self.assertEqual(combo.selected, [expected] if selected else [])
+
+    def test_verified_dropdown_rejects_unlisted_matches_and_unconfirmed_selection(self):
+        spec = importlib.util.spec_from_file_location('rrs_ui_verify', HERE.parent / 'Deploy-Ready' / 'rrs_ui.py')
+        rrs = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(rrs)
+        adapter = rrs.RRSAdapter.__new__(rrs.RRSAdapter)
+        adapter.builder = None
+        adapter._combo_options = lambda combo: ['Strain']
+
+        class Combo:
+            def __init__(self): self.writes = []
+            def selected_text(self): return ''
+            def children(self, **_): return []
+            def select(self, item): self.writes.append(item)
+
+        combo = Combo()
+        adapter.control = lambda *_: combo
+        with self.assertRaisesRegex(RuntimeError, 'not a dropdown option'):
+            adapter.fill_dropdown('cbInjuryType', 'strain', lambda *_: 'Unlisted', verify=True)
+        self.assertEqual(combo.writes, [])
+        # A select call that returns normally is not proof the control changed.
+        with self.assertRaisesRegex(RuntimeError, 'selection could not be verified'):
+            adapter.fill_dropdown('cbInjuryType', 'strain', lambda *_: 'Strain', verify=True)
+        self.assertEqual(combo.writes, ['Strain'])
 
     def test_complete_triage_after_create(self):
         spec = importlib.util.spec_from_file_location('rrs_ui_triage', HERE.parent / 'Deploy-Ready' / 'rrs_ui.py')

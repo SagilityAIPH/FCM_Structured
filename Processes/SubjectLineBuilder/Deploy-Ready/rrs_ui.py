@@ -654,38 +654,59 @@ class RRSAdapter:
     def _blank(value):
         return (value or '').strip().lower() in ('', 'none')
 
-    def _combo_current(self, combo, edit_title=None):
+    def _combo_current(self, combo, edit_title=None, *, verify=False):
+        readable = False
         try:
             current = (combo.selected_text() or '').strip()
+            readable = True
         except Exception:
             current = ''
+        # WinForms injury combos can expose ValuePattern without SelectionPattern.
+        if verify and self._blank(current):
+            try:
+                current = (combo.iface_value.CurrentValue or '').strip()
+                readable = True
+            except Exception:
+                pass
         if self._blank(current) and edit_title:
             try:
                 current = (self.builder.child_window(title=edit_title, control_type='Edit')
                            .wrapper_object().iface_value.CurrentValue or '').strip()
+                readable = True
             except Exception:
                 pass
         if self._blank(current):
             try:
                 current = (combo.children(control_type='Edit')[0].iface_value.CurrentValue or '').strip()
+                readable = True
             except Exception:
                 pass
+        if verify and not readable:
+            raise RuntimeError('Dropdown value could not be read')
         return current
 
-    def fill_dropdown(self, ident, text, matcher, edit_title=None):
+    def fill_dropdown(self, ident, text, matcher, edit_title=None, *, verify=False):
         """Fill an RRS dropdown only when it is blank or "None", choosing the item that matches
         the text. Returns the current value when kept, the item selected, or None when no item
-        matched (left for the final review)."""
+        matched (left for the final review). verify=True requires readable current/selected
+        values and an enumerated option list; failures stop the caller."""
         combo = self.control(self.builder, ident, 'ComboBox')
-        current = self._combo_current(combo, edit_title)
+        current = self._combo_current(combo, edit_title, verify=verify)
         if not self._blank(current) or self._blank(text):
             return current or None
-        option = matcher(text, self._combo_options(combo))
+        options = self._combo_options(combo)
+        if verify and not options:
+            raise RuntimeError(f'{ident} dropdown options could not be read')
+        option = matcher(text, options)
         if option:
+            if verify and option not in options:
+                raise RuntimeError(f'{ident} match is not a dropdown option')
             try:
                 combo.select(option)
             except Exception:
                 combo.iface_value.SetValue(option)
+            if verify and self._combo_current(combo, edit_title, verify=True) != option.strip():
+                raise RuntimeError(f'{ident} dropdown selection could not be verified')
         return option
 
     def body_part(self, text):

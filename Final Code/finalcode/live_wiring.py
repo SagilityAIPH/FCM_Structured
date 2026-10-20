@@ -81,7 +81,10 @@ def make_cms(*, app=None, notify=None, confirm=None, credentials=None,
 
 
 def make_subject_line(*, runtime, app=None):
-    """Use a supplied legacy namespace, or load one lazily on first invocation."""
+    """Run the builder, then triage/export on completion; stop before assignment.
+
+    Use a supplied legacy namespace, or load one lazily on first invocation.
+    """
     from pywinauto import Desktop
     from fcm_intake.config import PROJECT_ROOT
     from fcm_intake.legacy_loader import load_module_from_path
@@ -103,6 +106,12 @@ def make_subject_line(*, runtime, app=None):
         # may have navigated elsewhere in RRS; a pre-review handle is unsafe.
         email_display = Desktop(backend="uia").window(
             title="Email Display", control_type="Window")
-        return flow.run_flow(runtime, app=app, allData=all_data,
-                             emaiDisplay=email_display, skip_capture=True, skip_cms=True)
+        result = flow.run_flow(runtime, app=app, allData=all_data,
+                               emaiDisplay=email_display, skip_capture=True, skip_cms=True)
+        if result.get("status") == "completed":
+            rrs_ui = load_module_from_path(
+                "finalcode_subject_line_rrs_ui",
+                PROJECT_ROOT / "Processes" / "SubjectLineBuilder" / "Deploy-Ready" / "rrs_ui.py")
+            rrs_ui.RRSAdapter().complete_triage(all_data)
+        return result
     return invoke

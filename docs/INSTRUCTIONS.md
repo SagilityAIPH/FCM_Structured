@@ -41,7 +41,7 @@ Baseline checks (last verified 10/15/2026; these are not live RRS/CMS/Unity test
 
 ## Current state
 
-`Final Code/finalcode/orchestrator.py:34` defines `run(*, capture, extract, review, cms, subject_line, on_stage=None, today=None, adapt=None)`. Implemented order: `capture()` → `extract()` → `review()` → `completeness()` gate → `cms()` → one-way field adapter → `subject_line()`. CMS must resolve a nonblank customer before the Subject Line Builder stage. The chain does not persist run data.
+`Final Code/finalcode/orchestrator.py:34` defines `run(*, capture, extract, review, cms, subject_line, on_stage=None, today=None, adapt=None)`. Implemented order: `capture()` → `extract()` → `review()` → `completeness()` gate → `cms()` → one-way field adapter → `subject_line()`. CMS must resolve a nonblank customer before the Subject Line Builder stage. Its live factory now completes triage, answers the legacy prompts and exports the attachment through the existing shared RRS adapter only after a completed builder result; the same stage returns completion only after export returns. The chain does not persist run data.
 
 | Condition | Outcome / reason | Source |
 | --- | --- | --- |
@@ -53,7 +53,7 @@ Baseline checks (last verified 10/15/2026; these are not live RRS/CMS/Unity test
 | CMS claims completion without a resolved nonblank customer | `failed / exception` | `Final Code/finalcode/orchestrator.py:116-120,135-139` |
 | Callback raises, including `SystemExit` | `failed / exception` | `Final Code/finalcode/orchestrator.py:135-139` |
 
-**Unity is deliberately standalone and is NOT wired into Final Code.** `Final Code/PROCESS-MAP.md` mentions it as prose, but no `.py`, `.spec` or `.ps1` in `Final Code/` references Unity. Its process runs through `Processes/Unity/Stand-Alone/`; do not treat its absence from the chain as a defect.
+**Unity assignment is deliberately standalone and is NOT wired into Final Code.** The owner-approved post-builder boundary includes only RRS's Unity Entry attachment export, not `OpenUnity`, `CompleteAssignment`, `Processes/Unity` or database logging. The assignment process runs through `Processes/Unity/Stand-Alone/`; do not treat its absence from the chain as a defect.
 
 ## Blocked on owner signal or input
 
@@ -72,8 +72,8 @@ Baseline checks (last verified 10/15/2026; these are not live RRS/CMS/Unity test
 
 ## Next up
 
-Deliberately empty. The owner has not named the next piece of work after Unity; ask instead of assuming or wiring Unity into Final Code.
+Deliberately empty. The owner-approved post-builder triage/export source fix is archived as FCM-1.1-39. Final Code stops before Unity assignment; ask instead of inferring further integration.
 
 ## Completed
 
-Finished items `FCM-1.1-01` through `FCM-1.1-18`, plus `FCM-1.1-27`, `FCM-1.1-28`, and `FCM-1.1-30` through `FCM-1.1-33`, are archived in `docs/completed.md`. Move future finished items out of their active section and append there in ID history with both date markers and test/build evidence; do not renumber.
+Finished items `FCM-1.1-01` through `FCM-1.1-18`, plus `FCM-1.1-27`, `FCM-1.1-28`, and `FCM-1.1-30` through `FCM-1.1-39`, are archived in `docs/completed.md`. Move future finished items out of their active section and append there in ID history with both date markers and test/build evidence; do not renumber.

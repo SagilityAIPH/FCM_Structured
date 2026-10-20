@@ -240,6 +240,38 @@ def CreateSubjectLineBuilder(app=None, *, allData=None, emaiDisplay=None, skip_c
                     isManualEntered = False
                     return False
                 
+        def _seed_provider_search_inputs(first=None, last=None, facility=None, phone=None):
+            first, last, facility = (value.strip() if value else ""
+                                     for value in (first, last, facility))
+            if not (first or last or facility):
+                raise RuntimeError("tbFacility/tbFirst/tbLast require provider identity")
+            inputs = (("tbFacility", facility if not (first or last) else ""),
+                      ("tbFirst", first), ("tbLast", last))
+            phone = (phone or "").strip()
+            if phone:
+                inputs += (("tbPhone", phone),)
+            controls = []
+            for auto_id, value in inputs:
+                try:
+                    ctrl = _get_edit(auto_id)
+                    try:
+                        ctrl.iface_value.SetValue(value)
+                    except Exception:
+                        focus_control(ctrl)
+                        ctrl.type_keys("^a{BACKSPACE}")
+                        if value:
+                            ctrl.type_keys(value, with_spaces=True)
+                    controls.append((auto_id, ctrl, value))
+                except Exception:
+                    raise RuntimeError(f"{auto_id} provider input write failed") from None
+            for auto_id, ctrl, value in controls:
+                try:
+                    if (ctrl.iface_value.CurrentValue or "") != value:
+                        raise ValueError()
+                except Exception:
+                    raise RuntimeError(f"{auto_id} provider input verification failed") from None
+            return "prof" if first or last else "fac"
+
         def run_provider_search():
             global isManualEntered
             FacilityLName = allData['providerLast']
@@ -271,11 +303,12 @@ def CreateSubjectLineBuilder(app=None, *, allData=None, emaiDisplay=None, skip_c
                 facilityFirst = facilityWords[0]
 
             if (tbZipVal or cbStateVal or tbCityVal or tbPhoneVal or tbFacilityVal or tbFirstVal or tbLastVal):
+                prvType = _seed_provider_search_inputs(first, last, facilityFirst, phone)
                 _click_search()
                 _wait_search_idle()
                 count = _results_count()
                 if count > 0:
-                    if tbFacilityVal:
+                    if prvType == 'fac':
                         prvType = 'fac'
                         # if tbFacilityVal:
                             # fac = tbFacilityVal
@@ -438,20 +471,17 @@ def CreateSubjectLineBuilder(app=None, *, allData=None, emaiDisplay=None, skip_c
                     facilityFirst = facilityWords[0]
 
                 if (tbZipVal or cbStateVal or tbCityVal or tbPhoneVal or tbFacilityVal or tbFirstVal or tbLastVal):
+                    prvType = _seed_provider_search_inputs(first, last, facility, phone)
                     _click_search()
                     _wait_search_idle()
                     count = _results_count()
                     if count > 0:
-                        if tbFacilityVal:
-                            prvType = 'fac'
-                            SelectedPrvResult = firstAttempt = _click_first_row_if_any(prvType,fac,None,None)
-                            if firstAttempt:
-                                return count,SelectedPrvResult
+                        if prvType == 'fac':
+                            firstAttempt,NewResultName,NewResultAddr,NewResultPhone = CheckPrvFromList(prvType,fac,None,None)
                         else:
-                            prvType = 'prof'
-                            SelectedPrvResult = firstAttempt = _click_first_row_if_any(prvType,None,first,last)
-                            if SelectedPrvResult:
-                                return count,SelectedPrvResult
+                            firstAttempt,NewResultName,NewResultAddr,NewResultPhone = CheckPrvFromList(prvType,None,first,last)
+                        if firstAttempt:
+                            return count,NewResultName,NewResultAddr,NewResultPhone
 
                 # 1) If Last+First both present, use them (with phone/city/state/zip)
                 if fac and (not first and not last):
@@ -624,9 +654,10 @@ def CreateSubjectLineBuilder(app=None, *, allData=None, emaiDisplay=None, skip_c
                     return 0
                 
             def _fill_common_filters(phone, city, state, zip_):
-                # Phone
-                try: _set_value(_get_edit("tbPhone"), phone)
-                except Exception: pass
+                # Supplied phone is already verified; retain legacy clearing when absent.
+                if not phone:
+                    try: _set_value(_get_edit("tbPhone"), phone)
+                    except Exception: pass
                 # City
                 try: _set_value(_get_edit("tbCity"), city)
                 except Exception: pass
@@ -637,7 +668,7 @@ def CreateSubjectLineBuilder(app=None, *, allData=None, emaiDisplay=None, skip_c
                 except Exception: pass
 
             def _clear_all_inputs():
-                for eid in ("tbFirst","tbLast","tbFacility","tbPhone","tbCity","tbZip"):
+                for eid in ("tbPhone","tbCity","tbZip"):
                     try:
                         _set_value(_get_edit(eid), "")
                     except Exception:
@@ -648,23 +679,7 @@ def CreateSubjectLineBuilder(app=None, *, allData=None, emaiDisplay=None, skip_c
                             phone=None, city=None, state=None, zip_=None):
                 """Populate fields, click Search, wait, return count."""
                 
-                # Names
-                if first is not None:
-                    try: _set_value(_get_edit("tbFirst"), first)
-                    except Exception: pass
-                if last is not None:
-                    try: 
-                        _set_value(_get_edit("tbLast"), last)
-                        try:
-                            _set_value(_get_edit("tbFacility"), "")
-                        except Exception:
-                            pass
-                    except Exception: pass
-
-                # Facility
-                if facility is not None:
-                    try: _set_value(_get_edit("tbFacility"), facility)
-                    except Exception: pass
+                _seed_provider_search_inputs(first, last, facility, phone)
                 # Common filters
                 _fill_common_filters(phone, city, state, zip_)
                 # Search
@@ -838,16 +853,36 @@ def CreateSubjectLineBuilder(app=None, *, allData=None, emaiDisplay=None, skip_c
         tbEmployer = dlg.child_window(auto_id="tbEmployer", control_type="Edit").wrapper_object()
         focus_control(tbEmployer)
         time.sleep(6)
+        tbEmployer = dlg.child_window(auto_id="tbEmployer", control_type="Edit").wrapper_object()
         try:
             tbEmployer.iface_value.SetValue(allData['customer'])
         except uia_defines.NoPatternInterfaceError:
             import win32con
             import win32gui
 
-            # WinForms can intermittently omit ValuePattern on this same EDIT.
+            builder_hwnd = dlg.handle
+            if not builder_hwnd or not win32gui.IsWindow(builder_hwnd):
+                raise RuntimeError("tbEmployer builder native window is missing")
+            builder_pid = dlg.process_id()
+            # The cached UIA element can omit both ValuePattern and its HWND.
             employer_hwnd = tbEmployer.handle
             if not employer_hwnd or not win32gui.IsWindow(employer_hwnd):
-                raise RuntimeError("tbEmployer native control is missing")
+                native_builder = Desktop(backend="win32").window(handle=builder_hwnd).wrapper_object()
+                if native_builder.handle != builder_hwnd:
+                    raise RuntimeError("tbEmployer builder native identity changed")
+                employer_matches = []
+                for candidate in native_builder.descendants():
+                    if candidate.friendly_class_name() != "Edit":
+                        continue
+                    candidate_info = Desktop(backend="uia").window(
+                        handle=candidate.handle).wrapper_object().element_info
+                    if candidate_info.automation_id == "tbEmployer":
+                        employer_matches.append(candidate.handle)
+                if not employer_matches:
+                    raise RuntimeError("tbEmployer native recovery found no matching Edit")
+                if len(employer_matches) != 1:
+                    raise RuntimeError("tbEmployer native recovery found multiple matching Edits")
+                employer_hwnd = employer_matches[0]
             native_employer = Desktop(backend="win32").window(handle=employer_hwnd).wrapper_object()
             if native_employer.handle != employer_hwnd:
                 raise RuntimeError("tbEmployer native control identity changed")
@@ -856,8 +891,19 @@ def CreateSubjectLineBuilder(app=None, *, allData=None, emaiDisplay=None, skip_c
                 raise RuntimeError("tbEmployer native control is not an Edit")
             if native_employer.style() & win32con.ES_READONLY:
                 raise RuntimeError("tbEmployer native control is read-only")
-            if tbEmployer.handle != employer_hwnd:
+            # Resolve identity independently of the possibly stale original UIA element.
+            employer_info = Desktop(backend="uia").window(
+                handle=employer_hwnd).wrapper_object().element_info
+            if (not win32gui.IsWindow(builder_hwnd) or dlg.handle != builder_hwnd
+                    or dlg.process_id() != builder_pid
+                    or not win32gui.IsWindow(employer_hwnd)
+                    or employer_info.handle != employer_hwnd
+                    or employer_info.automation_id != "tbEmployer"):
                 raise RuntimeError("tbEmployer native control identity changed")
+            if employer_info.process_id != builder_pid:
+                raise RuntimeError("tbEmployer native control belongs to another process")
+            if not win32gui.IsChild(builder_hwnd, employer_hwnd):
+                raise RuntimeError("tbEmployer native control is outside the current builder")
             # Avoid EditWrapper.set_edit_text: its action log includes the value.
             native_result = win32gui.SendMessageTimeout(
                 employer_hwnd, win32con.WM_SETTEXT, 0, allData['customer'],
@@ -945,8 +991,16 @@ def CreateSubjectLineBuilder(app=None, *, allData=None, emaiDisplay=None, skip_c
             AttachRow = grid.iface_grid.CurrentRowCount
             ClaimantSelected = False
 
+            if AttachRow == 1:
+                cell = grid.child_window(title="Select Row 0", control_type="CheckBox").wrapper_object()
+                safe_click(cell)
+                SelectClaimant = ucc.child_window(auto_id="btnSelect", control_type="Button").wrapper_object()
+                safe_click(SelectClaimant)
+                time.sleep(3)
+                return True
+
             # el
-            if AttachRow >= 1:
+            if AttachRow > 1:
                 # ---------- 1) Count EDI rows first ----------
                 edi_rows = []
                 for r in range(AttachRow):
@@ -1583,9 +1637,10 @@ def CreateSubjectLineBuilder(app=None, *, allData=None, emaiDisplay=None, skip_c
 
 
         def _fill_common_filters(phone, city, state, zip_):
-            # Phone
-            try: _set_value(_get_edit("tbPhone"), phone)
-            except Exception: pass
+            # Supplied phone is already verified; retain legacy clearing when absent.
+            if not phone:
+                try: _set_value(_get_edit("tbPhone"), phone)
+                except Exception: pass
             # City
             try: _set_value(_get_edit("tbCity"), city)
             except Exception: pass
@@ -1596,7 +1651,7 @@ def CreateSubjectLineBuilder(app=None, *, allData=None, emaiDisplay=None, skip_c
             except Exception: pass
 
         def _clear_all_inputs():
-            for eid in ("tbFirst","tbLast","tbFacility","tbPhone","tbCity","tbZip"):
+            for eid in ("tbPhone","tbCity","tbZip"):
                 try:
                     _set_value(_get_edit(eid), "")
                 except Exception:
@@ -1607,25 +1662,7 @@ def CreateSubjectLineBuilder(app=None, *, allData=None, emaiDisplay=None, skip_c
                         phone=None, city=None, state=None, zip_=None):
             """Populate fields, click Search, wait, return count."""
             _clear_all_inputs()
-            # Names
-            if first is not None:
-                try: _set_value(_get_edit("tbFirst"), first)
-                except Exception: pass
-            if last is not None:
-                try:
-                    _set_value(_get_edit("tbLast"), last)
-                    try:
-                        _set_value(_get_edit("tbFacility"), "")
-                    except Exception:
-                        pass
-                except Exception: pass
-
-            # Facility
-            if facility is not None:
-                try: 
-                    _set_value(_get_edit("tbFacility"), facility)
-                    
-                except Exception: pass
+            _seed_provider_search_inputs(first, last, facility, phone)
             # Common filters
             _fill_common_filters(phone, city, state, zip_)
             # Search
@@ -2422,25 +2459,24 @@ def CreateSubjectLineBuilder(app=None, *, allData=None, emaiDisplay=None, skip_c
         if not cbBodyPartVal:
             cbBodyPart.iface_value.SetValue(allData['bodyPart']) 
 
-        # TAB Injury Type
-        cbInjuryType = dlg.child_window(auto_id="cbInjuryType", control_type="ComboBox").wrapper_object()
-        cbInjTypeVal = cbInjuryType.iface_value.CurrentValue
-        
+        # Imports must remain local: the controller rebinds this function's globals.
+        from AI.injury_classification import match_injury_type, match_injury_cause
+        from fcm_intake.config import PROJECT_ROOT
+        from fcm_intake.legacy_loader import load_module_from_path
 
-        # cbInjuryType.iface_value.SetValue(allData['injuryType'])
-        # send_keys('{TAB}')
-        # send_keys(allData['injuryType'],with_spaces=True) #All Other Specific Injuries, NOC
-        # cbInjuryType cbInjuryCause
-
-        # TAB Injury Cause
-        cbInjuryCause = dlg.child_window(auto_id="cbInjuryCause", control_type="ComboBox").wrapper_object()
-        cbInjCauseVal = cbInjuryCause.iface_value.CurrentValue
-
-        if not cbInjTypeVal or not cbInjCauseVal:
-            notify("Notice",f"Injury Type: {allData['injuryType']}\nInjury Cause: {allData['injuryCause']}")
-        # cbInjuryCause.iface_value.SetValue(allData['injuryCause'])
-        # send_keys('{TAB}')
-        # send_keys(allData['injuryCause'],with_spaces=True) #'Other - Miscellaneous, NOC
+        injury_ui = load_module_from_path(
+            "subject_line_injury_ui",
+            PROJECT_ROOT / "Processes" / "SubjectLineBuilder" / "Deploy-Ready" / "rrs_ui.py")
+        injury_adapter = injury_ui.RRSAdapter()
+        injury_adapter.builder = dlg
+        for injury_id, injury_key, injury_label, injury_matcher in (
+                ("cbInjuryType", "injuryType", "Injury Type", match_injury_type),
+                ("cbInjuryCause", "injuryCause", "Injury Cause", match_injury_cause)):
+            injury_value = injury_adapter.fill_dropdown(
+                injury_id, allData.get(injury_key), injury_matcher, verify=True)
+            if injury_adapter._blank(injury_value):
+                notify("Notice", f"{injury_label} requires manual selection: "
+                       "canonical input is missing or no dropdown option matched.")
         
 
         # btnSpecialInstrucitons
