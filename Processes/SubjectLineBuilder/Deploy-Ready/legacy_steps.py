@@ -838,7 +838,34 @@ def CreateSubjectLineBuilder(app=None, *, allData=None, emaiDisplay=None, skip_c
         tbEmployer = dlg.child_window(auto_id="tbEmployer", control_type="Edit").wrapper_object()
         focus_control(tbEmployer)
         time.sleep(6)
-        tbEmployer.iface_value.SetValue(allData['customer'])
+        try:
+            tbEmployer.iface_value.SetValue(allData['customer'])
+        except uia_defines.NoPatternInterfaceError:
+            import win32con
+            import win32gui
+
+            # WinForms can intermittently omit ValuePattern on this same EDIT.
+            employer_hwnd = tbEmployer.handle
+            if not employer_hwnd or not win32gui.IsWindow(employer_hwnd):
+                raise RuntimeError("tbEmployer native control is missing")
+            native_employer = Desktop(backend="win32").window(handle=employer_hwnd).wrapper_object()
+            if native_employer.handle != employer_hwnd:
+                raise RuntimeError("tbEmployer native control identity changed")
+            native_employer.verify_actionable()
+            if native_employer.friendly_class_name() != "Edit":
+                raise RuntimeError("tbEmployer native control is not an Edit")
+            if native_employer.style() & win32con.ES_READONLY:
+                raise RuntimeError("tbEmployer native control is read-only")
+            if tbEmployer.handle != employer_hwnd:
+                raise RuntimeError("tbEmployer native control identity changed")
+            # Avoid EditWrapper.set_edit_text: its action log includes the value.
+            native_result = win32gui.SendMessageTimeout(
+                employer_hwnd, win32con.WM_SETTEXT, 0, allData['customer'],
+                win32con.SMTO_ABORTIFHUNG, 5000)
+            if not native_result[0] or not native_result[1]:
+                raise RuntimeError("tbEmployer native text write failed")
+            if native_employer.window_text() != allData['customer']:
+                raise RuntimeError("tbEmployer native text verification failed")
         # # tbClaimantFirst
         tbClaimantFirst = dlg.child_window(auto_id="tbClaimantFirst", control_type="Edit").wrapper_object()
         tbClaimantFirst.iface_value.SetValue(allData['claimantFirst'])

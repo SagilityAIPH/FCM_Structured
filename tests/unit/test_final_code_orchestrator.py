@@ -2,6 +2,7 @@
 from datetime import date
 import json
 from pathlib import Path
+import runpy
 import subprocess
 import sys
 from types import SimpleNamespace
@@ -163,6 +164,26 @@ def test_subject_line_outcomes(callbacks, status):
     assert result["payloads"]["SUBJECT LINE BUILDER"]["result"]["error"] == "Synthetic"
 
 
+def test_shared_builder_original_failure_survives_orchestration(callbacks):
+    root = Path(__file__).resolve().parents[2]
+    run_flow = runpy.run_path(str(
+        root / "Processes" / "SubjectLineBuilder" / "Deploy-Ready" / "subject_line_flow.py"))["run_flow"]
+    namespace = {}
+    source = '\n' * 838 + (
+        'def legacy_failure(app=None):\n'
+        '    try:\n'
+        '        raise ValueError()\n'
+        '    except Exception:\n'
+        '        sys.exit()\n')
+    exec(compile(source, 'legacy_steps.py', 'exec'), namespace)
+    callbacks["subject_line"] = lambda _: run_flow({"sys": sys}, steps=namespace["legacy_failure"])
+    result = flow.run(**callbacks)
+    assert (result["outcome"], result["reason"]) == ("failed", "subject_line_failed")
+    assert result["error"] == {"stage": "subject_line_builder", "type": "ValueError",
+                               "message": "ValueError (legacy_steps.py:841)", "exit_code": None}
+    json.dumps(result)
+
+
 @pytest.mark.parametrize("response", [{"status": "unknown"}, {"status": "completed"},
     {"status": "completed", "customer": ""}, {"status": "completed", "customer": "Not found"}])
 def test_invalid_cms_response(callbacks, response):
@@ -199,7 +220,8 @@ def test_import_purity():
     assert completed.returncode == 0, completed.stderr
 
 
-def test_live_wiring_contracts(monkeypatch):
+@pytest.mark.parametrize("runtime", [{}, {"synthetic": True}])
+def test_live_wiring_contracts(monkeypatch, runtime):
     import types
     events = []
     desktop = Mock()
@@ -210,18 +232,122 @@ def test_live_wiring_contracts(monkeypatch):
     cms = live_wiring.make_cms(app="synthetic-app", notify="notify", confirm="confirm")
     cms({"synthetic": True})
     assert run_live.call_args.kwargs["stage"] == "all"
+    assert run_live.call_args.kwargs["show_customer_results"] is True
     run_flow = Mock(side_effect=lambda *a, **kw: events.append(("flow", kw)) or {"status": "completed"})
     monkeypatch.setitem(sys.modules, "fcm_intake.config", SimpleNamespace(PROJECT_ROOT=Path("synthetic")))
+    loader = Mock(return_value=SimpleNamespace(run_flow=run_flow))
     monkeypatch.setitem(sys.modules, "fcm_intake.legacy_loader", SimpleNamespace(
-        load_module_from_path=lambda *a: SimpleNamespace(run_flow=run_flow)))
-    subject = live_wiring.make_subject_line(runtime={})
+        load_module_from_path=loader))
+    subject = live_wiring.make_subject_line(runtime=runtime, app="synthetic-app")
     assert events == []
+    all_data = {"customer": "Synthetic"}
+    subject(all_data)
     subject({"customer": "Synthetic"})
-    subject({"customer": "Synthetic"})
+    assert loader.call_count == 1  # Only the lightweight shared controller.
+    assert all(call.args[0] is runtime for call in run_flow.call_args_list)
+    assert run_flow.call_args_list[0].kwargs["allData"] is all_data
+    assert run_flow.call_args.kwargs["app"] == "synthetic-app"
     assert [e[0] for e in events] == ["window", "flow", "window", "flow"]
     assert events[0][1]["title"] == "Email Display"
     assert events[1][1]["skip_capture"] is events[1][1]["skip_cms"] is True
     assert events[1][1]["emaiDisplay"] is not events[3][1]["emaiDisplay"]
+
+
+@pytest.fixture
+def lazy_subject_runtime(monkeypatch):
+    root = Path(__file__).resolve().parents[2]
+    controller_path = root / "Processes" / "SubjectLineBuilder" / "Deploy-Ready" / "subject_line_flow.py"
+    run_flow = runpy.run_path(str(controller_path))["run_flow"]
+    events = []
+    desktop = Mock()
+    desktop.window.side_effect = lambda **kw: events.append("window") or object()
+    desktop_factory = Mock(return_value=desktop)
+    monkeypatch.setitem(sys.modules, "pywinauto", SimpleNamespace(Desktop=desktop_factory))
+    runtime_path = Path("synthetic_legacy_runtime.py")
+    monkeypatch.setitem(sys.modules, "fcm_intake.config", SimpleNamespace(
+        PROJECT_ROOT=root, FCM_SCRIPT=runtime_path))
+    legacy = SimpleNamespace(synthetic_helper=Mock(return_value={"synthetic": True}),
+                             synthetic_marker=object())
+
+    def steps(*, app, allData, emaiDisplay, skip_capture, skip_cms):
+        namespace = globals()
+        namespace["data"] = namespace["synthetic_helper"](allData, namespace["synthetic_marker"])
+        namespace["botStop"] = False
+
+    controller = Mock(side_effect=lambda *args, **kwargs: run_flow(*args, steps=steps, **kwargs))
+
+    def load(name, path):
+        if name == "finalcode_subject_line_flow":
+            assert path == controller_path
+            return SimpleNamespace(run_flow=controller)
+        assert (name, path) == ("standalone_subject_line_runtime", runtime_path)
+        events.append("runtime")
+        return legacy
+
+    loader = Mock(side_effect=load)
+    monkeypatch.setitem(sys.modules, "fcm_intake.legacy_loader", SimpleNamespace(
+        load_module_from_path=loader))
+    return SimpleNamespace(loader=loader, legacy=legacy, controller=controller,
+                           desktop=desktop, desktop_factory=desktop_factory, events=events)
+
+
+def test_missing_runtime_is_loaded_only_at_subject_invocation(callbacks, lazy_subject_runtime):
+    setup = lazy_subject_runtime
+    subject = live_wiring.make_subject_line(runtime=None, app="synthetic-app")
+    assert setup.loader.call_count == 1  # Factory loads the shared controller, not legacy_fcm.
+    setup.desktop_factory.assert_not_called()
+    callbacks["subject_line"] = subject
+    original_review = callbacks["review"].side_effect
+    callbacks["review"].side_effect = lambda f: None
+    assert flow.run(**callbacks)["reason"] == "operator_cancelled"
+    assert setup.loader.call_count == 1
+    callbacks["review"].side_effect = original_review
+
+    for _ in range(2):
+        result = flow.run(**callbacks)
+        assert result["outcome"] == "completed"
+        assert result["payloads"]["SUBJECT LINE BUILDER"]["result"]["data"] == {"synthetic": True}
+    assert setup.loader.call_count == 2  # Runtime initialized once for this callable.
+    assert setup.events == ["runtime", "window", "window"]
+    calls = setup.controller.call_args_list
+    assert all(call.args[0] is vars(setup.legacy) for call in calls)
+    assert setup.legacy.synthetic_helper.call_count == 2
+    for call in calls:
+        assert call.kwargs["allData"]["customer"] == "Synthetic Resolved Employer"
+        assert call.kwargs["app"] == "synthetic-app"
+        assert call.kwargs["skip_capture"] is call.kwargs["skip_cms"] is True
+    assert calls[0].kwargs["emaiDisplay"] is not calls[1].kwargs["emaiDisplay"]
+    setup.desktop.window.assert_called_with(title="Email Display", control_type="Window")
+
+
+def test_missing_runtime_loader_failure_surfaces_at_subject_line(callbacks, lazy_subject_runtime):
+    setup = lazy_subject_runtime
+    subject = live_wiring.make_subject_line(runtime=None)
+    setup.loader.side_effect = ImportError("Synthetic runtime dependency unavailable")
+    callbacks["subject_line"] = subject
+    result = flow.run(**callbacks)
+    assert (result["outcome"], result["reason"]) == ("failed", "exception")
+    assert result["stages"][-1] == "SUBJECT LINE BUILDER"
+    assert result["error"] == {"stage": "SUBJECT LINE BUILDER", "type": "ImportError",
+                               "message": "Synthetic runtime dependency unavailable"}
+    setup.desktop_factory.assert_not_called()
+    setup.controller.assert_not_called()
+
+
+@pytest.mark.parametrize("credentials", [None, lambda: ("synthetic-user", "synthetic-secret")])
+def test_cms_results_option_reaches_live_runner_with_or_without_credentials(monkeypatch, credentials):
+    run_live = Mock(return_value={"status": "completed", "customer": "Synthetic Resolved"})
+    set_credentials = Mock()
+    monkeypatch.setitem(sys.modules, "fcm_intake.workflows.reopen_flow", SimpleNamespace(run_live=run_live))
+    monkeypatch.setitem(sys.modules, "fcm_intake.cms.session", SimpleNamespace(
+        set_credentials=set_credentials, CmsAuthenticationRejected=type("Rejected", (RuntimeError,), {})))
+    data = {"customer": "Synthetic"}
+    result = live_wiring.make_cms(credentials=credentials, show_customer_results=False)(data)
+    assert result["customer"] == "Synthetic Resolved"
+    run_live.assert_called_once_with(data, app=None, notify=None, confirm=None, stage="all",
+                                    show_customer_results=False)
+    if credentials is not None:
+        assert set_credentials.call_args_list[-1].args == ("", "")
 
 
 def test_extract_wiring(monkeypatch, fields):

@@ -807,7 +807,7 @@ def customer_prompter_and_cem(CustomerName: str, ClaimID, ClaimantName, app=None
 # =========================
 # MAIN: VALIDATE CUSTOMER
 # =========================
-def ValidateCustomer(CustomerName: str,ClaimID,ClaimantName,app=None):
+def ValidateCustomer(CustomerName: str,ClaimID,ClaimantName,app=None, *, show_results=True):
     drv = get_driver()
     
     # Your existing menu navigation JS (kept)
@@ -907,12 +907,13 @@ def ValidateCustomer(CustomerName: str,ClaimID,ClaimantName,app=None):
                 return None
 
 
-    # Capture the whole results table and show it to the user in a modal.
+    # Capture the whole results table; the attended launcher can skip the informational modal.
     results_table = extract_results_table(drv)
     results_table_text = format_results_table(results_table)
     if app is not None and hasattr(app, "capture_results_table"):
         app.capture_results_table("Customer Search Results", results_table)
-    show_results_table(results_table_text, app=app)
+    if show_results:
+        show_results_table(results_table_text, app=app)
 
     # Optional: some apps show a "no records found" row as 1 row
     if len(rows) == 1 and "NO RECORD" in (rows[0].text or "").upper():
@@ -967,5 +968,4 @@ def MainCustomerCheck(CustomerName: str,ClaimID,ClaimantName,app=None):
 
 if __name__ == "__main__":
     print(MainCustomerCheck("CARROLS CORPORATION","123456","Test Name"))
-
 

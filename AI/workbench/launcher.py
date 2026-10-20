@@ -13,7 +13,8 @@ def main():
     launch_window()
 
 
-def launch_window(*, api=None, on_loaded=None, title="AI PDF Reader · FCM Workbench", index=None):
+def launch_window(*, api=None, on_loaded=None, title="AI PDF Reader · FCM Workbench", index=None,
+                  on_top=True):
     import webview
     from AI.workbench.backend import WorkbenchAPI
     from AI.workbench.window_layout import WINDOW_WIDTH, WINDOW_HEIGHT, MIN_HEIGHT, constrain_window
@@ -27,7 +28,7 @@ def launch_window(*, api=None, on_loaded=None, title="AI PDF Reader · FCM Workb
     api = api if api is not None else WorkbenchAPI()
     window = webview.create_window(title, str(index), js_api=api,
                                     width=WINDOW_WIDTH, height=WINDOW_HEIGHT, min_size=(WINDOW_WIDTH, MIN_HEIGHT),
-                                    resizable=True, on_top=True, background_color="#f8fafc")
+                                    resizable=True, on_top=on_top, background_color="#f8fafc")
     api._window = window
     window.events.before_show += lambda: constrain_window(window)
     def closing():

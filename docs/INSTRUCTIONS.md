@@ -76,4 +76,4 @@ Deliberately empty. The owner has not named the next piece of work after Unity; 
 
 ## Completed
 
-Finished items `FCM-1.1-01` through `FCM-1.1-18`, plus `FCM-1.1-27` and `FCM-1.1-28`, are archived in `docs/completed.md`. Move future finished items out of their active section and append there in ID history with both date markers and test/build evidence; do not renumber.
+Finished items `FCM-1.1-01` through `FCM-1.1-18`, plus `FCM-1.1-27`, `FCM-1.1-28`, and `FCM-1.1-30` through `FCM-1.1-33`, are archived in `docs/completed.md`. Move future finished items out of their active section and append there in ID history with both date markers and test/build evidence; do not renumber.

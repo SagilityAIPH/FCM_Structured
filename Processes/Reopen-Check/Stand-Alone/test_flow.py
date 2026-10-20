@@ -1,9 +1,10 @@
 """Offline process tests: run `python -m unittest discover -s . -v` here."""
-import unittest
+import ast
 import importlib.util
 import os
 import sys
-from types import ModuleType
+import unittest
+from types import ModuleType, SimpleNamespace
 from unittest.mock import Mock, patch
 
 from run import load_core, ROOT
@@ -91,10 +92,15 @@ class IntegrationTests(unittest.TestCase):
         app = Mock()
         data = {"claimNumber": "DEMO", "customer": "Customer", "claimID": "ID", "claimantFull": "Person"}
         with patch.dict(sys.modules, {cases.__name__: cases, customers.__name__: customers}):
-            result = run_live(data, app=app, notify=Mock())
-        self.assertEqual(result["customer"], "Selected Customer")
-        cases.MainReopenCheck.assert_called_once_with("DEMO", "Person")
-        customers.MainCustomerCheck.assert_called_once_with("Customer", "ID", "Person", app=app)
+            for options, expected in (({}, True), ({"show_customer_results": False}, False)):
+                with self.subTest(options=options):
+                    cases.MainReopenCheck.reset_mock()
+                    customers.MainCustomerCheck.reset_mock()
+                    result = run_live(data, app=app, notify=Mock(), **options)
+                    self.assertEqual(result["customer"], "Selected Customer")
+                    cases.MainReopenCheck.assert_called_once_with("DEMO", "Person")
+                    customers.MainCustomerCheck.assert_called_once_with(
+                        "Customer", "ID", "Person", app=app, show_results=expected)
 
     def test_customer_wrapper_forwards_app_without_closing_shared_session(self):
         from fcm_intake import legacy_loader
@@ -118,8 +124,13 @@ class IntegrationTests(unittest.TestCase):
                 patch.object(legacy_loader, "load_module_from_path", return_value=fake_legacy):
             spec.loader.exec_module(wrapper)
             app = Mock()
-            self.assertEqual(wrapper.MainCustomerCheck("Customer", "ID", "Person", app=app), "Selected Customer")
-        fake_legacy.ValidateCustomer.assert_called_once_with("Customer", "ID", "Person", app=app)
+            for options, expected in (({}, True), ({"show_results": False}, False)):
+                with self.subTest(options=options):
+                    fake_legacy.ValidateCustomer.reset_mock()
+                    self.assertEqual(wrapper.MainCustomerCheck(
+                        "Customer", "ID", "Person", app=app, **options), "Selected Customer")
+                    fake_legacy.ValidateCustomer.assert_called_once_with(
+                        "Customer", "ID", "Person", app=app, show_results=expected)
         self.assertIs(driver.execute_script, original_execute)
         driver.quit.assert_not_called()
 
@@ -155,6 +166,64 @@ class IntegrationTests(unittest.TestCase):
         self.assertTrue(match("Engelen, Garan", "Garan Engelen"))
         self.assertFalse(match("Cordova, Maria", "Alexandria M Cordova"))
         self.assertFalse(match("Cordova, A", "Alexandria Cordova"))
+
+
+class CustomerResultsTests(unittest.TestCase):
+    def test_results_modal_option_preserves_capture_matching_and_manual_prompts(self):
+        path = ROOT / "src" / "fcm_intake" / "legacy" / "legacy_customerchecker.py"
+        tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+        validate = next(node for node in tree.body
+                        if isinstance(node, ast.FunctionDef) and node.name == "ValidateCustomer")
+        code = compile(ast.Module(body=[validate], type_ignores=[]), str(path), "exec")
+        for options, visible in (({}, True), ({"show_results": False}, False)):
+            for scenario in ("matched", "unmatched", "no_records", "timeout"):
+                with self.subTest(options=options, scenario=scenario):
+                    driver, app, modal, prompt = Mock(), Mock(), Mock(), Mock(return_value="Synthetic Manual")
+                    table = {"headers": ["Customer"], "rows": [["Synthetic Resolved"]]}
+                    rows = Mock(return_value=[SimpleNamespace(
+                        text="NO RECORD" if scenario == "no_records" else "Synthetic Resolved")])
+                    if scenario == "timeout":
+                        rows.side_effect = TimeoutError
+                    match = Mock(return_value=(None if scenario == "unmatched" else "Synthetic Resolved", .99))
+                    namespace = {
+                        "get_driver": Mock(return_value=driver),
+                        "time": SimpleNamespace(sleep=Mock()),
+                        "By": SimpleNamespace(ID="id", XPATH="xpath"),
+                        "WebDriverWait": Mock(),
+                        "EC": Mock(),
+                        "element_click": Mock(),
+                        "get_ecode_for_customer": Mock(return_value=None),
+                        "legacy_safe_type": Mock(),
+                        "SearchCustomerFirstWord": Mock(return_value="Synthetic"),
+                        "_get_result_rows": rows,
+                        "TimeoutException": TimeoutError,
+                        "extract_results_table": Mock(return_value=table),
+                        "format_results_table": Mock(return_value="Synthetic table"),
+                        "show_results_table": modal,
+                        "customer_prompter_and_cem": prompt,
+                        "pick_best_customer_from_results": match,
+                        "MIN_MATCH_SCORE": .8,
+                    }
+                    for name in ("MENU_SEARCH_CUSTOMER_ID", "SEARCH_FRAME_XPATH", "NAME_FIELD_ID",
+                                 "ECODE_FIELD_ID", "SEARCH_BUTTON_ID"):
+                        namespace[name] = name
+                    exec(code, namespace)
+                    result = namespace["ValidateCustomer"]("Synthetic", "SYNTHETIC-ID", "Synthetic Person",
+                                                           app=app, **options)
+                    self.assertEqual(result, "Synthetic Resolved" if scenario == "matched" else "Synthetic Manual")
+                    if scenario == "matched":
+                        prompt.assert_not_called()
+                        match.assert_called_once_with(driver, "Synthetic", min_score=.8)
+                    else:
+                        prompt.assert_called_once_with("Synthetic", "SYNTHETIC-ID", "Synthetic Person", app=app)
+                    if scenario == "timeout":
+                        app.capture_results_table.assert_not_called()
+                    else:
+                        app.capture_results_table.assert_called_once_with("Customer Search Results", table)
+                    if visible and scenario != "timeout":
+                        modal.assert_called_once_with("Synthetic table", app=app)
+                    else:
+                        modal.assert_not_called()
 
 
 if __name__ == "__main__":

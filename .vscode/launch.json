@@ -1,0 +1,27 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "FCM Final Code",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}\\Final Code\\main.py",
+            "cwd": "${workspaceFolder}",
+            "console": "integratedTerminal",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder};${workspaceFolder}\\src;${workspaceFolder}\\Final Code"
+            }
+        },
+        {
+            "name": "AI Workbench",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "AI.workbench.launcher",
+            "cwd": "${workspaceFolder}",
+            "console": "integratedTerminal",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder};${workspaceFolder}\\src"
+            }
+        }
+    ]
+}

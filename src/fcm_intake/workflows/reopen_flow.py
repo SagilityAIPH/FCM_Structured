@@ -9,7 +9,8 @@ _core = load_module_from_path(
 run_flow = _core.run_flow
 
 
-def run_live(data, *, app=None, notify=None, confirm=None, stage="all"):
+def run_live(data, *, app=None, notify=None, confirm=None, stage="all",
+             show_customer_results=True):
     # Import live dependencies only on execution, never during offline tests.
     def search_cases(claim_number, claimant_name=None):
         from fcm_intake.workflows.reopen_check import MainReopenCheck
@@ -17,7 +18,8 @@ def run_live(data, *, app=None, notify=None, confirm=None, stage="all"):
 
     def check_customer(customer, claim_id, claimant):
         from fcm_intake.workflows.customer_checker import MainCustomerCheck
-        return MainCustomerCheck(customer, claim_id, claimant, app=app)
+        return MainCustomerCheck(customer, claim_id, claimant, app=app,
+                                 show_results=show_customer_results)
 
     def show_message(title, message):
         from tkinter import messagebox

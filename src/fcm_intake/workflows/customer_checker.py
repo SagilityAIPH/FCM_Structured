@@ -19,7 +19,7 @@ def _bind():
     _orig.elementExist = cms_session.element_exist
     return drv
 
-def MainCustomerCheck(customer_name, claim_id, claimant_name, app=None):
+def MainCustomerCheck(customer_name, claim_id, claimant_name, app=None, *, show_results=True):
     drv = cms_session.init_shared_cms_session()
     _bind()
 
@@ -46,11 +46,11 @@ def MainCustomerCheck(customer_name, claim_id, claimant_name, app=None):
         pass
 
     try:
-        result = _orig.ValidateCustomer(customer_name, claim_id, claimant_name, app=app)
+        result = _orig.ValidateCustomer(customer_name, claim_id, claimant_name, app=app,
+                                       show_results=show_results)
     finally:
         try:
             drv.execute_script = original_execute_script
         except Exception:
             pass
     return result
-

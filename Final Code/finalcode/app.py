@@ -137,7 +137,8 @@ def build_live_callables(api, *, app=None, runtime=None, holder=None):
         "capture": make_capture(live_wiring.make_capture(), holder),
         "extract": make_extract(api),
         "review": make_review(api, holder),
-        "cms": live_wiring.make_cms(app=app, notify=api.notify, confirm=api.confirm),
+        "cms": live_wiring.make_cms(app=app, notify=api.notify, confirm=api.confirm,
+                                    show_customer_results=False),
         "subject_line": live_wiring.make_subject_line(runtime=runtime, app=app),
     }
 
@@ -195,7 +196,7 @@ def launch(*, app=None, runtime=None, root=None):
     # memory_only keeps the run off disk and is what start_processing requires
     # before it will accept prepared_fields.
     api = FinalCodeAPI(app=app, runtime=runtime)
-    launch_window(api=api, title=WINDOW_TITLE)
+    launch_window(api=api, title=WINDOW_TITLE, on_top=False)
     return api
 
 

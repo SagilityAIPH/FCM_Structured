@@ -87,10 +87,25 @@ Selenium, database credentials or installed Python are needed by the EXE.
   (`AI/injury_classification.py`). The EXE bundles that module.
 - `Stand-Alone/backend.py`: worker, progress, review gates and cancellation.
 - `Stand-Alone/frontend`: manual form; `launcher.py` hosts WebView2.
-- `Deploy-Ready/legacy_steps.py` and `subject_line_flow.py`: unchanged main-app
+- `Deploy-Ready/legacy_steps.py` and `subject_line_flow.py`: shared main-app
   migration path with original upstream stages. Not imported by manual standalone.
 - `src/fcm_intake/workflows/subject_line_builder.py`: unchanged main-app adapter.
   Do not switch the main workflow to the manual runner.
+
+The shared `subject_line_flow.py` controller retains an ordinary exception behind
+the legacy handler's `SystemExit`: failures include its type/message and builder
+source filename/line in `error`, plus `type` metadata, without returning a raw
+traceback or runtime data. Direct exceptions use the same diagnostics. Explicit
+exits without an ordinary exception retain the generic error and exit code.
+Final Code propagates these diagnostics.
+
+The shared legacy Employer write keeps UIA `ValuePattern.SetValue` as its normal
+path. Only `NoPatternInterfaceError` triggers a native `WM_SETTEXT` write to that
+same `tbEmployer` HWND. The fallback requires an actionable native Edit without
+the read-only style, checks the native write result, and verifies exact text
+readback. It does not log the employer value, retry, send keystrokes or search
+another window; other fields retain their existing writes. Synthetic tests cover
+this path and controller containment, not live RRS or end-to-end validation.
 
 ## Verification
 

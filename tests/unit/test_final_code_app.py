@@ -220,9 +220,27 @@ def test_launch_waits_for_operator_even_after_frontend_loaded(monkeypatch):
     monkeypatch.setattr(app, "build_live_callables", lambda *a, **k: pytest.fail("built before Start"))
     api = app.launch()
     assert captured["api"] is api
+    assert captured["on_top"] is False
     assert "on_loaded" not in captured
     assert api.get_state()["value"]["stage"] == "Waiting for Start"
     assert api.get_state()["value"]["workflow_active"] is False
+
+
+def test_live_callables_suppress_only_customer_results(monkeypatch):
+    from types import SimpleNamespace
+    from unittest.mock import Mock
+    from finalcode import live_wiring
+
+    run_live = Mock(return_value={"status": "completed", "customer": "Synthetic Resolved"})
+    monkeypatch.setitem(sys.modules, "fcm_intake.workflows.reopen_flow", SimpleNamespace(run_live=run_live))
+    monkeypatch.setattr(live_wiring, "make_capture", lambda: Mock())
+    monkeypatch.setattr(live_wiring, "make_subject_line", lambda **kwargs: Mock())
+    api = SimpleNamespace(notify=Mock(), confirm=Mock())
+    data = {"customer": "Synthetic"}
+    result = app.build_live_callables(api)["cms"](data)
+    assert result["customer"] == "Synthetic Resolved"
+    run_live.assert_called_once_with(data, app=None, notify=api.notify, confirm=api.confirm,
+                                    stage="all", show_customer_results=False)
 
 
 def test_operator_start_runs_injected_chain_and_rejects_concurrent_start(monkeypatch):

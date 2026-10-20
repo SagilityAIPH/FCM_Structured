@@ -337,8 +337,12 @@ def test_text_capture_can_extract_save_fields_validate_and_export(workbench, mon
     assert 'SYNTHETIC-TEXT-ONLY' in target.read_text(encoding='utf-8')
 
 
-def test_minimized_layout_preserves_restore_bounds_and_compact_height(monkeypatch):
-    from AI.workbench import window_layout
+@pytest.mark.parametrize("final_code", [False, True])
+def test_launch_window_preserves_topmost_policy_through_native_layouts(monkeypatch, final_code):
+    from functools import partial
+    from pathlib import Path
+    from unittest.mock import Mock
+    from AI.workbench import launcher, window_layout
 
     class Size:
         def __init__(self, width, height):
@@ -377,8 +381,30 @@ def test_minimized_layout_preserves_restore_bounds_and_compact_height(monkeypatc
     monkeypatch.setitem(sys.modules, 'System.Drawing', SimpleNamespace(Size=Size))
     monkeypatch.setitem(sys.modules, 'System.Windows.Forms', SimpleNamespace(
         FormWindowState=SimpleNamespace(Minimized='Minimized'), Screen=screen))
-    window = SimpleNamespace(native=form)
-    window_layout.constrain_window(window)
+    window = SimpleNamespace(native=form, events=SimpleNamespace(
+        before_show=Event(), closing=Event(), loaded=Event()))
+
+    def create_window(*args, **kwargs):
+        form.TopMost = kwargs["on_top"]
+        return window
+
+    create = Mock(side_effect=create_window)
+    start = Mock(side_effect=lambda **kwargs: window.events.before_show.handler())
+    monkeypatch.setitem(sys.modules, "webview", SimpleNamespace(create_window=create, start=start))
+    monkeypatch.setattr(launcher, "load_dotenv", Mock())
+    # Use an existing synthetic-test source as the mock page, not generated frontend output.
+    monkeypatch.setattr(launcher, "launch_window", partial(launcher.launch_window, index=__file__))
+    if final_code:
+        monkeypatch.syspath_prepend(str(Path(__file__).resolve().parents[2] / "Final Code"))
+        from finalcode import app
+        api = app.launch()
+    else:
+        api = SimpleNamespace(_busy=False, _workflow_active=False, _unsaved=False)
+        launcher.launch_window(api=api)
+    assert create.call_args.kwargs["on_top"] is (not final_code)
+    assert api._window is window
+    start.assert_called_once_with(gui="edgechromium", http_server=True, private_mode=True)
+    assert form.TopMost is (not final_code)
     assert (form.Size.Width, form.Size.Height) == (480, 900)
     form.WindowState = 'Minimized'
     form.Size = Size(160, 28)
@@ -395,8 +421,12 @@ def test_minimized_layout_preserves_restore_bounds_and_compact_height(monkeypatc
     assert (form.Size.Width, form.Size.Height) == (480, 900)
     window._set_compact_layout(True)
     assert form.Size.Height == window_layout.COMPACT_HEIGHT
+    assert form.TopMost is (not final_code)
     window._set_compact_layout(False)
     assert form.Size.Height == 900
+    form.DpiChanged.handler()
+    form.ResizeEnd.handler()
+    assert form.TopMost is (not final_code)
 
 
 def test_compact_state_headless_and_injected_resize(workbench):

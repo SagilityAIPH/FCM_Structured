@@ -146,6 +146,15 @@ with the CMS-validated customer already set by the adapter. This preserves Syste
 containment. `correctZipCode`, derived business rules, and the natural manual-validation
 safety net still run; validation is not superseded or bypassed by these guards.
 
+Final Code's `make_subject_line(runtime=None)` loads `FCM_SCRIPT` through the shared
+legacy loader only on first invocation and passes the full `vars(legacy)` namespace
+to this controller. A supplied runtime, including an empty dict, is never replaced.
+Legacy import loads Windows/database/browser dependencies and focuses the RRS main
+window at module scope; initialization therefore precedes Email Display reacquisition
+at this stage, not capture/review or factory construction. Loader errors propagate to
+the orchestrator's Subject Line Builder failure result. This source-only fix has
+synthetic test coverage; live RRS/CMS/Bedrock/portal behavior and packaging are unverified.
+
 ### 3.2 Target chain
 
 ```

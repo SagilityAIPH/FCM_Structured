@@ -33,7 +33,8 @@ def make_extract(*, client_factory, model_id, max_tokens, temperature=0.0):
     return invoke
 
 
-def make_cms(*, app=None, notify=None, confirm=None, credentials=None):
+def make_cms(*, app=None, notify=None, confirm=None, credentials=None,
+             show_customer_results=True):
     from fcm_intake.workflows.reopen_flow import run_live
 
     def invoke(data):
@@ -58,7 +59,8 @@ def make_cms(*, app=None, notify=None, confirm=None, credentials=None):
                         set_credentials(*pair)
                         del pair
                         try:
-                            return run_live(data, app=app, notify=notify, confirm=confirm, stage="all")
+                            return run_live(data, app=app, notify=notify, confirm=confirm, stage="all",
+                                            show_customer_results=show_customer_results)
                         except Exception as error:
                             if isinstance(error, CmsAuthenticationRejected):
                                 if source is not None and hasattr(source, "_secrets"):
@@ -73,12 +75,13 @@ def make_cms(*, app=None, notify=None, confirm=None, credentials=None):
                 if source is not None and hasattr(source, "_cms_secrets"):
                     with source._lock:
                         source._cms_secrets.clear()
-        return run_live(data, app=app, notify=notify, confirm=confirm, stage="all")
+        return run_live(data, app=app, notify=notify, confirm=confirm, stage="all",
+                        show_customer_results=show_customer_results)
     return invoke
 
 
 def make_subject_line(*, runtime, app=None):
-    """runtime is the caller-owned legacy module namespace (not a UI handle)."""
+    """Use a supplied legacy namespace, or load one lazily on first invocation."""
     from pywinauto import Desktop
     from fcm_intake.config import PROJECT_ROOT
     from fcm_intake.legacy_loader import load_module_from_path
@@ -88,6 +91,14 @@ def make_subject_line(*, runtime, app=None):
         PROJECT_ROOT / "Processes" / "SubjectLineBuilder" / "Deploy-Ready" / "subject_line_flow.py")
 
     def invoke(all_data):
+        nonlocal runtime
+        if runtime is None:
+            from fcm_intake.config import FCM_SCRIPT
+
+            # Importing legacy_fcm focuses RRS, so defer it until this stage and
+            # finish initialization before reacquiring Email Display below.
+            legacy = load_module_from_path("standalone_subject_line_runtime", FCM_SCRIPT)
+            runtime = vars(legacy)
         # Re-acquire by title NOW: review may have lasted minutes and the operator
         # may have navigated elsewhere in RRS; a pre-review handle is unsafe.
         email_display = Desktop(backend="uia").window(
