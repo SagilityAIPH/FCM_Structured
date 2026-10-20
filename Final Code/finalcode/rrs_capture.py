@@ -3,7 +3,15 @@
 Pass a desktop accessor with ``window(**criteria)`` for offline tests. Only the
 no-matching-attachment outcome is a business stop; automation errors propagate.
 """
+import logging
 import re
+import time
+
+
+logger = logging.getLogger(__name__)
+MIN_CAPTURE_CHARS = 64
+CAPTURE_ATTEMPTS = 4
+CAPTURE_INTERVAL_SECONDS = 0.25
 
 
 def _default_desktop():
@@ -41,8 +49,33 @@ def capture(desktop=None):
             viewer = desktop.window(title_re=f"{attachment_name}")
             viewer.wait("visible ready", timeout=60)
             viewer.set_focus()
-            document = viewer.child_window(title=attachment_name, control_type="Document").wrapper_object()
-            document_text = document.iface_text.DocumentRange.GetText(-1)
+            # Window readiness does not imply that the DocumentRange has rendered.
+            # Require two consecutive substantive reads with identical text. A
+            # changed range gets another bounded chance to settle.
+            previous = None
+            document_text = ""
+            for attempt in range(CAPTURE_ATTEMPTS):
+                document = viewer.child_window(title=attachment_name, control_type="Document").wrapper_object()
+                current = document.iface_text.DocumentRange.GetText(-1) or ""
+                logger.info("RRS capture read %d/%d: %d characters", attempt + 1,
+                            CAPTURE_ATTEMPTS, len(current))
+                if len(current.strip()) >= MIN_CAPTURE_CHARS and current == previous:
+                    document_text = current
+                    break
+                previous = current
+                if attempt + 1 < CAPTURE_ATTEMPTS:
+                    time.sleep(CAPTURE_INTERVAL_SECONDS)
+            if not document_text:
+                if not previous or not previous.strip():
+                    logger.warning("RRS capture remained empty after %d reads", CAPTURE_ATTEMPTS)
+                    return {"attachment_name": None, "document_text": "",
+                            "claimant_row_value": claimant_row_value}
+                raise ValueError(
+                    "RRS referral text may be incomplete: viewer text did not stabilize "
+                    f"at {MIN_CAPTURE_CHARS} or more characters after {CAPTURE_ATTEMPTS} reads. "
+                    "Check that every page is rendered or use OCR, then try again."
+                )
+            logger.info("RRS capture accepted: %d characters", len(document_text))
             return {"attachment_name": attachment_name, "document_text": document_text,
                     "claimant_row_value": claimant_row_value}
     return {"attachment_name": None, "document_text": "",

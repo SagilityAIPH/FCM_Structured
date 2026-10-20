@@ -75,7 +75,7 @@ class FakeNode:
 class FakeDesktop(FakeNode):
     window = FakeNode.child_window
 
-    def __init__(self, attachments, *, fail=False):
+    def __init__(self, attachments, *, fail=False, text="Synthetic referral text only. " * 4):
         super().__init__("desktop", [])
         node = lambda name, **kw: FakeNode(name, self.events, **kw)
         main = self.add(node("main"), title_re="Referral Routing System*", control_type="Window")
@@ -87,7 +87,7 @@ class FakeDesktop(FakeNode):
             grid.add(node(f"attachment-{index}", value=name),
                      title=f"Filename Row {index}, Not sorted.", control_type="Edit")
             viewer = self.add(node(f"viewer-{index}"), title_re=name)
-            viewer.add(node(f"document-{index}", text="Synthetic referral text only.", fail=fail),
+            viewer.add(node(f"document-{index}", text=text, fail=fail),
                        title=name, control_type="Document")
 
 
@@ -108,7 +108,7 @@ def test_capture_scenarios(attachments, selected):
         assert not any(event[1] == "wait" for event in desktop.events)
     else:
         assert result["attachment_name"] == attachments[selected]
-        assert result["document_text"] == "Synthetic referral text only."
+        assert result["document_text"] == "Synthetic referral text only. " * 4
         assert clicks == ["claimant", f"attachment-{selected}"]
         events = desktop.events
         assert events.index((f"viewer-{selected}", "wait")) < events.index((f"viewer-{selected}", "focus")) < events.index((f"document-{selected}", "text"))
@@ -119,6 +119,62 @@ def test_capture_keeps_first_and_propagates_automation_failures():
     assert capture(desktop)["attachment_name"] == "first,synthetic.pdf"
     with pytest.raises(RuntimeError, match="synthetic UIA failure"):
         capture(FakeDesktop(["first,synthetic.pdf"], fail=True))
+
+
+def test_capture_recovers_from_partial_first_read(monkeypatch, caplog):
+    from finalcode import rrs_capture
+    desktop = FakeDesktop(["Synthetic, Referral.pdf"])
+    document = desktop.window(title_re="Synthetic, Referral.pdf").child_window(
+        title="Synthetic, Referral.pdf", control_type="Document")
+    reads = iter(["partial", "Complete synthetic text. " * 5, "Complete synthetic text. " * 5])
+    document.iface_text.DocumentRange.GetText = lambda limit: next(reads)
+    sleeps = []
+    monkeypatch.setattr(rrs_capture.time, "sleep", sleeps.append)
+    with caplog.at_level("INFO", logger="finalcode.rrs_capture"):
+        result = capture(desktop)
+    assert result["document_text"] == "Complete synthetic text. " * 5
+    assert len(sleeps) == 2
+    assert "7 characters" in caplog.text
+    assert result["document_text"] not in caplog.text
+
+
+def test_capture_rejects_persistently_short_text(monkeypatch):
+    from finalcode import rrs_capture
+    desktop = FakeDesktop(["Synthetic, Referral.pdf"], text="partial")
+    sleeps = []
+    monkeypatch.setattr(rrs_capture.time, "sleep", sleeps.append)
+    with pytest.raises(ValueError, match="RRS referral text may be incomplete.*64.*4 reads"):
+        capture(desktop)
+    assert len(sleeps) == rrs_capture.CAPTURE_ATTEMPTS - 1
+    assert len([event for event in desktop.events if event[1] == "text"]) == rrs_capture.CAPTURE_ATTEMPTS
+
+
+def test_capture_empty_viewer_ends_cleanly(monkeypatch):
+    from finalcode import rrs_capture, orchestrator
+    desktop = FakeDesktop(["Synthetic, Referral.pdf"], text="")
+    sleeps = []
+    monkeypatch.setattr(rrs_capture.time, "sleep", sleeps.append)
+    result = orchestrator.run(capture=lambda: capture(desktop),
+                              extract=lambda text: pytest.fail("empty text reached extraction"),
+                              review=lambda fields: pytest.fail("review called"),
+                              cms=lambda fields: pytest.fail("CMS called"),
+                              subject_line=lambda fields: pytest.fail("SLB called"))
+    assert (result["outcome"], result["reason"], result["stages"]) == (
+        "ended", "no_referral_attached", ["CAPTURE"])
+    assert len(sleeps) == rrs_capture.CAPTURE_ATTEMPTS - 1
+
+
+def test_capture_rejects_unstable_long_text(monkeypatch):
+    from finalcode import rrs_capture
+    desktop = FakeDesktop(["Synthetic, Referral.pdf"])
+    document = desktop.window(title_re="Synthetic, Referral.pdf").child_window(
+        title="Synthetic, Referral.pdf", control_type="Document")
+    document.iface_text.DocumentRange.GetText = lambda limit: "Synthetic content " * (limit_seen.pop(0))
+    limit_seen = [5, 6, 7, 8]
+    monkeypatch.setattr(rrs_capture.time, "sleep", lambda _: None)
+    with pytest.raises(ValueError, match="did not stabilize"):
+        capture(desktop)
+    assert not limit_seen
 
 
 def test_cms_mapping_uses_employer_not_contact():
