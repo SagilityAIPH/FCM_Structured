@@ -40,10 +40,10 @@ Windows desktop app, automated with **pywinauto UIA**. Not ours; we drive its UI
 | Triage button | `auto_id="btnTriage"` |
 | Unity export window | `Unity Entry`, buttons `btnDownload`, `btnExit` |
 
-Driven from two places:
+Relevant drivers:
 - `Processes/SubjectLineBuilder/Deploy-Ready/legacy_steps.py` → `CreateSubjectLineBuilder()` L10–72 — opens the case and the attachment
 - `src/fcm_intake/legacy/legacy_fcm.py` → `CompleteTriageAndExportAttachment()` L3996–4098 — triage, then exports the file via `btnDownload`
-- `Processes/SubjectLineBuilder/Deploy-Ready/rrs_ui.py` — RRS form automation (recently expanded upstream; read before touching RRS)
+- `Processes/SubjectLineBuilder/Deploy-Ready/rrs_ui.py` — RRS form automation; `RRSAdapter.complete_triage` is reused by the manual standalone and Final Code's completed-builder boundary for claim-row selection, triage prompts and Unity Entry attachment export. This is not Unity assignment.
 
 ### 2.2 AI PDF Analyzer (AI PDF Reader / FCM Workbench)
 
@@ -155,6 +155,29 @@ at this stage, not capture/review or factory construction. Loader errors propaga
 the orchestrator's Subject Line Builder failure result. This source-only fix has
 synthetic test coverage; live RRS/CMS/Bedrock/portal behavior and packaging are unverified.
 
+**Post-builder completion (FCM-1.1-39):** the live factory waits for
+`run_flow` to return `status="completed"`, then lazily loads the existing
+`Processes/SubjectLineBuilder/Deploy-Ready/rrs_ui.py` with the shared path loader
+and calls `RRSAdapter().complete_triage(all_data)` exactly once per completed
+invocation. It passes the same reviewed/CMS-validated dictionary supplied to the
+builder, not the builder's returned diagnostic `data`. No extra keys are required.
+The shared adapter closes any remaining Email Display, uniquely selects the work
+row containing the claim number, clicks `btnTriage`, answers ZIP/Information
+Complete/Unity ReTrigger/Customer Check/ReferralRoutingSystem prompts, then
+focuses Unity Entry's `btnDownload` and presses SPACE. Only after export
+confirmation is acknowledged does it click `btnExit` and return.
+
+The original builder result/payload contract is preserved, but completion is not
+reported until this routine returns. Stopped, failed or invalid builder results
+do not load or invoke the triage adapter. Loader, adapter initialization, triage
+and export exceptions propagate to the existing **SUBJECT LINE BUILDER** stage
+failure; an unconfirmed export raises without exiting Unity Entry. No automatic
+retry is added: inspect RRS before rerunning after a failure. The shared
+`run_flow` default and legacy `main` are unchanged, avoiding a second triage in
+the legacy chain. Final Code stops here, **before Unity assignment**: no
+`OpenUnity`, `CompleteAssignment`, `Processes/Unity` integration or database
+logging. Verification is synthetic/source-only, not live completion or an EXE build.
+
 ### 3.2 Target chain
 
 ```
@@ -187,11 +210,27 @@ UIA text grab ──────────→ Bedrock
                                                                               btnSubjectSearch
                                                                                     ↓
                                                                               fill SLB form
+                                                                                    ↓
+                                                                              Create / builder result
+                                                                                    ↓
+                                                                              ◇ status == completed?
+                                                                                    │
+                                                           stopped/failed/invalid ───┴─→ End / failure
+                                                                                    ↓ completed
+                                                                              Complete Triage
+                                                                              legacy prompts
+                                                                                    ↓
+                                                                              Unity Entry export
+                                                                              confirm + exit
+                                                                                    ↓
+                                                                              End (before assignment)
 ```
 
 **Boundary 1 — RRS → AI:** a single `document_text` string. No file, no bytes.
 **Boundary 2 — AI → CMS:** five scalar fields, in memory. See §4.2.
 **Boundary 3 — CMS → SLB:** the resolved `customer` string, plus the full field set as `allData`. See §4.4.
+**Completion boundary — SLB → triage/export:** the same `allData`, only after a completed
+builder result; the original result is returned after confirmed attachment export.
 
 ---
 

@@ -200,6 +200,8 @@ def test_missing_cms_inputs_matches_flow():
 def test_all_data_covers_every_legacy_reference_including_comments():
     legacy = (ROOT / "Processes/SubjectLineBuilder/Deploy-Ready/legacy_steps.py").read_text(encoding="utf-8")
     keys = set(re.findall(r'''\b(?:allData|data)\[['"]([^'"]+)['"]\]''', legacy))
+    # The injury dropdown loop reads these fields through a variable key.
+    keys |= {"injuryType", "injuryCause"}
     assert len(keys) == 57
     result = to_all_data(synthetic_fields())
     assert set(result) == keys | {"claimantFull", "correctZipCode", "adjOffice"}
