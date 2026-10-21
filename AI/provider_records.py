@@ -2,10 +2,10 @@
 import re
 
 try:
-    from .appointment_rules import parse_date
+    from .appointment_rules import parse_date, parse_time
     from .address_normalization import canonical_address
 except ImportError:
-    from appointment_rules import parse_date
+    from appointment_rules import parse_date, parse_time
     from address_normalization import canonical_address
 
 FACILITY = 'Provider Name (First Name / Last Name)'
@@ -57,15 +57,9 @@ def _value(record, key):
         parsed = parse_date(value)
         return parsed.isoformat() if parsed else value.casefold()
     if key == 'Appointment Time':
-        compact = re.fullmatch(r'(\d{1,2})(\d{2})\s*([ap])\.?m\.?', value.strip(), re.I)
-        if compact:
-            value = f'{compact[1]}:{compact[2]}{compact[3]}m'
-        match = re.fullmatch(r'(\d{1,2})(?::(\d{2}))?\s*(?:([ap])\.?m\.?)?', value.strip(), re.I)
-        if match:
-            hour, minute, suffix = int(match[1]), int(match[2] or '0'), (match[3] or '').lower()
-            if minute < 60 and (1 <= hour <= 12 if suffix else 0 <= hour <= 23 and match[2] is not None):
-                hour = hour % 12 + (12 if suffix == 'p' else 0) if suffix else hour
-                return f'{hour:02}:{minute:02}'
+        parsed = parse_time(value)
+        if parsed:
+            return parsed.strftime('%H:%M')
     return re.sub(r'[^\w]', '', value.casefold())
 
 

@@ -51,8 +51,8 @@ extraction dependencies. Office lookup and openpyxl load lazily on adaptation.
 | Provider State | providerState |
 | Provider Zip | providerZip |
 | Provider Phone | providerPhone |
-| Appointment Date | nextApptDate |
-| Appointment Time | nextApptTime |
+| Appointment Date (canonical YYYY-MM-DD -> MM/DD/YYYY for RRS) | nextApptDate |
+| Appointment Time (single recognized time -> hh:mm AM/PM) | nextApptTime |
 | Body Part (flat selected classification) | bodyPart |
 | Injury Type (flat selected classification) | injuryType |
 | Injury Cause (flat selected classification) | injuryCause |
@@ -70,6 +70,30 @@ values in that record never borrow another record or a flat aggregate. With no
 records, the same canonical keys are read from the flat dictionary.
 `fields.classification` is an audit-detail **list**, not a field-value dict;
 selected classification strings already live in the canonical flat keys.
+
+## Extracted referral appointments
+
+`AI/appointment_rules.py` owns appointment-only parsing and normalization.
+`parse_field_block` separates combined date/time before provider merging, then
+normalizes **after** merging so a uniquely corroborated documented year wins.
+When an extracted appointment has only month/day, use the current calendar year
+unless that calendar date has passed, then use next year. Today's date stays in
+the current year even for midnight. An optional `today` argument makes extraction
+policy tests deterministic. DOB, DOI and unrelated dates are not changed.
+
+Stored appointment dates use `YYYY-MM-DD`; explicitly documented years, including
+past years, are retained. Existing past/weekend/federal-holiday confirmation still
+applies. `10/21 12:00am` becomes separate date and `12:00 AM`; the adapter passes
+`MM/DD/YYYY` and `%I:%M %p` to the actual legacy appointment block, whose existing
+conversion types `00:00` at midnight and `12:00` at noon. No year inference runs
+in the adapter. Date Only has no time and never receives invented midnight.
+
+Invalid dates/times and time ranges remain available for correction, not silently
+defaulted or reduced to one endpoint. Unsupported times fail completeness and
+cannot be bypassed with appointment confirmation. Conflicting combined/separate
+times also require correction. Normalization never borrows a missing appointment
+from another provider or a flat summary when provider records exist. The manual
+standalone/Excel workflow still requires a documented year.
 
 ## Derived via office matrix lookup
 
@@ -120,3 +144,22 @@ Real office-matrix lookup is covered with synthetic referral inputs, including
 missing offices, claim-number fallback and unavailable workbook/dependency.
 No live RRS/CMS/Bedrock run, UI, end-to-end wiring or EXE build.
 Viewer text completeness across lazily rendered PDF pages remains unverified.
+
+FCM-1.1-43 source-only verification (10/21/2026): installed Python was used because
+the documented virtualenv was absent. With `LOCALAPPDATA` isolated to the
+project-local `.agent-test-fcm43\localappdata`, this command passed all **515
+JUnit cases**, including subtests, with no failures/errors/skips:
+
+```powershell
+python -m pytest tests\unit\test_appointment_display.py tests\unit\test_referral_schema.py tests\unit\test_provider_records.py tests\unit\test_provider_evidence.py tests\unit\test_provider_merge_decisions.py tests\unit\test_final_code_adapters.py tests\unit\test_reader_matrix.py tests\unit\test_daily_output.py tests\unit\test_workbench.py tests\unit\test_final_code_app.py tests\unit\test_final_code_orchestrator.py Processes\SubjectLineBuilder\Stand-Alone\test_flow.py Processes\SubjectLineBuilder\Stand-Alone\test_manual.py -q -p no:cacheprovider -o addopts= --basetemp=.agent-test-fcm43\pytest --junitxml=.agent-test-fcm43\results.xml
+```
+
+Tests execute actual extraction, the real adapter and the actual legacy
+appointment AST block with synthetic controls, not a copied approximation.
+An in-memory identity replacement of extraction normalization caused nine of ten
+selected calendar-policy/legacy-block cases to fail, confirming regression
+sensitivity without editing source. An initial broader run exposed invalid
+placeholder times in daily-output fixtures (now valid Date Only fixtures) and
+two ambient-profile credential-prompt failures; profile isolation resolved the
+latter without production credential changes. No live UI/RRS/CMS/Bedrock/portal
+exercise, EXE build, release, commit or push was performed.

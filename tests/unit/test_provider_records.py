@@ -11,7 +11,7 @@ from tests.unit.test_referral_schema import payload, provider
 def visit(**changes):
     values = {'Provider Address': '721 W Robertson St', 'Provider Address Line 2': 'Suite 102',
               'Provider City': 'Brandon', 'Provider State': 'FL', 'Provider Zip': '33511',
-              'Appointment Date': '2025-09-04', 'Appointment Time': '08:30 am'}
+              'Appointment Date': '2025-09-04', 'Appointment Time': '08:30 AM'}
     values.update(changes)
     return provider(**values)
 

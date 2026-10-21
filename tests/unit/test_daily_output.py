@@ -21,6 +21,7 @@ def fields():
                                       {key: "Provider two" for key in schema.PROVIDER_FIELDS}]
     for provider in values['Provider Information']:
         provider['Appointment Date'] = future_workday()
+        provider['Appointment Time'] = 'Not found'
     return schema.parse_field_block(json.dumps(values))
 
 

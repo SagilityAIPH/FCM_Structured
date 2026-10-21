@@ -31,10 +31,14 @@ def appointment(text):
         try:
             value = datetime.strptime(value, '%m/%d/%Y' if len(value.split('/')[-1]) == 4 else '%m/%d/%y').date().isoformat()
         except ValueError:
-            return {}
+            pass
     result = {'Appointment Date': value}
     line = text[match.end():].split('\n')[0]
-    time = re.search(r'\b(\d{1,2}(?::\d{2})?\s*[ap]\.?m\.?)\b', line, re.I)
+    time = re.search(
+        r'\b(\d{1,2}(?::\d{2})?\s*(?:[ap]\.?m\.?\s*)?'
+        r'(?:-|–|to)\s*\d{1,2}(?::\d{2})?\s*(?:[ap]\.?m\.?)?'
+        r'|\d{1,2}(?::\d{2})?\s*[ap]\.?m\.?'
+        r'|\d{1,2}:\d{2})\b', line, re.I)
     if time:
         result['Appointment Time'] = time[1]
     return result

@@ -10,6 +10,7 @@ import importlib.util
 from pathlib import Path
 import re
 import sys
+from AI.appointment_rules import parse_date, parse_time
 
 
 @lru_cache(maxsize=1)
@@ -113,6 +114,12 @@ def to_all_data(fields, *, cms_customer=None):
     providers = getattr(fields, "providers", None)
     provider = providers[0] if providers else fields
     result.update({key: _legacy_value(provider.get(source)) for key, source in PROVIDER_MAP.items()})
+    appointment_date = parse_date(result['nextApptDate'])
+    appointment_time = parse_time(result['nextApptTime'])
+    if appointment_date:
+        result['nextApptDate'] = appointment_date.strftime('%m/%d/%Y')
+    if appointment_time:
+        result['nextApptTime'] = appointment_time.strftime('%I:%M %p')
     # .classification contains audit-detail records, not the selected values.
     # The shared classifier stores its final selections in canonical flat keys.
     result.update({key: _legacy_value(fields.get(source))

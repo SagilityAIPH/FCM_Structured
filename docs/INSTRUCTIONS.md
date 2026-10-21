@@ -90,4 +90,4 @@ Deliberately empty. The owner-approved post-builder triage/export source fix is 
 
 ## Completed
 
-Finished items `FCM-1.1-01` through `FCM-1.1-18`, plus `FCM-1.1-27`, `FCM-1.1-28`, and `FCM-1.1-30` through `FCM-1.1-40`, are archived in `docs/completed.md`. Move future finished items out of their active section and append there in ID history with both date markers and test/build evidence; do not renumber.
+Finished items `FCM-1.1-01` through `FCM-1.1-18`, plus `FCM-1.1-27`, `FCM-1.1-28`, `FCM-1.1-30` through `FCM-1.1-40`, and `FCM-1.1-43`, are archived in `docs/completed.md`. Move future finished items out of their active section and append there in ID history with both date markers and test/build evidence; do not renumber.

@@ -2,7 +2,7 @@
 import json
 import re
 try:
-    from .appointment_rules import appointment_checks, parse_date
+    from .appointment_rules import appointment_checks, parse_date, split_appointment, normalize_appointment
     from .address_normalization import split_address
     from .provider_records import merge_provider_records, provider_identity, provider_summary, provider_display_name, provider_display_summary
     from .source_evidence import explicit_form_fields, special_evidence, recover_provider_identity, enforce_source_roles, ICD
@@ -10,7 +10,7 @@ try:
     from .document_sections import clean_special_instructions, extract_special_instructions
     from .injury_classification import FIELDS as CLASSIFICATION_FIELDS, classify, prompt_lists
 except ImportError:
-    from appointment_rules import appointment_checks, parse_date
+    from appointment_rules import appointment_checks, parse_date, split_appointment, normalize_appointment
     from address_normalization import split_address
     from provider_records import merge_provider_records, provider_identity, provider_summary, provider_display_name, provider_display_summary
     from source_evidence import explicit_form_fields, special_evidence, recover_provider_identity, enforce_source_roles, ICD
@@ -213,7 +213,12 @@ Rules:
 - Deduplicate repeated appointments, preserve time ranges and associate each time with
   its date. NOV means next office visit. Return dates as YYYY-MM-DD with an explicit
   documented year; do not guess a year. If only month/day is documented, preserve
-  that literal date (e.g. 3/23) for missing-year review; never discard it as Not found.
+  that literal date (e.g. 3/23); never discard it as Not found. Python resolves a
+  missing appointment year after source corroboration: current calendar year
+  unless month/day has passed, then next calendar year (today stays this year).
+  Never apply this policy to DOB, DOI or other dates, or change a documented year.
+  Separate combined appointment date/time and preserve compact times for Python
+  normalization; never invent midnight when time is absent.
   Next appt, NOV and Appt. Date: Time: are appointment labels. Pending scheduling
   is not a date. LOV, prior surgery and PT start dates are not next appointments.
   Appointment Date is required; time is optional
@@ -336,7 +341,7 @@ def _email_name(email, documented_last='Not found'):
     return None
 
 
-def parse_field_block(text, source_text=''):
+def parse_field_block(text, source_text='', today=None):
     text = re.sub(r"^```(?:json)?\s*|\s*```$", "", text.strip(), flags=re.I)
     data = json.loads(text)
     scalar_keys = set(REQUIRED_FIELDS).difference(PROVIDER_FIELDS)
@@ -423,7 +428,12 @@ def parse_field_block(text, source_text=''):
     for record in records:
         split_address(record, 'Provider Address', 'Provider Address Line 2', 'Provider City', 'Provider State', 'Provider Zip')
         record['Determining if Doctor or Provider Name'] = provider_summary([record], 'Determining if Doctor or Provider Name')
+        record['Appointment Date'], record['Appointment Time'] = split_appointment(
+            record['Appointment Date'], record['Appointment Time'])
     records = merge_provider_records(records)
+    for record in records:
+        record['Appointment Date'], record['Appointment Time'] = normalize_appointment(
+            record['Appointment Date'], record['Appointment Time'], today)
     records.sort(key=lambda item: sum(value != "Not found" for key, value in item.items()
                                       if key not in SUPPLEMENTAL_FIELDS), reverse=True)
     # Display unique known values; retain missing slots only in detailed records.

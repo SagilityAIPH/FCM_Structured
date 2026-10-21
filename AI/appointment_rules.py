@@ -3,6 +3,13 @@ from copy import deepcopy
 from datetime import date, datetime, timedelta, timezone
 import hashlib
 import json
+import re
+
+
+def missing_appointment_value(value):
+    return value is None or str(value).strip().casefold() in {
+        '', 'not found', 'n/a', 'null', 'none', 'unknown', 'unknown time',
+        'not provided', 'not available', 'tbd'}
 
 
 def parse_date(value):
@@ -12,6 +19,56 @@ def parse_date(value):
         except ValueError:
             pass
     return None
+
+
+def parse_time(value):
+    """Parse one appointment time, never a range or a guessed missing time."""
+    text = str(value).strip()
+    compact = re.fullmatch(r'(\d{1,2})(\d{2})\s*([ap])\.?m\.?', text, re.I)
+    if compact:
+        text = f'{compact[1]}:{compact[2]}{compact[3]}m'
+    match = re.fullmatch(r'(\d{1,2})(?::(\d{2}))?\s*([ap])\.?m\.?', text, re.I)
+    if match:
+        hour, minute = int(match[1]), int(match[2] or 0)
+        if 1 <= hour <= 12 and minute < 60:
+            return datetime(2000, 1, 1, hour % 12 + (12 if match[3].lower() == 'p' else 0), minute).time()
+    if re.fullmatch(r'\d{1,2}:\d{2}', text):
+        try:
+            return datetime.strptime(text, '%H:%M').time()
+        except ValueError:
+            pass
+    return None
+
+
+def split_appointment(date_value, time_value):
+    """Separate combined extraction without choosing between conflicting times."""
+    text = str(date_value).strip()
+    match = re.fullmatch(
+        r'(\d{4}-\d{1,2}-\d{1,2}|\d{1,2}[/-]\d{1,2}(?:[/-]\d{4})?'
+        r'|[A-Za-z]+ \d{1,2}, \d{4})\s+(?:at\s+)?(\d.*)', text, re.I)
+    if match and (missing_appointment_value(time_value)
+                  or match[2] == str(time_value).strip()
+                  or parse_time(match[2]) is not None and parse_time(match[2]) == parse_time(time_value)):
+        return match[1], match[2]
+    return date_value, time_value
+
+
+def normalize_appointment(date_value, time_value, today=None):
+    """Apply the extracted-appointment year policy only after source merging."""
+    today = today or date.today()
+    date_value, time_value = split_appointment(date_value, time_value)
+    parsed = parse_date(date_value)
+    partial = re.fullmatch(r'(\d{1,2})[/-](\d{1,2})', str(date_value).strip())
+    if parsed is None and partial:
+        month, day = map(int, partial.groups())
+        year = today.year + ((month, day) < (today.month, today.day))
+        try:
+            parsed = date(year, month, day)
+        except ValueError:
+            pass
+    clock = parse_time(time_value)
+    return (parsed.isoformat() if parsed else date_value,
+            clock.strftime('%I:%M %p') if clock else time_value)
 
 
 def us_holidays(year):
@@ -37,9 +94,13 @@ def appointment_checks(fields, today=None):
     for index, provider in enumerate(getattr(fields, 'providers', []), 1):
         value = provider.get('Appointment Date', 'Not found')
         parsed = parse_date(value)
+        time_value = provider.get('Appointment Time', 'Not found')
+        invalid_time = not missing_appointment_value(time_value) and parse_time(time_value) is None
         reasons = []
         if value not in ('Not found', '', None) and parsed is None:
             reasons.append('Unrecognized appointment date; supply an unambiguous date')
+        if invalid_time:
+            reasons.append('Unrecognized appointment time; supply a single unambiguous time')
         if parsed:
             if parsed < today:
                 reasons.append('Appointment is in the past')
@@ -52,13 +113,13 @@ def appointment_checks(fields, today=None):
                 'Provider Address', 'Provider Address Line 2', 'Provider City', 'Provider State',
                 'Provider Zip', 'Appointment Date', 'Appointment Time')
         fingerprint = hashlib.sha256(json.dumps({k: provider.get(k, 'Not found') for k in keys}, sort_keys=True).encode()).hexdigest()
-        confirmed = bool(parsed and reasons and any(
+        confirmed = bool(parsed and not invalid_time and reasons and any(
             r.get('fingerprint') == fingerprint and r.get('reasons') == reasons
             and r.get('status') == 'confirmed' for r in reviews))
         results.append({'provider_index': index, 'appointment_date': value,
-                        'date_only': bool(parsed and provider.get('Appointment Time', 'Not found') in ('Not found', '', None)),
+                        'date_only': bool(parsed and missing_appointment_value(time_value)),
                         'reasons': reasons, 'confirmed': confirmed,
-                        'can_confirm': bool(parsed and reasons), 'fingerprint': fingerprint})
+                        'can_confirm': bool(parsed and not invalid_time and reasons), 'fingerprint': fingerprint})
     return results
 
 

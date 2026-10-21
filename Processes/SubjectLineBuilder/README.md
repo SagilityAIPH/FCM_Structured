@@ -69,6 +69,17 @@ and Email Display reacquisition remain intact. FCM-1.1-39 is source-only; synthe
 boundary and actual-adapter sequence tests do not establish live RRS/CMS/Bedrock/
 portal behavior or packaged EXE behavior.
 
+Extracted referral appointment normalization happens in shared `AI/` logic,
+not the manual entry workflow. Missing appointment years resolve after source
+corroboration to this year when month/day is today or later, otherwise next year;
+documented years are preserved. The Final Code adapter converts canonical ISO
+dates to `MM/DD/YYYY` and recognized compact times to `hh:mm AM/PM` for the existing
+legacy date/time inputs (midnight `00:00`, noon `12:00`). Date Only stays without
+time; invalid times and ranges require correction rather than selecting an
+endpoint. Provider records remain authoritative with no cross-provider or flat
+summary backfill. See `Final Code/MAPPING.md` for FCM-1.1-43 synthetic source-only
+test evidence; no live RRS or packaged validation is implied.
+
 ## Excel input
 
 **Save template** creates another blank copy from the app. Enter one referral and

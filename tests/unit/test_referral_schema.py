@@ -33,8 +33,8 @@ def test_multiple_providers_keep_matching_slots_and_most_complete_first():
     data["Provider Information"] = [first, second, second, third]
     text, fields = core.force_exact_field_output(json.dumps(data))
     assert fields["Provider Name (First Name / Last Name)"] == "Second Clinic & First Clinic"
-    assert fields["Appointment Date"] == "10/02/2026 & 10/01/2026"
-    assert fields["Appointment Time"] == "2:30 PM"
+    assert fields["Appointment Date"] == "2026-10-02 & 2026-10-01"
+    assert fields["Appointment Time"] == "02:30 PM"
     assert fields["Provider Phone"] == "212-555-0123"
     assert fields["Provider Zip"] == "02110"
     assert "City: Boston" in text
@@ -88,6 +88,7 @@ def complete_payload():
     data["Provider Information"] = [provider(**{key: "Documented value" for key in core.PROVIDER_FIELDS
                                                if key not in core.SUPPLEMENTAL_FIELDS})]
     data['Provider Information'][0]['Appointment Date'] = future_workday()
+    data['Provider Information'][0]['Appointment Time'] = 'Not found'
     return data
 
 
@@ -122,7 +123,7 @@ def test_special_instruction_provider_fills_only_matching_record():
         "Appointment Date": "09/28/2026", "Appointment Time": "2:30 PM"})]}
     _, fields = core.force_exact_field_output(json.dumps(data))
     assert len(fields.providers) == 1
-    assert fields["Appointment Time"] == "2:30 PM"
+    assert fields["Appointment Time"] == "02:30 PM"
 
 
 def test_optional_fields_and_legacy_extras_do_not_fail_next_step():

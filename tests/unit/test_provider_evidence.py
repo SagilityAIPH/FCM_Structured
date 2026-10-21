@@ -28,6 +28,15 @@ def test_appointment_evidence(text, expected):
     assert appointment(text).get('Appointment Date') == expected
 
 
+@pytest.mark.parametrize('time', ['9-10 AM', '9:00 AM - 10:00 AM', '09:00-10:00', '25:30'])
+def test_appointment_evidence_preserves_unsupported_time(time):
+    assert appointment('NOV 10/21 ' + time) == {'Appointment Date': '10/21', 'Appointment Time': time}
+
+
+def test_invalid_documented_appointment_date_is_retained_for_review():
+    assert appointment('NOV 2/30/2026') == {'Appointment Date': '2/30/2026'}
+
+
 def test_attorney_phone_does_not_cross_roles():
     values = special_evidence(source('Atty name: Alex Smith\nPhone #: 212-555-0100\nCompensable Part(s): knee\nPhone #: 212-555-0199'))
     assert values['Attorney Name'] == 'Alex Smith'
