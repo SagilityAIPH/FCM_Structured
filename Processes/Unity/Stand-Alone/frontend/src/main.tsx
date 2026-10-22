@@ -22,7 +22,7 @@ type API = {
  open_excel():Promise<Reply<{filename:string;rows:Row[]}|null>>
  select_excel_row(row:number):Promise<Reply<{data:Data;warning:string}>>
  save_excel_template():Promise<Reply>
- choose_referral_pdf():Promise<Reply<Attachment|null>>
+ choose_referral_document():Promise<Reply<Attachment|null>>
  use_rrs_export_folder():Promise<Reply<Attachment>>
  validate_fields(data:Data,stage:string,jurisdiction:string):Promise<Reply<{fields:Data;warnings:string[];derived:Data}>>
  start(data:Data,stage:string,tracking:boolean,jurisdiction:string):Promise<Reply>
@@ -32,13 +32,14 @@ declare global {interface Window {pywebview?:{api:API}}}
 const initial:State={status:'idle',busy:false,stage:'',elapsed:0,prompt:null,result:null,error:'',warnings:[],attachment:{source:'rrs',filename:''}}
 const preview = new URLSearchParams(location.search).get('mock') === '1'
 let mockState = {...initial}
+let mockSelections = 0
 const mock:API = {
  async initialize(){return {...fixture,state:mockState}},
  async get_state(){return {...mockState}},
  async open_excel(){return {ok:false,error:'Workbook dialogs are available in the desktop app.'}},
  async select_excel_row(){return {ok:false,error:'Open a workbook in the desktop app.'}},
  async save_excel_template(){return {ok:false,error:'Use the supplied Unity-Input.xlsx template.'}},
- async choose_referral_pdf(){mockState={...mockState,attachment:{source:'local',filename:'synthetic-selected.pdf'}};return {ok:true,data:mockState.attachment}},
+ async choose_referral_document(){const extension=mockSelections++%2===0?'msg':'eml';mockState={...mockState,attachment:{source:'local',filename:`synthetic-selected.${extension}`}};return {ok:true,data:mockState.attachment}},
  async use_rrs_export_folder(){mockState={...mockState,attachment:{source:'rrs',filename:''}};return {ok:true,data:mockState.attachment}},
  async validate_fields(data,stage,jurisdiction){
   for(const group of fixture.schema)for(const field of group.fields){
@@ -58,7 +59,7 @@ const mock:API = {
  async answer_prompt(id,answer){if(mockState.prompt?.id!==id)return {ok:false,error:'Prompt is no longer pending.'}; mockState={...mockState,busy:false,prompt:null,status:answer?'completed':'stopped',result:{status:answer?'completed':'stopped',reason:answer?'':'icasemanager_declined',steps:['await_icasemanager_approval'],error:{},attachment:''}};return {ok:true}}
 }
 const api=()=>preview?mock:window.pywebview?.api
-const stopReasons:Record<string,string>={attachment_missing:'Stopped: no referral attachment. Choose a local referral PDF or export this referral through RRS Complete Triage, then retry.',attachment_ambiguous:'Stopped: more than one attachment. Choose a local referral PDF or clear the export folder and re-export this referral.',icasemanager_declined:'Stopped: iCaseManager approval was declined. Complete Assignment did not run.'}
+const stopReasons:Record<string,string>={attachment_missing:'Stopped: no referral attachment. Choose a local referral document or export this referral through RRS Complete Triage, then retry.',attachment_ambiguous:'Stopped: more than one attachment. Choose a local referral document or clear the export folder and re-export this referral.',icasemanager_declined:'Stopped: iCaseManager approval was declined. Complete Assignment did not run.'}
 
 function App(){
  const [groups,setGroups]=useState<Group[]>([]),[data,setData]=useState<Data>({})
@@ -79,7 +80,7 @@ function App(){
  return <div className="shell">
   <header><div className="brand"><span className="app-icon"><ClipboardList size={22}/></span><div><h1>Unity</h1><p>FCM Workbench · Assignment</p></div><span className={'badge '+state.status}>{state.status}</span></div></header>
   <main ref={main}>
-   <p className="intro">Load a workbook row or enter a referral. Review the intended claim and select a local referral PDF or use the RRS exported attachment before starting.</p>
+   <p className="intro">Load a workbook row or enter a referral. Review the intended claim and select a local referral document or use the RRS exported attachment before starting.</p>
    {preview?<div className="notice">Browser preview · synthetic flow only</div>:!connected?<div className="notice">Waiting for desktop bridge. Use <code>?mock=1</code> for browser preview.</div>:null}
    {(error||state.error)?<div role="alert" className="error">{error||state.error}</div>:null}
    {state.result?<section aria-live="polite" className={'outcome '+state.status}><h2>{state.status==='stopped'?'Process stopped':state.status==='failed'?'Process failed':'Process completed'}</h2><p>{stopReasons[state.result.reason]||state.result.reason||'Selected stage completed.'}</p>{Object.keys(state.result.error).length?<p>{Object.entries(state.result.error).map(([k,v])=>`${k}: ${String(v)}`).join(' · ')}</p>:null}<p className="muted">{state.result.steps.join(' → ')}</p></section>:null}
@@ -89,9 +90,9 @@ function App(){
     <p className="muted" role="status">{note||'One referral and one provider per row. Loading replaces fields and resets jurisdiction.'}</p>
    </div></section>
    <section className="card"><h2>Referral attachment</h2><div className="content">
-    <div className="actions"><Button disabled={!connected||locked} onClick={()=>void act(async()=>{const r=await api()!.choose_referral_pdf();if(r.ok&&r.data){const attachment=r.data;setState(s=>({...s,attachment}))}return r})}>Choose referral PDF</Button><Button variant="outline" disabled={!connected||locked} onClick={()=>void act(async()=>{const r=await api()!.use_rrs_export_folder();if(r.ok&&r.data){const attachment=r.data;setState(s=>({...s,attachment}))}return r})}>Use RRS export folder</Button></div>
-    <p role="status" aria-label="Attachment source">{state.attachment.source==='local'?`Local PDF · ${state.attachment.filename}`:'RRS export folder · exactly one exported attachment required'}</p>
-    <p className="muted">Local selection is session-only and uploads that exact file. No file is copied or added to the workbook. Assign ignores attachments entirely.</p>
+    <div className="actions"><Button disabled={!connected||locked} onClick={()=>void act(async()=>{const r=await api()!.choose_referral_document();if(r.ok&&r.data){const attachment=r.data;setState(s=>({...s,attachment}))}return r})}>Choose referral document</Button><Button variant="outline" disabled={!connected||locked} onClick={()=>void act(async()=>{const r=await api()!.use_rrs_export_folder();if(r.ok&&r.data){const attachment=r.data;setState(s=>({...s,attachment}))}return r})}>Use RRS export folder</Button></div>
+    <p role="status" aria-label="Attachment source">{state.attachment.source==='local'?`Local document · ${state.attachment.filename}`:'RRS export folder · exactly one exported attachment required'}</p>
+    <p className="muted">Supported files: PDF (.pdf), Outlook message (.msg), email (.eml). Local selection is session-only and uploads the original file without conversion. No file is copied or added to the workbook. Assign ignores attachments entirely.</p>
    </div></section>
    <fieldset disabled={locked}>
    {groups.map(group=><details className="card" open key={group.title}><summary><ClipboardList size={14}/>{group.title}</summary><div className="field-grid">{group.fields.map(f=><label key={f.key} className={f.key==='specialInstructions'?'instructions-field':undefined}><span>{f.label}{(f.key==='claimNumber'||f.required&&stage!=='assign')?' *':''}</span>{f.choices?<select value={data[f.key]||''} onChange={e=>{const value=e.currentTarget.value;setData(d=>({...d,[f.key]:value}));setReview(null)}}>{f.choices.map(c=><option value={c} key={c}>{c||'Leave blank'}</option>)}</select>:f.key==='specialInstructions'?<><textarea name={f.key} rows={6} maxLength={f.maxLength} value={data[f.key]||''} aria-describedby="instructions-limit" onChange={e=>{const value=e.currentTarget.value;setData(d=>({...d,[f.key]:value}));setReview(null)}}/><span id="instructions-limit">Up to {f.maxLength.toLocaleString('en-US')} characters (Excel-compatible). Line breaks and surrounding whitespace are preserved.</span></>:<Input name={f.key} maxLength={f.maxLength} value={data[f.key]||''} placeholder={f.date?'MM/DD/YYYY':undefined} onChange={e=>{const value=e.currentTarget.value;setData(d=>({...d,[f.key]:value}));setReview(null)}}/>}</label>)}</div></details>)}
@@ -103,7 +104,7 @@ function App(){
     <Button variant="outline" disabled={!connected||locked} onClick={()=>void act(async()=>{const r=await api()!.validate_fields(data,stage,jurisdiction);if(r.ok&&r.data){setData(r.data.fields);setReview(r.data)}return r})}>Validate fields</Button>
     {review?<div className="review"><p>Derived values</p><dl>{Object.entries(review.derived).map(([k,v])=><div key={k}><dt>{k}</dt><dd>{v||'Unknown'}</dd></div>)}</dl>{review.warnings.map(w=><p className="muted" key={w}>{w}</p>)}</div>:null}
    </div></section></fieldset>
-   <details className="card"><summary>Workflow help</summary><div className="content muted">Save the template, fill it in Excel, open it and load the intended row. Only claim number is required for Assign; Unity and All also require customer and claimant names. All other fields may be blank, but supplied values must be valid. Choose a local referral PDF for Unity/All, or use RRS Complete Triage to export exactly one attachment. A missing selected PDF stops the run without falling back to exports. Assign ignores attachments. Complete Assignment waits for your iCaseManager approval. There is no mid-operation cancellation; finish pending prompts before closing. Changes in live systems remain after any stop or failure.</div></details>
+   <details className="card"><summary>Workflow help</summary><div className="content muted">Save the template, fill it in Excel, open it and load the intended row. Only claim number is required for Assign; Unity and All also require customer and claimant names. All other fields may be blank, but supplied values must be valid. Choose a local referral document (PDF, MSG or EML) for Unity/All, or use RRS Complete Triage to export exactly one attachment. The original file is uploaded without conversion. A missing selected document stops the run without falling back to exports. Assign ignores attachments. Complete Assignment waits for your iCaseManager approval. There is no mid-operation cancellation; finish pending prompts before closing. Changes in live systems remain after any stop or failure.</div></details>
   </main>
   <footer><div className="actions"><Button disabled={!connected||locked} onClick={()=>void act(()=>api()!.start(data,stage,tracking,jurisdiction))}><Play size={14}/>{state.busy?'Running…':'Run selected stage'}</Button><span role="status">{state.busy?`${state.stage} · ${state.elapsed}s`:preview?'Preview ready':'Live desktop wiring'}</span></div></footer>
   <Dialog open={!!state.prompt} onOpenChange={()=>{}}>{state.prompt?<DialogContent className="prompt operator-prompt" onEscapeKeyDown={e=>e.preventDefault()} onPointerDownOutside={e=>e.preventDefault()}><DialogTitle>{state.prompt.title}</DialogTitle><DialogDescription>{state.prompt.message}</DialogDescription><div className="actions"><Button autoFocus disabled={pending} onClick={()=>void act(()=>api()!.answer_prompt(state.prompt!.id,true))}>{state.prompt.kind==='notify'?'Acknowledge':'Yes · approved'}</Button>{state.prompt.kind==='confirm'?<Button variant="outline" disabled={pending} onClick={()=>void act(()=>api()!.answer_prompt(state.prompt!.id,false))}>No · stop</Button>:null}</div></DialogContent>:null}</Dialog>

@@ -1276,9 +1276,8 @@ def validate_and_complete_task(driver, customer_name: str, claimant_name: str,da
         # Explicit standalone selection must not fall back to an exported file.
         try:
             if attachment_path is not None:
-                file_to_upload = os.path.abspath(os.fspath(attachment_path))
-                if os.path.splitext(file_to_upload)[1].lower() != ".pdf" or not os.path.isfile(file_to_upload):
-                    raise ValueError("Selected referral PDF is missing or invalid.")
+                from AI.referral_attachments import referral_document
+                file_to_upload = str(referral_document(attachment_path))
             else:
                 files = glob.glob(os.path.join(ATTACHMENT_FOLDER, "*"))
                 if not files:

@@ -73,13 +73,13 @@ def run_flow(data, *, list_attachments, run_unity, record_assignment, notify, co
         except (Exception, SystemExit) as error:
             return fail("resolve_attachment", error)
         if not attachments:
-            notify("Unity Attachment", "No referral document was found. Select a local referral PDF "
+            notify("Unity Attachment", "No referral document was found. Select a local referral document "
                                        "or use RRS Complete Triage to export the attachment before Unity runs.")
             result.update(status="stopped", reason="attachment_missing")
             return result
         if len(attachments) > 1:
             notify("Unity Attachment", f"{len(attachments)} files are waiting in the export folder, so the "
-                                       "correct document cannot be identified. Select a local referral PDF or clear the folder and re-export "
+                                       "correct document cannot be identified. Select a local referral document or clear the folder and re-export "
                                        "this referral before continuing.")
             result.update(status="stopped", reason="attachment_ambiguous")
             return result

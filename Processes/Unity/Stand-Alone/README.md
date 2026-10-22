@@ -41,13 +41,14 @@ arguments retains the existing offline happy-path scenario; desktop is explicit.
    attachment / portal / tracking only. **Assign** waits for approval and completes
    RRS assignment; it does not run the portal, resolve attachments or write tracking.
 
-### Standalone local PDF selection
+### Standalone local referral document selection
 
-Choose **Choose referral PDF** to select one existing `.pdf` (case-insensitive)
-with the native desktop file picker. Review the displayed **Local PDF** basename
+Choose **Choose referral document** to select one existing PDF (`.pdf`), Outlook
+message (`.msg`) or email (`.eml`), case-insensitively, with the native desktop
+file picker. Review the displayed **Local document** basename
 against the intended referral before running Unity or All. That exact absolute
 path is passed to the existing legacy upload input; the app does not copy the
-file, read its contents, change the configured export folder, or put the path in
+file, read/parse its contents, convert it to PDF, change the configured export folder, or put the path in
 form fields, workbooks or configuration. The choice stays in session memory,
 including across validation and workbook-row loading. Cancel keeps the prior
 choice. Reloading the frontend obtains the current choice from the bridge;
@@ -61,8 +62,15 @@ checked again before the portal and upload. Local upload errors propagate to
 the controller's failure/tracking policy rather than the legacy skip handler.
 The attachment buttons are unavailable while busy; **Assign ignores attachments
 entirely**, including a deleted local selection. Selection does not start a run.
-Running Unity/All is live automation, not an offline PDF analyzer: normal portal,
+Running Unity/All is live automation, not an offline document analyzer: normal portal,
 tracking, and operator approval rules still apply.
+
+Original PDF, MSG and EML selection is now packaged-synthetically verified in
+the rebuilt EXE prepared for `unityassignment-v1.0.3` (FCM-1.1-54 below).
+Server-side acceptance by the live Unity portal remains unverified; synthetic
+metadata/path checks do not read actual Outlook files or prove portal acceptance.
+The earlier `unityassignment-v1.0.2` artifact supports local PDF selection only;
+actual publication of the replacement is recorded in GitHub releases.
 
 `claimNumber` is always required. `customer`, `claimantFirst`, `claimantLast` are
 also required for All / Unity. Every other operator field is optional. Blank
@@ -150,8 +158,8 @@ must be acknowledged; Yes / No confirmation controls assignment completion.
 
 Completed, stopped and failed are separate outcomes. Stops are prominent:
 
-- `attachment_missing`: choose a local referral PDF or export through RRS Complete Triage.
-- `attachment_ambiguous`: choose a local referral PDF or clear the export folder and re-export the intended
+- `attachment_missing`: choose a local referral document or export through RRS Complete Triage.
+- `attachment_ambiguous`: choose a local referral document or clear the export folder and re-export the intended
   referral; the controller requires exactly one candidate file.
 - `icasemanager_declined`: Complete Assignment did not run after No.
 
@@ -178,7 +186,7 @@ controller's legacy attempt-record behavior. Turning it off skips tracking only
 on Unity failure; successful runs still record. There is no mid-operation cancel
 or rollback. Finish pending dialogs before closing; the launcher blocks close
 while a worker is active. Changes already made in Unity, tracking or RRS persist
-after a stop/failure. Local PDF mode binds the exact selected path but does not
+after a stop/failure. Local document mode binds the exact selected path but does not
 verify document contents or portal readback. FCM-1.1-48 remains open for export-mode
 binding and live outcome verification. Export-folder resolution is a preflight check; the legacy
 uploader still reads that folder, so keep it stable throughout the run. Existing
@@ -291,9 +299,10 @@ legacy modules, field adapter and office lookup. The desktop deliberately disabl
 the adapter's optional office-number lookup, but its module and workbook are
 included so the adapter's complete resource layout remains intact.
 Because the adapter is bundled as a raw file, the spec explicitly declares its
-`AI.appointment_rules` dependency as a hidden import. The static regression checks
-this dependency; the current rebuilt executable also passed the packaged checks
-below.
+`AI.appointment_rules` dependency as a hidden import, along with the selected
+document path validator `AI.referral_attachments`. Static regression checks cover
+these dependencies; the current rebuilt executable also passed the packaged
+checks below.
 
 ### v1.0.1 build and release preparation (10/22/2026, FCM-1.1-50)
 
@@ -367,3 +376,42 @@ automation/browser driver, ODBC/database access, credentials and operator-local
 settings; successful frozen prerequisite imports do not prove their availability.
 No native-window end-to-end or live Unity portal, database, RRS, CMS or Bedrock
 workflow was exercised. Unity remains standalone and FCM-1.1-48 remains open.
+
+### v1.0.3 Outlook build and release preparation (10/22/2026, FCM-1.1-54)
+
+The production frontend and Unity EXE were rebuilt with FCM-1.1-53's original
+PDF, MSG and EML selection for tag `unityassignment-v1.0.3`. With the documented
+virtual environment absent, the build used installed **Python 3.13 /
+PyInstaller 6.22.3** and the existing Unity spec.
+Gitignored `dist\UnityAssignment.exe` and `dist\UnityAssignment.exe.sha256`
+contain the prepared artifact and checksum:
+
+| Prepared artifact | Verified value |
+| --- | --- |
+| Size | 48,454,618 bytes |
+| SHA-256 | `901bbc87834682160ab4a4a0f57e97abdb98be396e5d397337666f91e2f54939` |
+
+Packaged `--self-test` exited **0** with
+`Frozen resource layout and live import prerequisites: OK`, including the new
+shared `AI.referral_attachments` dependency. The original report completed all
+**five steps**, retaining `instruction_length: 32767` and
+`oversized_rejected: true`. Additional selected-PDF, MSG and EML cases each
+completed `resolve_attachment`, `run_unity` and `record_assignment` using the
+exact original synthetic-selected path through injected callbacks, without
+conversion or reading actual attachment contents.
+
+Source verification passed **73 test methods / 273 JUnit cases including
+subtests**, with zero failures, errors or skips. The production frontend build
+and built-frontend headless Edge synthetic mock passed with zero page errors.
+This supplements FCM-1.1-53's dated source-only/no-rebuild evidence; it does not
+change that historical record.
+
+The artifact is prepared for `unityassignment-v1.0.3`; actual publication is
+recorded in GitHub releases. Windows/WebView2 Runtime, configured legacy
+automation/browser driver, ODBC/database access, credentials and operator-local
+settings remain prerequisites. No native-window end-to-end or live Unity portal,
+database, RRS, CMS or Bedrock workflow was exercised, and no actual Outlook file
+contents were read. Synthetic metadata/path handling does not establish MSG/EML
+server acceptance or portal/task readback. Unity remains standalone;
+FCM-1.1-48 remains open. Operator workbook/sample files and graph output were
+excluded.

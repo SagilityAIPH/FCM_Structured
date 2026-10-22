@@ -96,8 +96,13 @@ Baseline checks (last verified 10/15/2026; these are not live RRS/CMS/Unity test
 
 Deliberately empty. The owner-approved post-builder triage/export source fix is archived as FCM-1.1-39; its release-preparation runtime-source packaging correction is archived as FCM-1.1-40 with static, rebuilt EXE, packaged self-test and archive evidence. Live end-to-end completion remains unverified. Final Code stops before Unity assignment; ask instead of inferring further integration.
 
-FCM-1.1-51 adds exact session-selected local PDF binding, now packaged and
-synthetically verified by FCM-1.1-52 for `unityassignment-v1.0.2`. FCM-1.1-48 remains
+FCM-1.1-51 adds exact session-selected local PDF binding, packaged and
+synthetically verified by FCM-1.1-52 for `unityassignment-v1.0.2`. FCM-1.1-53 extends
+the standalone source to original PDF, MSG and EML documents without conversion.
+FCM-1.1-54 supplements that dated source-only evidence with the rebuilt EXE and
+packaged synthetic checks prepared for `unityassignment-v1.0.3`; actual
+publication is recorded in GitHub releases. The earlier v1.0.2 artifact remains
+PDF-only. Live portal acceptance of MSG/EML remains unverified. FCM-1.1-48 remains
 open: the legacy export-folder fallback still re-globs, inner non-upload handlers
 can swallow errors, and neither document identity nor portal/task readback is
 verified by synthetic checks. Neither the source change nor packaging authorizes
@@ -105,4 +110,4 @@ live execution.
 
 ## Completed
 
-Finished items `FCM-1.1-01` through `FCM-1.1-18`, plus `FCM-1.1-27`, `FCM-1.1-28`, `FCM-1.1-30` through `FCM-1.1-40`, `FCM-1.1-43`, `FCM-1.1-47`, and `FCM-1.1-49` through `FCM-1.1-52`, are archived in `docs/completed.md`. FCM-1.1-50 records Unity v1.0.1 build/release preparation. FCM-1.1-51's dated source/browser-synthetic local PDF evidence is supplemented by FCM-1.1-52's rebuilt v1.0.2 artifact and packaged synthetic check: 56 focused tests / 195 successful JUnit cases, built-frontend Edge mock with zero page errors, and packaged self-test exit 0 covering the original five steps and exact selected-PDF callbacks. The artifact is prepared for `unityassignment-v1.0.2`; actual publication is recorded in GitHub releases. These checks do not establish live or native-window end-to-end behavior. Move future finished items out of their active section and append there in ID history with both date markers and test/build evidence; do not renumber.
+Finished items `FCM-1.1-01` through `FCM-1.1-18`, plus `FCM-1.1-27`, `FCM-1.1-28`, `FCM-1.1-30` through `FCM-1.1-40`, `FCM-1.1-43`, `FCM-1.1-47`, and `FCM-1.1-49` through `FCM-1.1-54`, are archived in `docs/completed.md`. FCM-1.1-50 and FCM-1.1-52 record the earlier Unity v1.0.1/v1.0.2 build/release preparation. FCM-1.1-53 retains its dated source-only Outlook attachment evidence; FCM-1.1-54 adds the rebuilt v1.0.3 artifact and packaged synthetic checks. These checks do not establish live or native-window end-to-end behavior. Move future finished items out of their active section and append there in ID history with both date markers and test/build evidence; do not renumber.
