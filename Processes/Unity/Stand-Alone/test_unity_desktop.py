@@ -2,6 +2,7 @@
 import ast
 import importlib.util
 import json
+from itertools import islice
 import os
 from pathlib import Path
 import subprocess
@@ -9,6 +10,7 @@ import sys
 import tempfile
 import threading
 import time
+import textwrap
 import unittest
 from unittest.mock import Mock, patch
 from types import SimpleNamespace
@@ -227,6 +229,12 @@ class WorkbookTests(unittest.TestCase):
         self.assertEqual(rows[0]['data']['claimID'], 'ID')
         self.assertEqual(rows[1]['data']['specialInstructions'], ' \n\t ')
         api = backend.UnityAPI(lambda: self.fail('Loading must not create controller callbacks.'))
+        with patch.object(api, '_dialog', return_value='OPEN'):
+            pdf = Path(self.temp.name) / 'synthetic.pdf'
+            pdf.write_bytes(b'%PDF-1.4\n')
+            api._window = Mock()
+            api._window.create_file_dialog.return_value = [str(pdf)]
+            self.assertTrue(api.choose_referral_pdf()['ok'])
         self.assertTrue(api.load_excel(self.path)['ok'])
         selected = api.select_excel_row(2)['data']['data']
         self.assertEqual(selected['specialInstructions'], instructions)
@@ -234,6 +242,7 @@ class WorkbookTests(unittest.TestCase):
         self.assertTrue(checked['ok'], checked)
         self.assertEqual(checked['data']['fields']['specialInstructions'], instructions)
         self.assertEqual(api.select_excel_row(4)['data']['data']['specialInstructions'], ' \n\t ')
+        self.assertEqual(api.get_state()['attachment'], {'source': 'local', 'filename': pdf.name})
         self.assertIsNone(api._thread)
 
     def test_ordinary_oversized_field_loads_for_correction_without_losing_instructions(self):
@@ -468,6 +477,171 @@ class BridgeTests(unittest.TestCase):
             self.assertFalse(self.api.generate_workbook(str(path))['ok'])
             self.api.answer_prompt(state['prompt']['id'], False)
             self.finish()
+
+    def pick(self, paths):
+        self.api._window = Mock()
+        self.api._window.create_file_dialog.return_value = paths
+        with patch.object(self.api, '_dialog', return_value='OPEN'):
+            return self.api.choose_referral_pdf()
+
+    def test_pdf_picker_validation_cancel_and_session_state(self):
+        with tempfile.TemporaryDirectory(dir=HERE) as directory:
+            pdf = Path(directory) / 'synthetic.PDF'
+            pdf.write_bytes(b'%PDF-1.4\n% synthetic only\n')
+            self.assertTrue(self.pick([str(pdf)])['ok'])
+            state = self.api.initialize()['state']['attachment']
+            self.assertEqual(state, {'source': 'local', 'filename': pdf.name})
+            self.assertEqual(self.api._attachment_path, pdf.resolve())
+            self.api._window.create_file_dialog.assert_called_once_with(
+                'OPEN', allow_multiple=False, file_types=('Referral PDF (*.pdf)',))
+            self.assertEqual(self.pick(None), {'ok': True, 'data': None})
+            wrong = pdf.with_suffix('.txt')
+            wrong.write_text('synthetic', encoding='utf-8')
+            folder = Path(directory) / 'folder.pdf'
+            folder.mkdir()
+            for paths in ([str(wrong)], [str(pdf.with_name('missing.pdf'))],
+                          [str(folder)], [str(pdf), str(pdf)]):
+                with self.subTest(paths=paths):
+                    self.assertFalse(self.pick(paths)['ok'])
+                    self.assertEqual(self.api.get_state()['attachment'], state)
+            self.assertTrue(self.api.validate_fields(synthetic())['ok'])
+            self.assertEqual(self.api.get_state()['attachment'], state)
+            self.assertTrue(self.api.use_rrs_export_folder()['ok'])
+            self.assertIsNone(self.api._attachment_path)
+            self.assertEqual(self.api.get_state()['attachment'], {'source': 'rrs', 'filename': ''})
+            self.api.start(synthetic(), 'unity')
+            self.assertEqual(self.finish()['result']['attachment'], 'synthetic-referral.pdf')
+            self.calls['list_attachments'].assert_called_once()
+
+    def test_pdf_picker_busy_and_dialog_race(self):
+        self.api._state['busy'] = True
+        self.assertFalse(self.pick(None)['ok'])
+        self.api._window.create_file_dialog.assert_not_called()
+        self.assertFalse(self.api.use_rrs_export_folder()['ok'])
+        self.api._state['busy'] = False
+        self.api._window.create_file_dialog.side_effect = lambda *a, **kw: self.api._state.update(busy=True)
+        with patch.object(self.api, '_dialog', return_value='OPEN'):
+            self.assertFalse(self.api.choose_referral_pdf()['ok'])
+        self.assertIsNone(self.api._attachment_path)
+
+    def test_selected_pdf_overrides_exports_failure_policy_and_approval(self):
+        with tempfile.TemporaryDirectory(dir=HERE) as directory:
+            pdf = Path(directory) / 'synthetic.pdf'
+            pdf.write_bytes(b'%PDF-1.4\n% synthetic only\n')
+            for exports in ([], ['old-a.pdf', 'old-b.pdf']):
+                for tracking in (True, False):
+                    self.calls['list_attachments'].return_value = exports
+                    self.assertTrue(self.pick(str(pdf))['ok'])
+                    self.calls['run_unity'].side_effect = RuntimeError('synthetic upload failure')
+                    self.assertTrue(self.api.start(synthetic(), 'all', tracking)['ok'])
+                    state = self.finish()
+                    self.assertEqual(state['result']['attachment'], str(pdf.resolve()))
+                    self.assertEqual(state['result']['reason'], 'run_unity_failed')
+                    self.assertEqual(self.calls['record_assignment'].call_count, int(tracking))
+                    self.calls['list_attachments'].assert_not_called()
+                    self.calls['complete_assignment'].assert_not_called()
+                    for call in self.calls.values():
+                        call.reset_mock()
+            self.calls['run_unity'].side_effect = None
+            self.assertTrue(self.api.start(synthetic(), 'all')['ok'])
+            state = self.wait(lambda s: s['prompt'])
+            self.assertFalse(self.api.use_rrs_export_folder()['ok'])
+            self.calls['complete_assignment'].assert_not_called()
+            self.api.answer_prompt(state['prompt']['id'], False)
+            self.assertEqual(self.finish()['result']['reason'], 'icasemanager_declined')
+
+    def test_deleted_selected_pdf_never_falls_back_and_assign_ignores_it(self):
+        with tempfile.TemporaryDirectory(dir=HERE) as directory:
+            pdf = Path(directory) / 'synthetic.pdf'
+            pdf.write_bytes(b'%PDF-1.4\n')
+            self.assertTrue(self.pick([str(pdf)])['ok'])
+            pdf.unlink()
+            for stage in ('unity', 'all'):
+                self.assertFalse(self.api.start(synthetic(), stage)['ok'])
+                self.assertIsNone(self.api._thread)
+            for call in self.calls.values():
+                call.assert_not_called()
+            self.assertTrue(self.api.start({'claimNumber': 'SYNTHETIC-001'}, 'assign')['ok'])
+            state = self.wait(lambda s: s['prompt'])
+            self.api.answer_prompt(state['prompt']['id'], True)
+            self.assertEqual(self.finish()['status'], 'completed')
+            self.calls['list_attachments'].assert_not_called()
+            self.calls['run_unity'].assert_not_called()
+            self.calls['record_assignment'].assert_not_called()
+            self.calls['complete_assignment'].assert_called_once()
+
+    def test_live_selected_pdf_is_exact_and_checked_before_upload(self):
+        with tempfile.TemporaryDirectory(dir=HERE) as directory:
+            pdf = Path(directory) / 'synthetic.PDF'
+            pdf.write_bytes(b'%PDF-1.4\n')
+            unity = Mock()
+            config = SimpleNamespace(ATTACHMENT_FOLDER=directory, UNITY_SCRIPT='synthetic-script.py')
+            loader = SimpleNamespace(load_module_from_path=Mock(return_value=unity))
+            with patch.dict(sys.modules, {'fcm_intake.config': config, 'fcm_intake.legacy_loader': loader}):
+                calls = backend.live_callbacks(pdf.resolve())
+                self.assertEqual(calls['list_attachments'](), [pdf.resolve()])
+                payload = synthetic()
+                calls['run_unity']('Synthetic Customer', 'Invented Example', payload)
+                unity.validate_and_complete_task.assert_called_once_with(
+                    unity.create_driver.return_value, 'Synthetic Customer', 'Invented Example', payload,
+                    attachment_path=str(pdf.resolve()))
+                unity.create_driver.return_value.quit.assert_called_once()
+                pdf.unlink()
+                with self.assertRaisesRegex(ValueError, 'existing referral PDF'):
+                    calls['list_attachments']()
+                unity.create_driver.reset_mock()
+                with self.assertRaisesRegex(ValueError, 'existing referral PDF'):
+                    calls['run_unity']('Synthetic', 'Example', {})
+                unity.create_driver.assert_not_called()
+                with self.assertRaisesRegex(ValueError, 'existing referral PDF'):
+                    backend.checked_validate(unity, Mock(), 'Synthetic', 'Example', {}, attachment_path=pdf)
+                self.assertEqual(unity.validate_and_complete_task.call_count, 1)
+
+    def test_pdf_disappearing_after_start_fails_controller_preflight(self):
+        with tempfile.TemporaryDirectory(dir=HERE) as directory:
+            pdf = Path(directory) / 'synthetic.pdf'
+            pdf.write_bytes(b'%PDF-1.4\n')
+            self.assertTrue(self.pick([str(pdf)])['ok'])
+            def factory():
+                pdf.unlink()
+                return self.calls
+            self.api._factory = factory
+            self.assertTrue(self.api.start(synthetic(), 'unity')['ok'])
+            self.assertEqual(self.finish()['result']['reason'], 'resolve_attachment_failed')
+            for call in self.calls.values():
+                call.assert_not_called()
+
+    def test_actual_legacy_upload_ast_binds_manual_path_and_propagates_failure(self):
+        # Read only the safe upload range, never import legacy automation or sample records.
+        legacy = model.ROOT / 'src' / 'fcm_intake' / 'legacy' / 'legacy_unity.py'
+        with legacy.open(encoding='utf-8-sig') as stream:
+            block = ''.join(islice(stream, 1275, 1320))
+        block = block[block.index('        try:'):block.index('        wait = WebDriverWait(driver, 3)')]
+        tree = ast.parse(textwrap.dedent(block))
+        code = compile(tree, '<actual legacy upload block>', 'exec')
+        with tempfile.TemporaryDirectory(dir=HERE) as directory:
+            pdf = Path(directory) / 'synthetic.pdf'
+            pdf.write_bytes(b'%PDF-1.4\n')
+            upload, globber = Mock(), Mock()
+            env = {'attachment_path': str(pdf.resolve()), 'os': os, 'glob': globber,
+                   'ATTACHMENT_FOLDER': directory, 'driver': Mock(), 'time': Mock(),
+                   'WebDriverWait': Mock(return_value=SimpleNamespace(until=Mock(return_value=upload))),
+                   'EC': Mock(), 'By': SimpleNamespace(XPATH='xpath')}
+            exec(code, env)
+            upload.send_keys.assert_called_once_with(str(pdf.resolve()))
+            globber.glob.assert_not_called()
+            upload.send_keys.side_effect = RuntimeError('synthetic selenium upload failure')
+            with self.assertRaisesRegex(RuntimeError, 'synthetic selenium'):
+                exec(code, env)
+            pdf.unlink()
+            with self.assertRaisesRegex(ValueError, 'missing or invalid'):
+                exec(code, env)
+            globber.glob.assert_not_called()
+            # Original four-argument/export mode retains its legacy skip behavior.
+            env['attachment_path'] = None
+            globber.glob.return_value = []
+            with patch('builtins.print'):
+                exec(code, env)
 
 
 if __name__ == '__main__':

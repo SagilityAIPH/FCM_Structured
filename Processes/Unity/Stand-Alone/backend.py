@@ -34,7 +34,15 @@ def response(function):
     return call
 
 
-def live_callbacks():
+def referral_pdf(path):
+    """Validate metadata only; never read or copy the selected document."""
+    selected = Path(path).resolve()
+    if selected.suffix.lower() != '.pdf' or not selected.is_file():
+        raise ValueError('Choose one existing referral PDF file. The selected file may have moved or been deleted.')
+    return selected
+
+
+def live_callbacks(attachment_path=None):
     """Lazy defaults: bypass legacy.main, which swallows automation failures."""
     runner = _runner()
     sys.path.insert(0, str(runner.ROOT))
@@ -42,20 +50,26 @@ def live_callbacks():
     from fcm_intake.config import ATTACHMENT_FOLDER, UNITY_SCRIPT
     from fcm_intake.legacy_loader import load_module_from_path
     def portal(customer, claimant, data):
+        if attachment_path is not None:
+            referral_pdf(attachment_path)
         unity = load_module_from_path('_desktop_legacy_unity', UNITY_SCRIPT)
         driver = unity.create_driver()
         try:
             unity.login(driver)
-            checked_validate(unity, driver, customer, claimant, data)
+            if attachment_path is None:
+                checked_validate(unity, driver, customer, claimant, data)
+            else:
+                checked_validate(unity, driver, customer, claimant, data, attachment_path=attachment_path)
         finally:
             driver.quit()
-    return {'list_attachments': lambda: sorted(p for p in Path(ATTACHMENT_FOLDER).glob('*') if p.is_file()),
+    return {'list_attachments': (lambda: [referral_pdf(attachment_path)]) if attachment_path is not None
+            else lambda: sorted(p for p in Path(ATTACHMENT_FOLDER).glob('*') if p.is_file()),
             'run_unity': portal,
             'record_assignment': lambda name, claim: runner._record_live(runner.ROOT, name, claim),
             'complete_assignment': lambda claim: runner._complete_live(runner.ROOT, claim)}
 
 
-def checked_validate(unity, driver, customer, claimant, data):
+def checked_validate(unity, driver, customer, claimant, data, *, attachment_path=None):
     """The legacy stage also swallows its outer exception. Recognize its marker.
 
     Capture only during the single portal worker call; never persist legacy
@@ -63,7 +77,11 @@ def checked_validate(unity, driver, customer, claimant, data):
     """
     captured = StringIO()
     with redirect_stdout(captured):
-        unity.validate_and_complete_task(driver, customer, claimant, data)
+        if attachment_path is None:
+            unity.validate_and_complete_task(driver, customer, claimant, data)
+        else:
+            unity.validate_and_complete_task(driver, customer, claimant, data,
+                                             attachment_path=str(referral_pdf(attachment_path)))
     errors = [line for line in captured.getvalue().splitlines() if 'error occurred:' in line.lower()]
     if errors:
         raise RuntimeError('Legacy Unity reported failure: ' + errors[-1])
@@ -77,8 +95,10 @@ class UnityAPI:
         self._thread = None
         self._waiter = None
         self._records = []
+        self._attachment_path = None
         self._state = {'status': 'idle', 'busy': False, 'stage': '', 'elapsed': 0,
-                       'prompt': None, 'result': None, 'error': '', 'warnings': []}
+                       'prompt': None, 'result': None, 'error': '', 'warnings': [],
+                       'attachment': {'source': 'rrs', 'filename': ''}}
         self._started = None
 
     def _idle(self):
@@ -149,6 +169,31 @@ class UnityAPI:
                                                file_types=('Excel workbook (*.xlsx)',))
         return self.generate_workbook(paths if isinstance(paths, str) else paths[0]) if paths else {'ok': True, 'data': None}
 
+    @response
+    def choose_referral_pdf(self):
+        with self._lock:
+            self._idle()
+        paths = self._window.create_file_dialog(self._dialog('OPEN'), allow_multiple=False,
+                                               file_types=('Referral PDF (*.pdf)',))
+        with self._lock:
+            self._idle()
+            if not paths:
+                return None
+            if not isinstance(paths, str) and len(paths) != 1:
+                raise ValueError('Choose exactly one referral PDF file.')
+            selected = referral_pdf(paths if isinstance(paths, str) else paths[0])
+            self._attachment_path = selected
+            self._state['attachment'] = {'source': 'local', 'filename': selected.name}
+            return deepcopy(self._state['attachment'])
+
+    @response
+    def use_rrs_export_folder(self):
+        with self._lock:
+            self._idle()
+            self._attachment_path = None
+            self._state['attachment'] = {'source': 'rrs', 'filename': ''}
+            return deepcopy(self._state['attachment'])
+
     def _prompt(self, kind, title, message):
         waiter = {'event': threading.Event(), 'answer': False}
         prompt = {'id': str(uuid.uuid4()), 'kind': kind, 'title': str(title), 'message': str(message)}
@@ -197,21 +242,27 @@ class UnityAPI:
         data = to_controller(checked['data']['fields'], claim_jurisdiction=jurisdiction)
         with self._lock:
             self._idle()
+            attachment_path = self._attachment_path if stage != 'assign' else None
+            if attachment_path is not None:
+                attachment_path = referral_pdf(attachment_path)
             self._started = time.monotonic()
             self._state.update(status='running', busy=True, stage=stage, result=None, prompt=None,
                                error='', elapsed=0, warnings=checked['data']['warnings'])
-            self._thread = threading.Thread(target=self._run, args=(data, stage, record_attempt_on_failure), daemon=True)
+            self._thread = threading.Thread(target=self._run, args=(data, stage, record_attempt_on_failure, attachment_path), daemon=True)
             self._thread.start()
         return True
 
-    def _run(self, data, stage, tracking):
+    def _run(self, data, stage, tracking, attachment_path):
         com = None
         try:
             if self._factory is None:
                 import pythoncom
                 com = pythoncom
                 com.CoInitialize()
-            calls = (self._factory or live_callbacks)()
+            calls = (self._factory() if self._factory else
+                     live_callbacks(attachment_path) if attachment_path is not None else live_callbacks())
+            if attachment_path is not None:
+                calls = {**calls, 'list_attachments': lambda: [referral_pdf(attachment_path)]}
             result = _runner().load_core().run_flow(data, stage=stage, notify=self.notify,
                        confirm=self.confirm, record_attempt_on_failure=tracking, **calls)
             with self._lock:

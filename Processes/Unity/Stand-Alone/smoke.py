@@ -1,6 +1,7 @@
 """Synthetic workbook + threaded bridge smoke. No live systems or PHI."""
 import json
 from pathlib import Path
+from types import SimpleNamespace
 import tempfile
 import time
 from openpyxl import load_workbook
@@ -84,11 +85,27 @@ def main():
         assert result['status'] == 'completed'
         assert len(payloads) == 1
         assert payloads[0]['specialInstructions'] == instructions
+        selected = Path(directory) / 'synthetic-selected.PDF'
+        selected.write_bytes(b'%PDF-1.4\n% synthetic only\n')
+        api._window = SimpleNamespace(create_file_dialog=lambda *args, **kwargs: [str(selected)])
+        api._dialog = lambda kind: kind
+        assert api.choose_referral_pdf()['ok']
+        assert api.start(row['data'], 'unity', True, 'MI')['ok']
+        deadline = time.monotonic() + 5
+        while api.get_state()['busy']:
+            if time.monotonic() > deadline:
+                raise RuntimeError('Synthetic local PDF worker timeout.')
+            time.sleep(.01)
+        local_result = api.get_state()['result']
+        assert local_result['status'] == 'completed'
+        assert local_result['attachment'] == str(selected.resolve())
+        assert api.use_rrs_export_folder()['ok']
         audit = verify_legacy_keys()
         print(json.dumps({'mode': 'synthetic workbook roundtrip + bridge', 'operator_columns': len(COLUMNS),
             'rows': 1, 'zip_preserved': row['data']['zip'], 'ast_consumed_keys': audit['count'],
             'context_only': audit['context_only'], 'result': result,
-            'instruction_length': len(payloads[0]['specialInstructions']), 'oversized_rejected': True}, indent=2))
+            'instruction_length': len(payloads[0]['specialInstructions']), 'oversized_rejected': True,
+            'local_pdf_result': local_result}, indent=2))
     return 0
 
 

@@ -99,6 +99,7 @@ class FlowTests(unittest.TestCase):
                 result = self.run_flow()
                 self.outcome(result, "stopped", reason, STEPS[:1])
                 self.assertEqual(result["attachment"], "")
+                self.assertIn("local referral PDF", self.calls["notify"].call_args.args[1])
         self.assertEqual(self.calls["notify"].call_count, 3)
         for key in ("run_unity", "record_assignment", "confirm", "complete_assignment"):
             self.calls[key].assert_not_called()

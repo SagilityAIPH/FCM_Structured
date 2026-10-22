@@ -1,8 +1,8 @@
 # Unity desktop
 
 Unity is a Python pywebview / WebView2 desktop app with a React TypeScript, Vite,
-Tailwind and house shadcn frontend. It runs the existing Unity assignment
-controller without changing `Deploy-Ready/unity_flow.py`. Form data stays in
+Tailwind and house shadcn frontend. It runs the existing shared Unity assignment
+controller in `Deploy-Ready/unity_flow.py`. Form data stays in
 memory; the app does not save referral edits or live output logs.
 
 From the repository root, using the existing virtual environment:
@@ -41,6 +41,29 @@ arguments retains the existing offline happy-path scenario; desktop is explicit.
    attachment / portal / tracking only. **Assign** waits for approval and completes
    RRS assignment; it does not run the portal, resolve attachments or write tracking.
 
+### Standalone local PDF selection
+
+Choose **Choose referral PDF** to select one existing `.pdf` (case-insensitive)
+with the native desktop file picker. Review the displayed **Local PDF** basename
+against the intended referral before running Unity or All. That exact absolute
+path is passed to the existing legacy upload input; the app does not copy the
+file, read its contents, change the configured export folder, or put the path in
+form fields, workbooks or configuration. The choice stays in session memory,
+including across validation and workbook-row loading. Cancel keeps the prior
+choice. Reloading the frontend obtains the current choice from the bridge;
+restarting the app resets it.
+
+**Use RRS export folder** clears the choice and restores the existing exactly-one
+exported-file preflight (use RRS Complete Triage to produce that export). With a
+local choice, zero or multiple export files do not matter. A moved, deleted or
+invalid selected file fails explicitly, never falls back to exports, and is
+checked again before the portal and upload. Local upload errors propagate to
+the controller's failure/tracking policy rather than the legacy skip handler.
+The attachment buttons are unavailable while busy; **Assign ignores attachments
+entirely**, including a deleted local selection. Selection does not start a run.
+Running Unity/All is live automation, not an offline PDF analyzer: normal portal,
+tracking, and operator approval rules still apply.
+
 `claimNumber` is always required. `customer`, `claimantFirst`, `claimantLast` are
 also required for All / Unity. Every other operator field is optional. Blank
 optional fields generate review warnings rather than blocking the controller.
@@ -78,9 +101,10 @@ The supplied context contract has **39** keys. AST analysis of the actual
 `legacy_unity.validate_and_complete_task` finds **38** keys: `nextApptTime` is
 absent from the function, so the advertised list is not an exact consumption
 list. It remains an optional forward-compatible form/workbook field. The test
-`verify_legacy_keys` checks both the exact set and this discrepancy. It replaces
-lines 1464–1500 with blank lines during parsing and never inspects or copies the
-prohibited commented record. All new fixtures and smoke data are synthetic.
+`verify_legacy_keys` checks both the exact set and this discrepancy. It parses
+only the validation function, stopping before the next top-level definition,
+without parsing the legacy sample dictionaries or relying on drifting sample
+line numbers. All new fixtures and smoke data are synthetic.
 
 The seven derivation keys are `claimStateAbbr`, `claimStateFull`, `refSource`,
 `correctZipCode`, `ServiceType`, `refType`, `CaseObj`. Only five belong to the
@@ -126,8 +150,8 @@ must be acknowledged; Yes / No confirmation controls assignment completion.
 
 Completed, stopped and failed are separate outcomes. Stops are prominent:
 
-- `attachment_missing`: export this referral through Complete Triage first.
-- `attachment_ambiguous`: clear the export folder and re-export the intended
+- `attachment_missing`: choose a local referral PDF or export through RRS Complete Triage.
+- `attachment_ambiguous`: choose a local referral PDF or clear the export folder and re-export the intended
   referral; the controller requires exactly one candidate file.
 - `icasemanager_declined`: Complete Assignment did not run after No.
 
@@ -154,7 +178,9 @@ controller's legacy attempt-record behavior. Turning it off skips tracking only
 on Unity failure; successful runs still record. There is no mid-operation cancel
 or rollback. Finish pending dialogs before closing; the launcher blocks close
 while a worker is active. Changes already made in Unity, tracking or RRS persist
-after a stop/failure. Export-folder resolution is a preflight check; the legacy
+after a stop/failure. Local PDF mode binds the exact selected path but does not
+verify document contents or portal readback. FCM-1.1-48 remains open for export-mode
+binding and live outcome verification. Export-folder resolution is a preflight check; the legacy
 uploader still reads that folder, so keep it stable throughout the run. Existing
 `run.py --live` CLI behavior remains available for compatibility; use desktop
 for the complete grouped payload and guarded error reporting.
@@ -271,7 +297,7 @@ below.
 
 ### v1.0.1 build and release preparation (10/22/2026, FCM-1.1-50)
 
-The current production frontend and Unity EXE were built for
+The then-current production frontend and Unity EXE were built for
 `unityassignment-v1.0.1`. Because `.venv-bedrock` was absent and `build.ps1` assumes
 that environment, the build used installed **Python 3.13 / PyInstaller 6.22.3**
 with the equivalent PyInstaller command and the existing Unity spec. The EXE
@@ -305,3 +331,39 @@ access, credentials and operator-local settings. Successful prerequisite imports
 do not establish those services' availability. No native-window end-to-end or
 live Unity, RRS, CMS, Bedrock or database workflow was exercised. Unity remains
 standalone; operator workbook/sample files and graph output were excluded.
+
+### v1.0.2 build and release preparation (10/22/2026, FCM-1.1-52)
+
+The production frontend and Unity EXE were rebuilt with FCM-1.1-51's standalone
+local PDF selection for tag `unityassignment-v1.0.2`. The absent documented
+virtual environment again required installed **Python 3.13 / PyInstaller 6.22.3**
+and the equivalent command using the existing Unity spec.
+Gitignored `dist\UnityAssignment.exe` and `dist\UnityAssignment.exe.sha256`
+contain the prepared artifact and checksum:
+
+| Prepared artifact | Verified value |
+| --- | --- |
+| Size | 48,454,989 bytes |
+| SHA-256 | `632adbef6dfe52459e95c3f44e7c2d516ce154d9975a647da73790a1276ad862` |
+
+The packaged `--self-test` exited **0** with
+`Frozen resource layout and live import prerequisites: OK`. Its original report
+completed all **five steps**, retaining `instruction_length: 32767` and
+`oversized_rejected: true`. The additional `local_pdf_result` completed
+`resolve_attachment`, `run_unity` and `record_assignment` with the exact
+synthetic-selected `.PDF` path through injected callbacks. No actual attachment
+contents were read.
+
+Independent focused source verification passed **56 tests / 195 JUnit cases
+including subtests**, with zero failures, errors or skips. The refreshed production
+frontend build and built-frontend headless Edge synthetic mock passed with zero
+page errors. This supplements FCM-1.1-51's dated source-only evidence with packaged
+synthetic verification, not live upload or portal/task readback.
+
+The artifact is prepared for `unityassignment-v1.0.2`; actual publication is
+recorded in the repository's GitHub releases. The desktop requires Windows and
+the WebView2 Runtime. Live use additionally requires the configured legacy
+automation/browser driver, ODBC/database access, credentials and operator-local
+settings; successful frozen prerequisite imports do not prove their availability.
+No native-window end-to-end or live Unity portal, database, RRS, CMS or Bedrock
+workflow was exercised. Unity remains standalone and FCM-1.1-48 remains open.

@@ -156,7 +156,7 @@ def LMContinentalTire(allData:dict):
         allData['refType'] ="Task"
         allData['CaseObj'] = "MI MCCA Attendant Care"
  
-def validate_and_complete_task(driver, customer_name: str, claimant_name: str,dataRef: dict):
+def validate_and_complete_task(driver, customer_name: str, claimant_name: str,dataRef: dict, *, attachment_path=None):
     try:
         time.sleep(10)
         notify("Notice", "Checking Intervention Queue.")
@@ -1273,12 +1273,17 @@ def validate_and_complete_task(driver, customer_name: str, claimant_name: str,da
             notify("Manual Process Stopper","Manual Search or Add Provivider Details.\nClick Ok once Provider is Validated and Added.")
 
                                 
-        # Attachment: upload first file in folder (if any)
+        # Explicit standalone selection must not fall back to an exported file.
         try:
-            files = glob.glob(os.path.join(ATTACHMENT_FOLDER, "*"))
-            if not files:
-                raise FileNotFoundError(f"No file found in {ATTACHMENT_FOLDER}")
-            file_to_upload = files[0]
+            if attachment_path is not None:
+                file_to_upload = os.path.abspath(os.fspath(attachment_path))
+                if os.path.splitext(file_to_upload)[1].lower() != ".pdf" or not os.path.isfile(file_to_upload):
+                    raise ValueError("Selected referral PDF is missing or invalid.")
+            else:
+                files = glob.glob(os.path.join(ATTACHMENT_FOLDER, "*"))
+                if not files:
+                    raise FileNotFoundError(f"No file found in {ATTACHMENT_FOLDER}")
+                file_to_upload = files[0]
             print("Attaching:", file_to_upload)
     
             upload_input_xpath = (
@@ -1290,6 +1295,8 @@ def validate_and_complete_task(driver, customer_name: str, claimant_name: str,da
             time.sleep(1)
             upload_input.send_keys(file_to_upload)
         except Exception as ex:
+            if attachment_path is not None:
+                raise
             print(f"Attachment step skipped/failed: {ex}")
 
 
@@ -1615,6 +1622,5 @@ if __name__ == "__main__":
  'state': 'MI',
  'zip': '48371'}
     main("Baldauf Enterprises Inc", "BRAD DEVRIES",dataRef)
-
 
 

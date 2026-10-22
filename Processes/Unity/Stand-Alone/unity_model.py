@@ -62,11 +62,19 @@ def defaults():
 
 
 def verify_legacy_keys():
-    """Ignore the prohibited commented record entirely, even during parsing."""
+    """Parse only the validation function, never legacy sample dictionaries."""
     path = ROOT / 'src/fcm_intake/legacy/legacy_unity.py'
     with path.open(encoding='utf-8-sig') as source:
-        tree = ast.parse(''.join(line if not 1464 <= i <= 1500 else '\n'
-                                for i, line in enumerate(source, 1)))
+        lines = []
+        for line in source:
+            if not lines:
+                if line.startswith('def validate_and_complete_task('):
+                    lines.append(line)
+            elif line.startswith(('def ', 'class ', 'if __name__')):
+                break
+            else:
+                lines.append(line)
+        tree = ast.parse(''.join(lines))
     function = next(n for n in ast.walk(tree) if isinstance(n, ast.FunctionDef)
                     and n.name == 'validate_and_complete_task')
     keys = {n.slice.value for n in ast.walk(function) if isinstance(n, ast.Subscript)
