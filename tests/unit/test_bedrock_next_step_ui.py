@@ -62,6 +62,7 @@ def test_streamlit_next_step_status(complete):
             for key in core.REQUIRED_FIELDS if key not in core.PROVIDER_FIELDS}
     data["Provider Information"] = [{key: "Documented value" for key in core.PROVIDER_FIELDS}]
     data['Provider Information'][0]['Appointment Date'] = future_workday()
+    data['Provider Information'][0]['Appointment Time'] = '10:00 AM'
     text, fields = core.force_exact_field_output(json.dumps(data))
     path = Path(__file__).resolve().parents[2] / "AI" / "ai_fcm_bedrock.py"
     app = AppTest.from_file(str(path)).run(timeout=20)
