@@ -85,6 +85,8 @@ class WorkbenchAPI:
         # Environment configuration still takes priority over the remembered key.
         self._key = core.resolve_bedrock_api_key() or saved_key
         self._cms_secrets = set()
+        # Final Code audit redaction survives the CMS stage clearing live secrets.
+        self._audit_redactions = set()
         self._settings = {"region": core.DEFAULT_BEDROCK_REGION, "model": core.DEFAULT_BEDROCK_MODEL,
                           "max_tokens": core.DEFAULT_MAX_TOKENS, "temperature": core.DEFAULT_TEMP,
                           "document_limit": core.DEFAULT_MAX_DOC_CHARS}
@@ -100,7 +102,7 @@ class WorkbenchAPI:
     def _error(self, error):
         message = str(error)
         with self._lock:
-            values = (self._key, *self._cms_secrets)
+            values = (self._key, *self._cms_secrets, *self._audit_redactions)
         for value in values:
             if value:
                 message = message.replace(value, "[redacted]")
@@ -241,6 +243,7 @@ class WorkbenchAPI:
                             all(isinstance(v, str) and v for v in pair)):
                         with self._lock:
                             self._cms_secrets.update(pair)
+                            self._audit_redactions.update(pair)
                         return tuple(pair)
                 except (ValueError, TypeError):
                     pass
@@ -298,6 +301,7 @@ class WorkbenchAPI:
                 raise
             with self._lock:
                 self._cms_secrets.update(pair)
+                self._audit_redactions.update(pair)
                 answer = pair
         with self._lock:
             waiter = self._prompt_waiter
