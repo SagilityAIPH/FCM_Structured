@@ -156,6 +156,32 @@ def LMContinentalTire(allData:dict):
         allData['refType'] ="Task"
         allData['CaseObj'] = "MI MCCA Attendant Care"
  
+def flag_missing_appointment_time(driver):
+    """Submit the legacy missing-time flag and require the modal to close."""
+    wait = WebDriverWait(driver, 15)
+    wait.until(EC.element_to_be_clickable((
+        By.XPATH, "/html/body/my-app/div/div/div/ng-component/div[1]/div/div[1]/span"
+    ))).click()
+    modal = wait.until(EC.visibility_of_element_located((By.TAG_NAME, "flag-for-intervention-modal")))
+    modal_wait = WebDriverWait(modal, 15)
+    modal_wait.until(EC.element_to_be_clickable((
+        By.XPATH,
+        "./modal-template/div/div/div/div[3]/div/form/div/div[1]/radio-group-input/form-control/div/label/div[1]/div/i[1]"
+    ))).click()
+    note = modal_wait.until(EC.element_to_be_clickable((
+        By.XPATH,
+        "./modal-template/div/div/div/div[3]/div/form/div/div[3]/text-area/form-control/div/textarea"
+    )))
+    note.clear()
+    note.send_keys("Missing Provider Appointment Time")
+    if note.get_attribute("value") != "Missing Provider Appointment Time":
+        raise RuntimeError("Unity flag note readback failed")
+    modal_wait.until(EC.element_to_be_clickable((
+        By.XPATH, "./modal-template/div/div/div/div[4]/div/div/div/button"
+    ))).click()
+    wait.until(EC.invisibility_of_element(modal))
+
+
 def validate_and_complete_task(driver, customer_name: str, claimant_name: str,dataRef: dict, *, attachment_path=None):
     try:
         time.sleep(10)
@@ -975,20 +1001,8 @@ def validate_and_complete_task(driver, customer_name: str, claimant_name: str,da
                     except Exception:
                         pass
             
-            # if not dataRef['nextApptTime']:
-            #     flag = driver.find_element(By.XPATH,"/html/body/my-app/div/div/div/ng-component/div[1]/div/div[1]/span")
-            #     if flag:
-            #         flag.click()
-            #         time.sleep(2)
-            #         missingInfo = driver.find_element(By.XPATH,"/html/body/my-app/div/div/div/ng-component/flag-for-intervention-modal/modal-template/div/div/div/div[3]/div/form/div/div[1]/radio-group-input/form-control/div/label/div[1]/div/i[1]")
-            #         missingInfo.click()
-            #         time.sleep(2)
-            #         missingDescription = driver.find_element(By.XPATH,"/html/body/my-app/div/div/div/ng-component/flag-for-intervention-modal/modal-template/div/div/div/div[3]/div/form/div/div[3]/text-area/form-control/div/textarea")
-            #         missingDescription.send_keys("Missing Provider Appointment Time")
-            #         time.sleep(2)
-            #         flagReferral =  driver.find_element(By.XPATH,"/html/body/my-app/div/div/div/ng-component/flag-for-intervention-modal/modal-template/div/div/div/div[4]/div/div/div/button")
-            #         flagReferral.click()
-            #         time.sleep(2)
+            if not dataRef['nextApptTime']:
+                flag_missing_appointment_time(driver)
 
             
             # provider address variants (optional blocks, swallow errors)

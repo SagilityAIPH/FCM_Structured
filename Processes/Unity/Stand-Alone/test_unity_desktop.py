@@ -2,7 +2,7 @@
 import ast
 import importlib.util
 import json
-from itertools import islice
+from copy import deepcopy
 import os
 from pathlib import Path
 import subprocess
@@ -10,7 +10,6 @@ import sys
 import tempfile
 import threading
 import time
-import textwrap
 import unittest
 from unittest.mock import Mock, patch
 from types import SimpleNamespace
@@ -34,6 +33,22 @@ def synthetic():
 def synthetic_instructions(length):
     prefix, suffix = ' \n\tSynthetic instructions\n', '\nEND-SYNTHETIC \t\n'
     return prefix + 'x' * (length - len(prefix) - len(suffix)) + suffix
+
+
+def legacy_function(name):
+    """Read one function, stopping before the next definition or sample records."""
+    path = model.ROOT / 'src' / 'fcm_intake' / 'legacy' / 'legacy_unity.py'
+    lines = []
+    with path.open(encoding='utf-8-sig') as source:
+        for line in source:
+            if not lines:
+                if line.startswith(f'def {name}('):
+                    lines.append(line)
+            elif line.startswith(('def ', 'class ', 'if __name__')):
+                break
+            else:
+                lines.append(line)
+    return ast.parse(''.join(lines)).body[0]
 
 
 class StartupTests(unittest.TestCase):
@@ -89,8 +104,8 @@ class StartupTests(unittest.TestCase):
 class ModelTests(unittest.TestCase):
     def test_contract_and_ast(self):
         audit = model.verify_legacy_keys()
-        self.assertEqual(audit['count'], 38)
-        self.assertEqual(audit['context_only'], ['nextApptTime'])
+        self.assertEqual(audit['count'], 39)
+        self.assertEqual(audit['context_only'], [])
         self.assertEqual(audit['unexpected'], [])
         self.assertEqual(len(model.CONTEXT_KEYS), 39)
         self.assertEqual(len(model.defaults()), 35)
@@ -179,6 +194,167 @@ class ModelTests(unittest.TestCase):
         self.assertEqual(explicit['serviceType'], 'Vocational Full')
         self.assertEqual(explicit['ServiceType'], 'Medical Task')
         self.assertEqual(model.to_controller(data, claim_jurisdiction='CA')['serviceType'], 'Medical Full')
+
+
+class LegacyFlagTests(unittest.TestCase):
+    def setUp(self):
+        from selenium.webdriver.common.by import By
+        from selenium.webdriver.remote.webelement import WebElement
+        from selenium.webdriver.support import expected_conditions as EC
+
+        self.events = []
+        self.failure = None
+        self.open = False
+        owner = self
+
+        class Element(WebElement):
+            def __init__(self, name):
+                self.name = name
+                self.value = 'stale note'
+                self.children = {}
+
+            def find_element(self, by, selector):
+                owner.events.append(('find', self.name, by, selector))
+                return self.children[(by, selector)]
+
+            def is_displayed(self):
+                if self.name == 'modal':
+                    owner.events.append(('modal-visible', owner.open))
+                    return owner.open and owner.failure != 'modal-timeout'
+                return True
+
+            def is_enabled(self):
+                return True
+
+            def click(self):
+                owner.events.append(('click', self.name))
+                if owner.failure == self.name:
+                    raise RuntimeError('synthetic click failure')
+                if self.name == 'flag':
+                    owner.open = True
+                elif self.name == 'submit' and owner.failure != 'still-open':
+                    owner.open = False
+
+            def clear(self):
+                owner.events.append(('clear', self.name))
+                self.value = ''
+
+            def send_keys(self, value):
+                owner.events.append(('type', self.name, value))
+                self.value += value
+
+            def get_attribute(self, name):
+                owner.events.append(('read', self.name, name))
+                return 'mismatched' if owner.failure == 'note' else self.value
+
+        class Wait:
+            def __init__(self, target, timeout):
+                self.target = target
+
+            def until(self, condition):
+                for _ in range(3):
+                    value = condition(self.target)
+                    if value:
+                        return value
+                raise TimeoutError('synthetic modal timeout')
+
+        self.driver, self.modal = Element('driver'), Element('modal')
+        self.driver.children = {
+            (By.XPATH, '/html/body/my-app/div/div/div/ng-component/div[1]/div/div[1]/span'): Element('flag'),
+            (By.TAG_NAME, 'flag-for-intervention-modal'): self.modal,
+        }
+        self.modal.children = {
+            (By.XPATH, './modal-template/div/div/div/div[3]/div/form/div/div[1]/radio-group-input/form-control/div/label/div[1]/div/i[1]'): Element('reason'),
+            (By.XPATH, './modal-template/div/div/div/div[3]/div/form/div/div[3]/text-area/form-control/div/textarea'): Element('note'),
+            (By.XPATH, './modal-template/div/div/div/div[4]/div/div/div/button'): Element('submit'),
+        }
+        self.env = {'WebDriverWait': Wait, 'By': By, 'EC': EC, 'sys': sys}
+        helper = legacy_function('flag_missing_appointment_time')
+        exec(compile(ast.Module(body=[helper], type_ignores=[]), '<actual flag helper>', 'exec'), self.env)
+        validation = legacy_function('validate_and_complete_task')
+        branch, = [node for node in validation.body[0].body if isinstance(node, ast.If)
+                   and any(isinstance(child, ast.Call) and isinstance(child.func, ast.Name)
+                           and child.func.id == 'flag_missing_appointment_time'
+                           for child in ast.walk(node))]
+        flag, = [node for node in branch.body if isinstance(node, ast.If)
+                 and any(isinstance(child, ast.Call) and isinstance(child.func, ast.Name)
+                         and child.func.id == 'flag_missing_appointment_time'
+                         for child in ast.walk(node))]
+        # Keep the actual enclosing guard, flag statement and outer handler.
+        # Replace unrelated portal work with sentinels at the following boundaries.
+        self.assertEqual(branch.body[branch.body.index(flag) + 1].name, 'ValidateAddrPrv')
+        branch = deepcopy(branch)
+        branch.body = [deepcopy(flag), ast.parse('following_provider_work()').body[0]]
+        branch.orelse = []
+        validation.body[0].body = [branch, ast.parse('later_completion()').body[0]]
+        self.env.update(following_provider_work=Mock(), later_completion=Mock())
+        self.guard_code = compile(ast.fix_missing_locations(ast.Module(
+            body=[branch], type_ignores=[])), '<actual flag guard>', 'exec')
+        exec(compile(ast.fix_missing_locations(ast.Module(body=[validation], type_ignores=[])),
+                     '<actual flag error boundary>', 'exec'), self.env)
+
+    def prepare(self, **fields):
+        data = model.to_controller(synthetic() | fields)
+        self.env.update(driver=self.driver, dataRef=data,
+                        providerName=data['providerName'], providerFirst=data['providerFirst'],
+                        providerLast=data['providerLast'])
+        return data
+
+    def test_actual_guard_and_successful_flag_continue(self):
+        cases = [({}, False), ({'providerName': 'Synthetic Facility'}, True),
+                 ({'providerFirst': 'Invented'}, True), ({'providerLast': 'Example'}, True),
+                 ({'nextApptDate': '10/23/2026'}, True),
+                 ({'providerName': 'Synthetic Facility', 'nextApptTime': '09:00 AM'}, False),
+                 ({'nextApptDate': '10/23/2026', 'nextApptTime': '09:00 AM'}, False)]
+        for fields, should_flag in cases:
+            with self.subTest(fields=fields):
+                self.setUp()
+                self.prepare(**fields)
+                exec(self.guard_code, self.env)
+                clicks = [event for event in self.events if event[0] == 'click']
+                self.assertEqual(clicks, [('click', name) for name in
+                                         ('flag', 'reason', 'submit')] if should_flag else [])
+                if should_flag:
+                    self.assertEqual([event for event in self.events
+                                      if event[0] in ('clear', 'type', 'read')],
+                                     [('clear', 'note'), ('type', 'note', 'Missing Provider Appointment Time'),
+                                      ('read', 'note', 'value')])
+                    self.assertEqual(self.events[-1], ('modal-visible', False))
+                    self.env['following_provider_work'].assert_called_once()
+                elif fields:
+                    self.env['following_provider_work'].assert_called_once()
+                else:
+                    self.env['following_provider_work'].assert_not_called()
+
+    def test_flag_failures_stop_following_work_and_fail_checked_controller(self):
+        for failure in ('flag', 'modal-timeout', 'reason', 'note', 'submit', 'still-open'):
+            with self.subTest(failure=failure):
+                self.setUp()
+                data = self.prepare(providerName='Synthetic Facility')
+                self.failure = failure
+                with self.assertRaises((RuntimeError, TimeoutError)):
+                    exec(self.guard_code, self.env)
+                self.env['following_provider_work'].assert_not_called()
+                clicks = self.events.count(('click', 'submit'))
+                self.assertEqual(clicks, int(failure in ('submit', 'still-open')))
+                if failure != 'flag':
+                    self.assertTrue(self.open)
+                unity = SimpleNamespace(validate_and_complete_task=self.env['validate_and_complete_task'])
+                complete, confirm, record = Mock(), Mock(return_value=True), Mock()
+                self.events.clear()
+                result = backend._runner().load_core().run_flow(
+                    data, list_attachments=lambda: [Path('synthetic.pdf')],
+                    run_unity=lambda customer, claimant, payload:
+                        backend.checked_validate(unity, self.driver, customer, claimant, payload),
+                    record_assignment=record, complete_assignment=complete, confirm=confirm, notify=Mock())
+                self.assertEqual((result['status'], result['reason']), ('failed', 'run_unity_failed'))
+                self.assertIn('Legacy Unity reported failure:', result['error']['message'])
+                record.assert_called_once()
+                confirm.assert_not_called()
+                complete.assert_not_called()
+                self.env['later_completion'].assert_not_called()
+                self.env['following_provider_work'].assert_not_called()
+                self.assertEqual(self.events.count(('click', 'submit')), clicks)
 
 
 class WorkbookTests(unittest.TestCase):
@@ -635,12 +811,12 @@ class BridgeTests(unittest.TestCase):
                     call.assert_not_called()
 
     def test_actual_legacy_upload_ast_binds_manual_path_and_propagates_failure(self):
-        # Read only the safe upload range, never import legacy automation or sample records.
-        legacy = model.ROOT / 'src' / 'fcm_intake' / 'legacy' / 'legacy_unity.py'
-        with legacy.open(encoding='utf-8-sig') as stream:
-            block = ''.join(islice(stream, 1275, 1310))
-        block = block[block.index('        try:'):block.index('        wait = WebDriverWait(driver, 3)')]
-        tree = ast.parse(textwrap.dedent(block))
+        function = legacy_function('validate_and_complete_task')
+        upload_block, = [node for node in function.body[0].body if isinstance(node, ast.Try)
+                         and any(isinstance(child, ast.ImportFrom)
+                                 and child.module == 'AI.referral_attachments'
+                                 for child in ast.walk(node))]
+        tree = ast.Module(body=[upload_block], type_ignores=[])
         code = compile(tree, '<actual legacy upload block>', 'exec')
         with tempfile.TemporaryDirectory(dir=HERE) as directory:
             upload, globber = Mock(), Mock()

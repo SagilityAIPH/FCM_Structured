@@ -60,6 +60,18 @@ contains trailing CMS helper definitions; it was not extracted or changed.
 
 ## Limits of reported success
 
+The owner-approved missing appointment-time flag is restored in the shared
+legacy path only when provider/name details or an appointment date exist and
+time is blank. It keeps the legacy reason selector and exact note
+`Missing Provider Appointment Time`, verifies the textarea value and submits
+once. After the modal closes, the existing Unity process continues; failures
+reach the outer legacy error handler rather than silently continuing. The
+desktop checked adapter reports `run_unity_failed` without approval/completion,
+retaining default attempted-assignment tracking. No new input or broader flag
+policy is added. See [standalone policy](Stand-Alone/README.md#owner-approved-missing-appointment-time-flag).
+Modal closure is not server-side readback; live flag UI and persistence were
+not exercised.
+
 `completed` means injected callables returned normally, not that live records
 were verified. In particular, `legacy_unity.main` catches exceptions and returns
 None on success and failure; its upload handler also swallows failures. The live

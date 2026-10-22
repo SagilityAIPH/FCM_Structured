@@ -106,10 +106,9 @@ enumerations proven by the controller; values are not invented from another UI.
 ## Input counts and derivation
 
 The supplied context contract has **39** keys. AST analysis of the actual
-`legacy_unity.validate_and_complete_task` finds **38** keys: `nextApptTime` is
-absent from the function, so the advertised list is not an exact consumption
-list. It remains an optional forward-compatible form/workbook field. The test
-`verify_legacy_keys` checks both the exact set and this discrepancy. It parses
+`legacy_unity.validate_and_complete_task` finds **39** keys, including
+`nextApptTime` for the owner-approved missing-time flag guard. The test
+`verify_legacy_keys` checks the exact consumption set. It parses
 only the validation function, stopping before the next top-level definition,
 without parsing the legacy sample dictionaries or relying on drifting sample
 line numbers. All new fixtures and smoke data are synthetic.
@@ -118,8 +117,8 @@ The seven derivation keys are `claimStateAbbr`, `claimStateFull`, `refSource`,
 `correctZipCode`, `ServiceType`, `refType`, `CaseObj`. Only five belong to the
 39-key contract: `refSource` and `correctZipCode` do not. Therefore there are
 **39 − 5 + 1 = 35 direct operator keys**, including the controller's extra
-`claimNumber`. The 38 consumed keys imply 34 directly consumed operator keys;
-the additional appointment-time field makes the desktop count 35. Optional
+`claimNumber`. Appointment time remains optional; no flag checkbox or new
+workbook input is required. Optional
 claim jurisdiction is a separate derivation input, not an extra legacy operator
 key or workbook column.
 
@@ -145,7 +144,28 @@ that mismatch; both behaviors are tested. The field is present in every form
 and workbook row but is optional, as is the controller input. Two later legacy
 checks search lowercase `medical full` in an unlowercased value, so their portal
 fallback behavior remains inconsistent; the app does not rewrite that legacy
-DOM automation. Appointment time is retained but not consumed by that code.
+DOM automation.
+
+## Owner-approved missing appointment-time flag
+
+When provider facility/name details or an appointment date exist and
+`nextApptTime` is blank, the shared legacy portal path submits the restored
+legacy flag. No provider/name/date means no flag; supplied time means no flag.
+It retains the original first-reason selector (its visible business label is
+not live-verified) and the exact note **Missing Provider Appointment Time**.
+The helper waits for actionable controls, scopes reason/note/submit to the
+visible flag modal, clears the note and verifies its exact textarea value,
+clicks Submit once, then waits for that modal to hide or disappear.
+
+Only after that UI confirmation does the existing Unity process continue;
+flagging is not an early stop. A write/readback, click or timeout failure
+reaches the legacy outer error marker, which the desktop checked adapter turns
+into `run_unity_failed` before approval or RRS completion. Default attempted-
+assignment tracking on failure is unchanged. The CLI shares the same helper,
+but retains its existing legacy error-reporting limitations.
+Textarea readback and modal closure are **not server-side flag/task readback**.
+No live portal execution was authorized or performed for this source change;
+current modal structure, reason meaning and server persistence remain unverified.
 
 ## Outcomes, prompts and live limitations
 

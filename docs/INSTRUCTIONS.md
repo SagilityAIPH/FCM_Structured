@@ -108,6 +108,15 @@ can swallow errors, and neither document identity nor portal/task readback is
 verified by synthetic checks. Neither the source change nor packaging authorizes
 live execution.
 
+FCM-1.1-55 restores only the owner-approved legacy missing appointment-time
+flag in shared Unity source. Provider/name details or an appointment date plus
+blank time trigger the legacy reason selector and exact note; the existing
+process continues only after a single submission and modal closure. Flag errors
+fail the desktop checked controller before approval/RRS completion; default
+attempt tracking is unchanged. Synthetic source tests and self-test passed,
+but neither live flag UI/server persistence nor a rebuilt EXE was verified.
+FCM-1.1-48 remains open; this change does not authorize live execution.
+
 ## Completed
 
-Finished items `FCM-1.1-01` through `FCM-1.1-18`, plus `FCM-1.1-27`, `FCM-1.1-28`, `FCM-1.1-30` through `FCM-1.1-40`, `FCM-1.1-43`, `FCM-1.1-47`, and `FCM-1.1-49` through `FCM-1.1-54`, are archived in `docs/completed.md`. FCM-1.1-50 and FCM-1.1-52 record the earlier Unity v1.0.1/v1.0.2 build/release preparation. FCM-1.1-53 retains its dated source-only Outlook attachment evidence; FCM-1.1-54 adds the rebuilt v1.0.3 artifact and packaged synthetic checks. These checks do not establish live or native-window end-to-end behavior. Move future finished items out of their active section and append there in ID history with both date markers and test/build evidence; do not renumber.
+Finished items `FCM-1.1-01` through `FCM-1.1-18`, plus `FCM-1.1-27`, `FCM-1.1-28`, `FCM-1.1-30` through `FCM-1.1-40`, `FCM-1.1-43`, `FCM-1.1-47`, and `FCM-1.1-49` through `FCM-1.1-55`, are archived in `docs/completed.md`. FCM-1.1-50 and FCM-1.1-52 record the earlier Unity v1.0.1/v1.0.2 build/release preparation. FCM-1.1-53 retains its dated source-only Outlook attachment evidence; FCM-1.1-54 adds the rebuilt v1.0.3 artifact and packaged synthetic checks. These checks do not establish live or native-window end-to-end behavior. Move future finished items out of their active section and append there in ID history with both date markers and test/build evidence; do not renumber.
