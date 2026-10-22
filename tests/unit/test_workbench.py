@@ -167,6 +167,31 @@ def test_doctor_display_is_separate_from_editable_facility(workbench, monkeypatc
     assert row['conditional']
 
 
+def test_multi_provider_review_groups_edit_independently(workbench, monkeypatch):
+    api, identifier, _ = workbench
+    data = complete_payload()
+    first = data['Provider Information'][0]
+    first['Provider Name (First Name / Last Name)'] = 'Synthetic Alpha'
+    second = dict(first, **{'Provider Name (First Name / Last Name)': 'Synthetic Beta',
+                            'Appointment Date': '2099-01-06'})
+    data['Provider Information'] = [first, second]
+    extract(monkeypatch, data)
+    api.start_processing([identifier]); finish(api)
+    doc = api.get_document(identifier)['value']
+    groups = [group for group in doc['groups'] if group['name'].startswith('Provider ')]
+    assert [group['name'] for group in groups] == ['Provider 1', 'Provider 2']
+    for index, group in enumerate(groups):
+        identity = next(row for row in group['fields'] if row['label'] == 'Doctor / Facility')
+        assert identity['provider_index'] == index
+        assert identity['value'] == ['Synthetic Alpha', 'Synthetic Beta'][index]
+    saved = api.save_fields(identifier, [{'key': 'Provider Phone', 'provider_index': 1,
+                                           'value': 'SYNTH-SECOND-PHONE'}], doc['revision'])
+    assert saved['ok']
+    records = api._documents[identifier]['fields'].providers
+    assert records[1]['Provider Phone'] == 'SYNTH-SECOND-PHONE'
+    assert records[0]['Provider Phone'] != records[1]['Provider Phone']
+
+
 def test_token_failure_does_not_reuse_old_success(workbench, monkeypatch):
     api, identifier, _ = workbench
     extract(monkeypatch, complete_payload())

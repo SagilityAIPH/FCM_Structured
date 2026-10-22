@@ -40,8 +40,33 @@ def test_multiple_providers_keep_matching_slots_and_most_complete_first():
     assert "City: Boston" in text
     assert len(fields.providers) == 3
     assert fields.providers[-1]['Provider Phone'] == 'Not found'
-    # 59 matrix + 3 RRS classification + 2 extras + 3 appointment rows + 3 classification detail rows
-    assert len(core.fields_to_table_df(fields)) == 70
+    # Each of the three provider records has its own 11-field section.
+    rows = core.fields_to_table_df(fields)
+    assert len(rows) == 92
+    assert list(rows.loc[rows['Field'] == 'Doctor / Facility', 'Section']) == ['Provider 1', 'Provider 2', 'Provider 3']
+    assert list(rows.loc[rows['Field'] == 'Appointment Date', 'Value']) == [record['Appointment Date'] for record in fields.providers]
+
+
+def test_provider_mentions_split_only_on_distinguishing_identity():
+    base = provider(**{'Provider Name (First Name / Last Name)': 'Synthetic Alpha',
+                       'Provider Phone': 'SYNTH-FIRST-PHONE',
+                       'Appointment Date': '2030-01-02', 'Appointment Time': '9 AM'})
+    alternate = dict(base, **{'Provider Phone': 'SYNTH-SECOND-PHONE',
+                              'Appointment Time': '10 AM'})
+    data = payload()
+    data['Special Instruction Fields'] = {'Provider Information': [base]}
+    data['Provider Information'] = [alternate]
+    fields = core.force_exact_field_output(json.dumps(data))[1]
+    assert len(fields.providers) == 1
+    assert fields.providers[0]['Provider Phone'] == 'SYNTH-FIRST-PHONE'
+    assert fields.providers[0]['Appointment Time'] == '09:00 AM'
+    assert len(core.export_payload(fields)['Provider Information']) == 1
+    data['Provider Information'] = [dict(alternate, **{'Provider Name (First Name / Last Name)': 'Synthetic Beta'})]
+    fields = core.force_exact_field_output(json.dumps(data))[1]
+    assert len(fields.providers) == 2
+    assert [record['Provider Name (First Name / Last Name)'] for record in fields.providers] == [
+        'Synthetic Alpha', 'Synthetic Beta']
+    assert len(core.export_payload(fields)['Provider Information']) == 2
 
 
 def test_optional_absence_does_not_retry_and_roles_are_separate():
@@ -155,6 +180,26 @@ def test_completeness_requires_one_whole_provider_not_combined_partial_records()
     assert exported["Provider Information"][0]["Provider Name (First Name / Last Name)"] == "Clinic A & B"
     assert exported["NEXT STEP"]["status"] == "Passed"
     assert list(exported)[:len(core.FIELD_GROUPS)] == list(core.FIELD_GROUPS)
+
+
+def test_multi_provider_gate_requires_one_complete_record():
+    data = complete_payload()
+    data['Provider Information'] = [provider(**{'Provider Name (First Name / Last Name)': 'Synthetic Alpha',
+                                                'Appointment Date': future_workday()}),
+                                    provider(**{'Provider Name (First Name / Last Name)': 'Synthetic Beta',
+                                                'Appointment Date': future_workday()})]
+    _, fields = core.force_exact_field_output(json.dumps(data))
+    assert core.completeness(fields)['status'] == 'Failed'
+    first, second = fields.providers
+    for record in (first, second):
+        for key in core.PROVIDER_FIELDS:
+            if key not in ('Provider Name (First Name / Last Name)', 'Appointment Date', 'Appointment Time'):
+                record[key] = 'Synthetic detail'
+    assert core.completeness(fields)['status'] == 'Passed'
+    second['Provider Address'] = 'Not found'
+    assert core.completeness(fields)['status'] == 'Passed'
+    first['Provider Address'] = 'Not found'
+    assert core.completeness(fields)['status'] == 'Failed'
 
 
 def test_no_providers_fails_and_output_uses_requested_labels():

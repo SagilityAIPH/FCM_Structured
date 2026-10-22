@@ -255,6 +255,46 @@ def test_first_provider_is_authoritative_and_flat_fallback():
     assert to_all_data(dict(fields))["providerPhone"] == "SYNTH-FLAT-PHONE"
 
 
+def test_provider_rows_json_gate_and_legacy_consumers():
+    from AI.referral_schema import completeness, export_payload, field_rows
+    fields = synthetic_fields()
+    first = dict.fromkeys(PROVIDER_FIELDS, 'Not found')
+    first.update({'Provider Name (First Name / Last Name)': 'Synthetic Alpha',
+                  'Appointment Date': '2030-01-02', 'Appointment Time': '9 AM',
+                  'Provider Phone': 'SYNTH-FIRST-PHONE'})
+    second = dict(first, **{'Provider Name (First Name / Last Name)': 'Synthetic Beta',
+                            'Appointment Date': '2030-01-03', 'Appointment Time': '10 AM',
+                            'Provider Phone': 'SYNTH-SECOND-PHONE'})
+    fields.providers = [first, second]
+    rows = [row for row in field_rows(fields) if row['Field'] == 'Doctor / Facility']
+    assert [(row['Section'], row['Value']) for row in rows] == [
+        ('Provider 1', 'Synthetic Alpha'), ('Provider 2', 'Synthetic Beta')]
+    exported = export_payload(fields)['Provider Information']
+    assert [item['Provider Name (First Name / Last Name)'] for item in exported] == ['Synthetic Alpha', 'Synthetic Beta']
+    assert [item['Appointment Time'] for item in exported] == ['9 AM', '10 AM']
+    assert to_cms_inputs(fields) == to_cms_inputs(synthetic_fields())
+    result = to_all_data(fields)
+    assert result['providerName'] == 'Synthetic Alpha'
+    assert result['providerPhone'] == 'SYNTH-FIRST-PHONE'
+    assert result['nextApptDate'] == '01/02/2030'
+    assert result['nextApptTime'] == '09:00 AM'
+    # A partial second record must not borrow values from the first.
+    second['Provider Phone'] = second['Appointment Time'] = 'Not found'
+    assert field_rows(fields)[next(i for i, row in enumerate(field_rows(fields))
+                                 if row['Section'] == 'Provider 2' and row['Field'] == 'Appointment Time')]['Value'] == 'Not found'
+    assert export_payload(fields)['Provider Information'][1]['Phone Number'] == 'Not found'
+    # No provider keeps the empty JSON array and the editable missing row.
+    fields.providers = []
+    assert export_payload(fields)['Provider Information'] == []
+    assert [row['Value'] for row in field_rows(fields)
+            if row['Section'] == 'Provider 1' and row['Field'] == 'Doctor / Facility'] == ['Not found']
+    assert completeness(fields)['status'] == 'Failed'
+    fields.providers = [first]
+    assert len(export_payload(fields)['Provider Information']) == 1
+    assert len([row for row in field_rows(fields) if row['Section'] == 'Provider 1'
+                and row['Field'] == 'Doctor / Facility']) == 1
+
+
 def test_mapping_scalars_classification_and_routing_source():
     fields = synthetic_fields()
     for index, source in enumerate(FIELD_MAP.values()):

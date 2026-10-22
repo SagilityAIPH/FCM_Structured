@@ -4,7 +4,7 @@ import re
 try:
     from .appointment_rules import appointment_checks, parse_date, split_appointment, normalize_appointment
     from .address_normalization import split_address
-    from .provider_records import merge_provider_records, provider_identity, provider_summary, provider_display_name, provider_display_summary
+    from .provider_records import merge_provider_records, provider_identity, provider_summary, provider_display_name
     from .source_evidence import explicit_form_fields, special_evidence, recover_provider_identity, enforce_source_roles, ICD
     from .provider_evidence import recover_provider_records
     from .document_sections import clean_special_instructions, extract_special_instructions
@@ -12,7 +12,7 @@ try:
 except ImportError:
     from appointment_rules import appointment_checks, parse_date, split_appointment, normalize_appointment
     from address_normalization import split_address
-    from provider_records import merge_provider_records, provider_identity, provider_summary, provider_display_name, provider_display_summary
+    from provider_records import merge_provider_records, provider_identity, provider_summary, provider_display_name
     from source_evidence import explicit_form_fields, special_evidence, recover_provider_identity, enforce_source_roles, ICD
     from provider_evidence import recover_provider_records
     from document_sections import clean_special_instructions, extract_special_instructions
@@ -454,11 +454,16 @@ def parse_field_block(text, source_text='', today=None):
 def field_rows(fields):
     rows = []
     for group, labels in FIELD_GROUPS.items():
-        for label in labels:
-            key = output_key(group, label)
-            rows.append({"Section": group, "Field": label, "Value": provider_display_summary(getattr(fields, "providers", [fields])) if group == "Provider Information" and label == "Doctor / Facility" else fields.get(key, "Not found"),
-                         "Optional": "Conditional" if label in ('Doctor / Facility', 'Doctor First Name', 'Doctor Last Name')
-                         else "Yes" if key in OPTIONAL_FIELDS else "No"})
+        records = (list(enumerate(getattr(fields, 'providers', None) or [{}], 1))
+                   if group == 'Provider Information' else [(None, fields)])
+        for index, record in records:
+            for label in labels:
+                key = output_key(group, label)
+                rows.append({"Section": f"Provider {index}" if index is not None else group,
+                             "Field": label,
+                             "Value": provider_display_name(record) if index is not None and label == 'Doctor / Facility' else record.get(key, 'Not found'),
+                             "Optional": "Conditional" if label in ('Doctor / Facility', 'Doctor First Name', 'Doctor Last Name')
+                             else "Yes" if key in OPTIONAL_FIELDS else "No"})
     rows.extend({"Section": "Additional extracted information", "Field": key,
                  "Value": fields[key], "Optional": "Yes"} for key in SUPPLEMENTAL_FIELDS)
     rows.extend({"Section": "Address Review", "Field": item["target"], "Value": json.dumps(item), "Optional": "Yes"}
