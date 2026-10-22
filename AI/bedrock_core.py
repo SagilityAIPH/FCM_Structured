@@ -2,6 +2,7 @@
 import os
 import re
 import time
+from datetime import date
 from io import BytesIO
 import pymupdf as fitz
 import pandas as pd
@@ -77,6 +78,29 @@ try:
     from .referral_schema import *
 except ImportError:
     from referral_schema import *
+
+try:
+    from .appointment_rules import reconcile_model_appointment_years
+except ImportError:
+    from appointment_rules import reconcile_model_appointment_years
+
+# The schema retains its source-literal rule; the live prompt explains advance
+# inference. Final stored years still come from appointment_rules after merging.
+_APPOINTMENT_SOURCE_RULE = (
+    "Return dates as YYYY-MM-DD with an explicit\n"
+    "  documented year; do not guess a year. If only month/day is documented, preserve\n"
+    "  that literal date (e.g. 3/23); never discard it as Not found. Python resolves a\n"
+    "  missing appointment year after source corroboration: current calendar year\n"
+    "  unless month/day has passed, then next calendar year (today stays this year)."
+)
+_APPOINTMENT_ADVANCE_RULE = (
+    "Return appointment dates with a documented year as YYYY-MM-DD; never change\n"
+    "  that year. A yearless appointment month/day is an ADVANCE date: relative to\n"
+    "  the current date, choose the current calendar year if the month/day is today\n"
+    "  or still ahead, otherwise the next calendar year. Return that inferred date\n"
+    "  as YYYY-MM-DD. Python checks the source and resolves the final stored year\n"
+    "  after provider corroboration; do not apply this rule to DOB, DOI or other dates."
+)
 
 def extract_pages_from_pdf(file_bytes: bytes):
     pages = []
@@ -198,14 +222,24 @@ def table_df_to_csv_text(df):
 def run_reasoning(client, model_id, full_document_text, validation_source_text="",
                   max_tokens=DEFAULT_MAX_TOKENS, temperature=0.0, llm_call=None):
     """Retry malformed/truncated output once; optional missing data is valid."""
-    prompt = FIELD_ONLY_PROMPT.replace("{DOCUMENT_TEXT}", full_document_text)
+    today = date.today()
+    rules = FIELD_ONLY_PROMPT
+    if _APPOINTMENT_SOURCE_RULE not in rules:
+        raise ValueError("Appointment extraction rule is missing from the schema prompt")
+    rules = rules.replace(_APPOINTMENT_SOURCE_RULE, _APPOINTMENT_ADVANCE_RULE)
+    rules = rules.replace("DOCUMENT:\n{DOCUMENT_TEXT}",
+                          f"Today's date for appointment-year inference: {today.isoformat()}.\n\n"
+                          "DOCUMENT:\n{DOCUMENT_TEXT}")
+    prompt = rules.replace("{DOCUMENT_TEXT}", full_document_text)
     start = time.time()
     invoke = llm_call or call_llm_once
     for attempt in range(2):
         raw = invoke(client=client, model_id=model_id, prompt=prompt,
                      max_tokens=max_tokens, temperature=temperature)
         try:
-            result, fields = force_exact_field_output(raw, validation_source_text or full_document_text)
+            source = validation_source_text or full_document_text
+            checked = reconcile_model_appointment_years(raw, source, today)
+            result, fields = force_exact_field_output(checked, source)
             return result, fields, raw, round(time.time() - start, 2)
         except (ValueError, TypeError) as error:
             if attempt:

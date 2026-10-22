@@ -3,7 +3,10 @@ from copy import deepcopy
 from datetime import date, datetime, timedelta, timezone
 import hashlib
 import json
+import logging
 import re
+
+logger = logging.getLogger(__name__)
 
 
 def missing_appointment_value(value):
@@ -69,6 +72,53 @@ def normalize_appointment(date_value, time_value, today=None):
     clock = parse_time(time_value)
     return (parsed.isoformat() if parsed else date_value,
             clock.strftime('%I:%M %p') if clock else time_value)
+
+
+def reconcile_model_appointment_years(raw, source_text, today=None):
+    """Remove an AI-invented year before provider corroboration and normalization.
+
+    Only unambiguous labeled yearless source evidence qualifies; a documented
+    year takes precedence. The existing normalizer remains the year authority.
+    """
+    try:
+        from .provider_evidence import appointment
+        source_text = source_text or ''
+        evidence = appointment(source_text).get('Appointment Date')
+        if not evidence or not re.fullmatch(r'\d{1,2}/\d{1,2}', evidence):
+            return raw
+        # Do not erase an explicit year corroborated anywhere in the source.
+        if re.search(r'(?<!\d)' + re.escape(evidence) + r'/\d{2,4}(?!\d)', source_text):
+            return raw
+        expected, _ = normalize_appointment(evidence, 'Not found', today)
+        resolved = parse_date(expected)
+        if resolved is None:
+            return raw
+        text = re.sub(r'^```(?:json)?\s*|\s*```$', '', raw.strip(), flags=re.I)
+        data = json.loads(text)
+        if not isinstance(data, dict):
+            return raw
+        changed = False
+        for records in (data.get('Provider Information'), data.get('Referral Instruction Providers'),
+                        (data.get('Special Instruction Fields') or {}).get('Provider Information')
+                        if isinstance(data.get('Special Instruction Fields'), dict) else None):
+            if not isinstance(records, list):
+                continue
+            for record in records:
+                if not isinstance(record, dict):
+                    continue
+                value = record.get('Appointment Date')
+                model_date = parse_date(value)
+                if model_date is None or (model_date.month, model_date.day) != (resolved.month, resolved.day):
+                    continue
+                if model_date.year != resolved.year:
+                    logger.warning('Appointment Date year disagreement: model=%d python=%d',
+                                   model_date.year, resolved.year)
+                    record['Appointment Date'] = evidence
+                    changed = True
+        return json.dumps(data) if changed else raw
+    except Exception:
+        # Unparseable output is still handled by the normal extraction/retry path.
+        return raw
 
 
 def us_holidays(year):

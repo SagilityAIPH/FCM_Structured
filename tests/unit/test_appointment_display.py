@@ -9,7 +9,8 @@ from types import SimpleNamespace
 
 import pytest
 
-from AI.appointment_rules import appointment_checks, confirm_appointments
+from AI.appointment_rules import appointment_checks, confirm_appointments, normalize_appointment
+from AI import appointment_rules, bedrock_core
 from AI.bedrock_core import force_exact_field_output
 from AI.referral_schema import ReferralFields, completeness, parse_field_block
 from AI.workbench.backend import WorkbenchAPI
@@ -262,3 +263,71 @@ def test_extraction_adapter_and_actual_legacy_appointment_block(clock, expected)
     assert writes == [('DatePicker', '10/21/2026')] * 2
     assert keys == ([expected] if expected else [])
     assert toggles.count('cbDateOnly') == (2 if expected else 1)
+
+
+@pytest.mark.parametrize('raw,expected', [
+    ('03/02', '2027-03-02'),
+    ('11/20', '2026-11-20'),
+    ('11/20/2020', '2020-11-20'),
+    ('02/29', '02/29'),
+    ('sometime', 'sometime'),
+])
+def test_advance_rule_keeps_python_authoritative(raw, expected):
+    assert normalize_appointment(raw, 'Not found', date(2026, 10, 22))[0] == expected
+
+
+def test_leap_day_is_not_guessed_in_non_leap_next_year():
+    assert normalize_appointment('02/29', 'Not found', date(2027, 12, 1))[0] == '2028-02-29'
+
+
+def test_model_year_drift_is_logged_and_python_wins(monkeypatch, caplog):
+    class Clock:
+        @staticmethod
+        def today():
+            return date(2026, 10, 22)
+
+    monkeypatch.setattr(bedrock_core, 'date', Clock)
+    payload = complete_payload()
+    payload['Provider Information'][0]['Appointment Date'] = '2026-03-02'
+    payload['Provider Information'][0]['Appointment Time'] = 'Not found'
+    source = 'Special Instructions:\nNext appt: 03/02\nReferrer Name:\nSynthetic'
+    prompts = []
+
+    def fake_llm(**kw):
+        prompts.append(kw['prompt'])
+        return json.dumps(payload)
+
+    with caplog.at_level('WARNING', logger=appointment_rules.__name__):
+        _, fields, raw, _ = bedrock_core.run_reasoning(
+            None, 'synthetic-model', source, llm_call=fake_llm)
+    assert fields.providers[0]['Appointment Date'] == '2027-03-02'
+    assert json.loads(raw)['Provider Information'][0]['Appointment Date'] == '2026-03-02'
+    assert '2026-10-22' in prompts[0]
+    assert bedrock_core._APPOINTMENT_ADVANCE_RULE in prompts[0]
+    assert bedrock_core._APPOINTMENT_SOURCE_RULE not in prompts[0]
+    assert len(caplog.records) == 1
+    assert caplog.records[0].levelname == 'WARNING'
+    assert caplog.records[0].getMessage() == 'Appointment Date year disagreement: model=2026 python=2027'
+    assert caplog.records[0].args == (2026, 2027)
+
+
+def test_documented_year_is_not_overridden_by_yearless_mention(caplog):
+    payload = complete_payload()
+    payload['Provider Information'][0]['Appointment Date'] = '2020-03-02'
+    source = 'Next appt: 03/02\nNext appt: 03/02/2020'
+    with caplog.at_level('WARNING', logger=appointment_rules.__name__):
+        checked = appointment_rules.reconcile_model_appointment_years(
+            json.dumps(payload), source, date(2026, 10, 22))
+    assert json.loads(checked)['Provider Information'][0]['Appointment Date'] == '2020-03-02'
+    assert not caplog.records
+
+
+def test_unparseable_model_date_remains_for_operator_correction():
+    payload = complete_payload()
+    payload['Provider Information'][0]['Appointment Date'] = '03/xx/2026'
+    source = 'Next appt: 03/02'
+    checked = appointment_rules.reconcile_model_appointment_years(
+        json.dumps(payload), source, date(2026, 10, 22))
+    fields = parse_field_block(checked, today=date(2026, 10, 22))
+    assert fields.providers[0]['Appointment Date'] == '03/xx/2026'
+    assert 'Unrecognized appointment date' in appointment_checks(fields, date(2026, 10, 22))[0]['reasons'][0]
