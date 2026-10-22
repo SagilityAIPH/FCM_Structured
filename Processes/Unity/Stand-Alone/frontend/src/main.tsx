@@ -8,7 +8,7 @@ import fixture from './schema.json'
 import './styles.css'
 
 type Data = Record<string,string>
-type Field = {key:string; label:string; required:boolean; choices:string[]|null; date:boolean}
+type Field = {key:string; label:string; required:boolean; choices:string[]|null; date:boolean; maxLength:number}
 type Group = {title:string; fields:Field[]}
 type Prompt = {id:string;kind:string;title:string;message:string}
 type Result = {status:string;reason:string;steps:string[];error:Record<string,unknown>;attachment:string}
@@ -36,6 +36,9 @@ const mock:API = {
  async select_excel_row(){return {ok:false,error:'Open a workbook in the desktop app.'}},
  async save_excel_template(){return {ok:false,error:'Use the supplied Unity-Input.xlsx template.'}},
  async validate_fields(data,stage,jurisdiction){
+  for(const group of fixture.schema)for(const field of group.fields){
+   if((data[field.key]||'').length>field.maxLength)return {ok:false,error:`Invalid value for ${field.key}. Use text up to ${field.maxLength.toLocaleString('en-US')} characters.`}
+  }
   const keys=stage==='assign'?['claimNumber']:['claimNumber','customer','claimantFirst','claimantLast']
   if(keys.some(k=>!data[k]?.trim()))return {ok:false,error:'Required: '+keys.filter(k=>!data[k]?.trim()).join(', ')}
   return {ok:true,data:{fields:data,warnings:['Browser preview uses synthetic behavior. Desktop performs full validation.'],derived:{claimStateAbbr:jurisdiction,serviceType:data.serviceType||'Medical Full'}}}
@@ -81,7 +84,7 @@ function App(){
     <p className="muted" role="status">{note||'One referral and one provider per row. Loading replaces fields and resets jurisdiction.'}</p>
    </div></section>
    <fieldset disabled={locked}>
-   {groups.map(group=><details className="card" open key={group.title}><summary><ClipboardList size={14}/>{group.title}</summary><div className="field-grid">{group.fields.map(f=><label key={f.key}><span>{f.label}{(f.key==='claimNumber'||f.required&&stage!=='assign')?' *':''}</span>{f.choices?<select value={data[f.key]||''} onChange={e=>{setData(d=>({...d,[f.key]:e.target.value}));setReview(null)}}>{f.choices.map(c=><option value={c} key={c}>{c||'Leave blank'}</option>)}</select>:<Input name={f.key} maxLength={1000} value={data[f.key]||''} placeholder={f.date?'MM/DD/YYYY':undefined} onChange={e=>{setData(d=>({...d,[f.key]:e.target.value}));setReview(null)}}/>}</label>)}</div></details>)}
+   {groups.map(group=><details className="card" open key={group.title}><summary><ClipboardList size={14}/>{group.title}</summary><div className="field-grid">{group.fields.map(f=><label key={f.key} className={f.key==='specialInstructions'?'instructions-field':undefined}><span>{f.label}{(f.key==='claimNumber'||f.required&&stage!=='assign')?' *':''}</span>{f.choices?<select value={data[f.key]||''} onChange={e=>{const value=e.currentTarget.value;setData(d=>({...d,[f.key]:value}));setReview(null)}}>{f.choices.map(c=><option value={c} key={c}>{c||'Leave blank'}</option>)}</select>:f.key==='specialInstructions'?<><textarea name={f.key} rows={6} maxLength={f.maxLength} value={data[f.key]||''} aria-describedby="instructions-limit" onChange={e=>{const value=e.currentTarget.value;setData(d=>({...d,[f.key]:value}));setReview(null)}}/><span id="instructions-limit">Up to {f.maxLength.toLocaleString('en-US')} characters (Excel-compatible). Line breaks and surrounding whitespace are preserved.</span></>:<Input name={f.key} maxLength={f.maxLength} value={data[f.key]||''} placeholder={f.date?'MM/DD/YYYY':undefined} onChange={e=>{const value=e.currentTarget.value;setData(d=>({...d,[f.key]:value}));setReview(null)}}/>}</label>)}</div></details>)}
    <section className="card"><h2><ShieldCheck size={15}/>Review and run</h2><div className="content">
     <label>Claim jurisdiction (optional derivation context)<select aria-label="Claim jurisdiction (optional derivation context)" value={jurisdiction} onChange={e=>{setJurisdiction(e.target.value);setReview(null)}}>{jurisdictions.map(s=><option key={s} value={s}>{s||'Unknown — review in Unity'}</option>)}</select></label>
     <p className="muted">Claim jurisdiction is separate from claimant State. Blank service type uses Medical Full; Continental Tire / Auto / MI derives Medical Task. An explicit service type overrides that fallback.</p>

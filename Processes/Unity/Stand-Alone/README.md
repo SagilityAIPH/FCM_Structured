@@ -50,8 +50,21 @@ times accept HH:MM AM/PM or 24-hour HH:MM. ZIPs are five digits or ZIP+4. Identi
 and ZIPs retain leading zeros. Excel dates/times and zero-padded numeric cells are
 normalized; formulas and error cells are rejected. Duplicate recognized headers,
 wrong sheets/extensions and empty workbooks are rejected. Partial recognized
-columns can load for editing. Limits: 10,000 rows, 200 columns, 1,000 characters
-per form value. Unknown form keys are rejected.
+columns can load for editing. Limits: 10,000 rows, 200 columns, **32,767 characters
+for Special instructions** (Excel-compatible), and **1,000 characters for every
+other form value**. Unknown form keys are rejected.
+
+Special instructions uses a multiline text area. Embedded line breaks and
+leading/trailing whitespace are preserved through workbook loading, validation
+and the controller handoff; other fields retain their existing normalization.
+The Python schema supplies each field's length limit to the form and synthetic
+preview fixture. Values over the limit are rejected before running, not shortened.
+Malformed workbook rows still load with warnings for correction. **Save template**
+includes the current limits in its instructions and Special instructions header
+comment; existing operator workbooks are not rewritten. Excel cells cannot hold
+more than 32,767 characters, so keep the complete instructions within that limit
+before saving a workbook. This change does not add portal note entry or readback;
+legacy Unity uses Special instructions for facility matching.
 
 Gender choices are Male, Female and Unknown. State choices are the 50 states from
 the shared adapter. Service choices follow the legacy branches: Medical Full,
@@ -85,6 +98,10 @@ Medical Full / Medical / Coordination of Care/Services. Auto + Continental Tire
 + MI claim jurisdiction derives Medical Task / Task / MI MCCA Attendant Care.
 The optional office-workbook lookup is disabled for this locally loaded adapter:
 this contract supplies `adjAddrFull` directly and has no office-number input.
+Before loading the adapter, the model adds the existing repository root (or
+frozen extraction root) to Python's import path when absent. This lets the
+adapter import shared `AI` rules through direct `run.py`, `launcher.py`, backend
+or model startup without relying on `PYTHONPATH` or pytest's root-path setup.
 
 The legacy writes capital `ServiceType` in its Continental branch but reads
 lowercase `serviceType` when selecting service. The desktop always supplies
@@ -164,6 +181,62 @@ COM lifecycle, confirmation polling and stale responses. Acceptance totals are
 1 skipped. The scenario runner deliberately exits 2 because its fixtures include
 stopped and failed outcomes. 
 
+### Source startup verification (10/22/2026, FCM-1.1-47)
+
+Using installed Python because the documented virtual environment was absent:
+
+```powershell
+python -m pytest Processes\Unity\Stand-Alone\test_flow.py Processes\Unity\Stand-Alone\test_unity_desktop.py -q -p no:cacheprovider -o addopts=
+python Processes\Unity\Stand-Alone\run.py --self-test --report "$PWD\Output\Unity-source-self-test.json"
+python Processes\Unity\Stand-Alone\run.py --all-scenarios
+```
+
+All **43 tests / 130 JUnit cases including subtests** passed. Three startup
+regressions cover real `run.py` and `launcher.py` subprocess self-tests from the
+repository root with `PYTHONPATH` removed, model/backend imports from the standalone
+directory, and the actual spec's hidden imports against the raw adapter's `AI`
+imports. Before the fix, both entrypoints, both imports and the spec check failed.
+The direct source self-test completed the synthetic workbook roundtrip and all
+five controller steps. All nine scenarios retained their expected outcomes
+(one completed, three stopped, five failed; aggregate exit 2 is intentional).
+
+The frontend initially lacked TypeScript dependencies. After restoring the lockfile
+with `npm ci`, the production build and `node frontend\smoke.mjs` passed.
+The headless Edge mock checked form editing, validation preview, a blocking
+confirmation that Escape cannot dismiss, decline-to-stop and Unity-only
+completion, with no browser page errors. This does not exercise the live bridge.
+
+These are source and static packaging checks, not a desktop-window or executable
+smoke test. `dist\UnityAssignment.exe` was absent and no EXE was built or run.
+No live Unity portal, database, RRS, CMS or Bedrock was exercised; Unity remains
+standalone and outside Final Code.
+
+### Special instructions expansion verification (10/22/2026, FCM-1.1-49)
+
+```powershell
+python -m pytest Processes\Unity\Stand-Alone\test_flow.py Processes\Unity\Stand-Alone\test_unity_desktop.py -q -p no:cacheprovider -o addopts=
+npm --prefix Processes\Unity\Stand-Alone\frontend run build
+node Processes\Unity\Stand-Alone\frontend\smoke.mjs
+```
+
+All **49 Unity source tests** passed using installed Python (the documented
+virtual environment was absent). Focused synthetic regressions accept 1,001 and
+32,767 instruction characters, preserve exact leading/trailing whitespace,
+newlines and the trailing sentinel through validation/controller callbacks, and
+roundtrip a full 32,767-character Excel cell through row selection. They reject
+32,768 instruction characters before worker creation or callbacks; every other
+field still rejects 1,001 characters. The frontend fixture is checked against
+the Python schema. Workbook styling, 35 columns, five dropdowns, blank-template
+contents and malformed-row correction behavior remain covered.
+
+The production frontend build and actual built-frontend headless Edge smoke
+passed with zero page errors. Browser checks cover the textarea, schema-driven
+length limits, exact long multiline content after editing/validation, explicit
+over-limit validation without truncation, ordinary inputs and the existing
+approval/decline flow. This is a synthetic browser mock, not live bridge or
+portal readback evidence. No live Unity/RRS/CMS/Bedrock/database, EXE rebuild,
+release, commit or push; operator workbook/sample files are unchanged.
+
 ## Windows executable
 
 Install the pinned Python build/runtime dependencies from the repository root,
@@ -191,3 +264,44 @@ The bundle preserves repository-relative paths for the Unity controller, runner,
 legacy modules, field adapter and office lookup. The desktop deliberately disables
 the adapter's optional office-number lookup, but its module and workbook are
 included so the adapter's complete resource layout remains intact.
+Because the adapter is bundled as a raw file, the spec explicitly declares its
+`AI.appointment_rules` dependency as a hidden import. The static regression checks
+this dependency; the current rebuilt executable also passed the packaged checks
+below.
+
+### v1.0.1 build and release preparation (10/22/2026, FCM-1.1-50)
+
+The current production frontend and Unity EXE were built for
+`unityassignment-v1.0.1`. Because `.venv-bedrock` was absent and `build.ps1` assumes
+that environment, the build used installed **Python 3.13 / PyInstaller 6.22.3**
+with the equivalent PyInstaller command and the existing Unity spec. The EXE
+was copied to gitignored `dist\UnityAssignment.exe`; its checksum sidecar was
+generated.
+
+| Prepared artifact | Verified value |
+| --- | --- |
+| Size | 48,451,492 bytes |
+| SHA-256 | `e3b1fa3dbca4a78bd72b71f33aab3e39da7ceab66de45a266d4d5cb7e986a54b` |
+
+The rebuilt EXE's `--self-test` exited **0**. Its report begins
+`Frozen resource layout and live import prerequisites: OK`, followed by JSON
+reporting completion of all **five stages**, `instruction_length: 32767` and
+`oversized_rejected: true`. The synthetic workbook roundtrip and injected
+controller callbacks preserved exact instruction whitespace and the trailing
+suffix. Frozen-resource and prerequisite-import checks passed; the callbacks
+did not invoke live automation.
+
+Independent source verification passed **49 tests / 184 JUnit cases including
+subtests**, with zero failures, errors or skips. The production frontend build
+and synthetic headless Edge smoke also passed with zero page errors. These
+later checks supplement, rather than change, the source-only evidence recorded
+for FCM-1.1-47 and FCM-1.1-49 above.
+
+The artifact was prepared for `unityassignment-v1.0.1` after its successful
+packaged check; publication is recorded in the repository's GitHub releases.
+Windows with the WebView2 Runtime remains required for the desktop; live use
+also requires the configured legacy automation/browser driver, ODBC/database
+access, credentials and operator-local settings. Successful prerequisite imports
+do not establish those services' availability. No native-window end-to-end or
+live Unity, RRS, CMS, Bedrock or database workflow was exercised. Unity remains
+standalone; operator workbook/sample files and graph output were excluded.

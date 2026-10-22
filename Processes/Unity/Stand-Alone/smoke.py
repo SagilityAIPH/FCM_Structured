@@ -5,7 +5,7 @@ import tempfile
 import time
 from openpyxl import load_workbook
 from backend import UnityAPI
-from unity_model import defaults, verify_legacy_keys
+from unity_model import defaults, schema, verify_legacy_keys
 from unity_excel import create_template, read_workbook, COLUMNS, SHEET
 
 
@@ -38,8 +38,15 @@ def main():
         spec.loader.exec_module(module)
         assert module._load_office_matrix().MATRIX_NAME
         print('Frozen resource layout and live import prerequisites: OK')
+    fields = {field['key']: field for group in schema() for field in group['fields']}
+    assert fields['specialInstructions']['maxLength'] == 32767
+    assert all(field['maxLength'] == 1000 for key, field in fields.items() if key != 'specialInstructions')
+    prefix, suffix = ' \n\tSynthetic instructions\n', '\nEND-SYNTHETIC \t\n'
+    instructions = prefix + 'x' * (32767 - len(prefix) - len(suffix)) + suffix
+    assert len(instructions) == 32767
     data = defaults() | {'claimNumber': 'SYNTHETIC-ROUNDTRIP-001', 'customer': 'Synthetic Continental Tire',
-                        'claimantFirst': 'Invented', 'claimantLast': 'Example', 'claimType': 'Auto', 'zip': '00123'}
+                        'claimantFirst': 'Invented', 'claimantLast': 'Example', 'claimType': 'Auto', 'zip': '00123',
+                        'specialInstructions': instructions}
     with tempfile.TemporaryDirectory() as directory:
         path = Path(directory) / 'synthetic.xlsx'
         create_template(path)
@@ -50,9 +57,20 @@ def main():
         book.close()
         row = read_workbook(path)[0]
         assert row['data'] == data
-        api = UnityAPI(lambda: {'list_attachments': lambda: ['synthetic-referral.pdf'],
-            'run_unity': lambda customer, claimant, payload: None, 'record_assignment': lambda *args: None,
-            'complete_assignment': lambda *args: None})
+        factory_calls, payloads = [], []
+        def callbacks():
+            factory_calls.append(True)
+            return {'list_attachments': lambda: ['synthetic-referral.pdf'],
+                'run_unity': lambda customer, claimant, payload: payloads.append(payload),
+                'record_assignment': lambda *args: None, 'complete_assignment': lambda *args: None}
+        api = UnityAPI(callbacks)
+        oversized = data | {'specialInstructions': instructions + 'x'}
+        for rejected in (api.validate_fields(oversized, 'all', 'MI'), api.start(oversized, 'all', True, 'MI')):
+            assert not rejected['ok']
+            assert 'specialInstructions. Use text up to 32,767 characters' in rejected['error']
+        assert api._thread is None
+        assert api.get_state()['status'] == 'idle'
+        assert not factory_calls and not payloads
         assert api.start(row['data'], 'all', True, 'MI')['ok']
         deadline = time.monotonic() + 5
         while api.get_state()['busy']:
@@ -64,10 +82,13 @@ def main():
             time.sleep(.01)
         result = api.get_state()['result']
         assert result['status'] == 'completed'
+        assert len(payloads) == 1
+        assert payloads[0]['specialInstructions'] == instructions
         audit = verify_legacy_keys()
         print(json.dumps({'mode': 'synthetic workbook roundtrip + bridge', 'operator_columns': len(COLUMNS),
             'rows': 1, 'zip_preserved': row['data']['zip'], 'ast_consumed_keys': audit['count'],
-            'context_only': audit['context_only'], 'result': result}, indent=2))
+            'context_only': audit['context_only'], 'result': result,
+            'instruction_length': len(payloads[0]['specialInstructions']), 'oversized_rejected': True}, indent=2))
     return 0
 
 

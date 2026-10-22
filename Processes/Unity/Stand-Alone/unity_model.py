@@ -7,6 +7,9 @@ import re
 import sys
 
 ROOT = Path(sys._MEIPASS) if getattr(sys, "frozen", False) else Path(__file__).resolve().parents[3]
+# The by-path shared adapter imports AI even when this module is loaded directly.
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 spec = importlib.util.spec_from_file_location('_unity_field_adapter', ROOT / 'Final Code/finalcode/field_adapter.py')
 adapter = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(adapter)
@@ -41,13 +44,16 @@ GROUPS = [
 ]
 CHOICES = {'serviceType': ['', 'Medical Full', 'Medical Task', 'Vocational Full', 'Vocational Task', 'Employer', 'Other Services'],
            'gender': ['', 'Male', 'Female', 'Unknown']}
+LENGTH_LIMITS = {field[0]: 32767 if field[0] == 'specialInstructions' else 1000
+                 for _, fields in GROUPS for field in fields}
 for key in ('state', 'providerState', 'claimantAttyState'):
     CHOICES[key] = ['', *adapter.STATE_NAMES]
 
 
 def schema():
     return [{'title': title, 'fields': [{'key': f[0], 'label': f[1], 'required': len(f) > 2 and f[2],
-             'choices': CHOICES.get(f[0]), 'date': f[0] in ('dob', 'nextApptDate')}
+             'choices': CHOICES.get(f[0]), 'date': f[0] in ('dob', 'nextApptDate'),
+             'maxLength': LENGTH_LIMITS[f[0]]}
             for f in fields]} for title, fields in GROUPS]
 
 
@@ -80,9 +86,10 @@ def validate(payload, stage='all'):
         raise ValueError('Unknown input fields: ' + ', '.join(sorted(set(payload) - set(result))))
     for key in result:
         value = payload.get(key, '')
-        if not isinstance(value, str) or len(value) > 1000:
-            raise ValueError(f'Invalid value for {key}. Use text up to 1,000 characters.')
-        result[key] = value.strip()
+        limit = LENGTH_LIMITS[key]
+        if not isinstance(value, str) or len(value) > limit:
+            raise ValueError(f'Invalid value for {key}. Use text up to {limit:,} characters.')
+        result[key] = value if key == 'specialInstructions' else value.strip()
     required = ['claimNumber'] + ([] if stage == 'assign' else ['customer', 'claimantFirst', 'claimantLast'])
     missing = [key for key in required if not result[key]]
     if missing:

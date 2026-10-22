@@ -1,6 +1,10 @@
 """Synthetic desktop regression tests; unique imports coexist with sibling apps."""
+import ast
 import importlib.util
+import json
+import os
 from pathlib import Path
+import subprocess
 import sys
 import tempfile
 import threading
@@ -23,6 +27,56 @@ spec.loader.exec_module(backend)
 def synthetic():
     return model.defaults() | {'claimNumber': 'SYNTHETIC-001', 'customer': 'Invented Widgets',
                               'claimantFirst': 'Synthetic', 'claimantLast': 'Person'}
+
+
+def synthetic_instructions(length):
+    prefix, suffix = ' \n\tSynthetic instructions\n', '\nEND-SYNTHETIC \t\n'
+    return prefix + 'x' * (length - len(prefix) - len(suffix)) + suffix
+
+
+class StartupTests(unittest.TestCase):
+    def test_direct_entrypoints_self_test_without_pythonpath(self):
+        env = os.environ.copy()
+        env.pop('PYTHONPATH', None)
+        with tempfile.TemporaryDirectory(dir=HERE) as directory:
+            env.update(TEMP=directory, TMP=directory, TMPDIR=directory)
+            for entrypoint in ('run.py', 'launcher.py'):
+                with self.subTest(entrypoint=entrypoint):
+                    report = Path(directory) / f'{entrypoint}-report.json'
+                    completed = subprocess.run(
+                        [sys.executable, str(HERE / entrypoint), '--self-test', '--report', str(report)],
+                        cwd=model.ROOT, env=env, capture_output=True, text=True, timeout=30)
+                    self.assertEqual(completed.returncode, 0, completed.stdout + completed.stderr)
+                    result = json.loads(report.read_text(encoding='utf-8'))
+                    self.assertEqual(result['mode'], 'synthetic workbook roundtrip + bridge')
+                    self.assertEqual(result['result']['status'], 'completed')
+                    self.assertEqual(result['rows'], 1)
+                    self.assertEqual(result['instruction_length'], 32767)
+                    self.assertIs(result['oversized_rejected'], True)
+
+    def test_model_and_backend_import_without_repository_on_path(self):
+        env = os.environ.copy()
+        env.pop('PYTHONPATH', None)
+        for module in ('unity_model', 'backend'):
+            with self.subTest(module=module):
+                completed = subprocess.run(
+                    [sys.executable, '-c', f'import {module}'],
+                    cwd=HERE, env=env, capture_output=True, text=True, timeout=30)
+                self.assertEqual(completed.returncode, 0, completed.stdout + completed.stderr)
+
+    def test_spec_covers_shared_adapter_ai_imports(self):
+        adapter_tree = ast.parse((model.ROOT / 'Final Code' / 'finalcode' / 'field_adapter.py')
+                                 .read_text(encoding='utf-8-sig'))
+        required = {node.module for node in ast.walk(adapter_tree)
+                    if isinstance(node, ast.ImportFrom) and node.module
+                    and node.module.startswith('AI.')}
+        spec_tree = ast.parse((HERE / 'unity_assignment.spec').read_text(encoding='utf-8'))
+        hiddenimports = next(ast.literal_eval(node.value) for node in spec_tree.body
+                             if isinstance(node, ast.Assign)
+                             and any(isinstance(target, ast.Name) and target.id == 'hiddenimports'
+                                     for target in node.targets))
+        self.assertFalse(required - set(hiddenimports),
+                         f'Raw field adapter imports missing from hiddenimports: {required - set(hiddenimports)}')
 
 
 class ModelTests(unittest.TestCase):
@@ -68,6 +122,34 @@ class ModelTests(unittest.TestCase):
         self.assertEqual(result['nextApptTime'], '02:30 PM')
         self.assertEqual(result['zip'], '00123')
         self.assertIn('no date', model.warnings(result)[1])
+
+    def test_instruction_limits_and_exact_controller_preservation(self):
+        for length in (1001, 32767):
+            instructions = synthetic_instructions(length)
+            for stage in ('all', 'unity', 'assign'):
+                with self.subTest(length=length, stage=stage):
+                    checked = model.validate(synthetic() | {'specialInstructions': instructions}, stage)
+                    self.assertEqual(checked['specialInstructions'], instructions)
+                    self.assertEqual(model.to_controller(checked)['specialInstructions'], instructions)
+        for value in (synthetic_instructions(32768), 123, None):
+            with self.subTest(value_type=type(value)), self.assertRaisesRegex(
+                    ValueError, 'specialInstructions.*32,767 characters'):
+                model.validate(synthetic() | {'specialInstructions': value})
+        self.assertEqual(model.validate(synthetic() | {'specialInstructions': ' \n\t '})
+                         ['specialInstructions'], ' \n\t ')
+        self.assertEqual(model.validate(synthetic() | {'claimID': 'x' * 1000})['claimID'], 'x' * 1000)
+        self.assertEqual(model.validate(synthetic() | {'claimID': ' X '})['claimID'], 'X')
+        for key in model.defaults().keys() - {'specialInstructions'}:
+            with self.subTest(key=key), self.assertRaisesRegex(ValueError, f'{key}.*1,000 characters'):
+                model.validate(synthetic() | {key: 'x' * 1001})
+
+    def test_frontend_fixture_matches_shared_length_schema(self):
+        fixture = json.loads((HERE / 'frontend' / 'src' / 'schema.json').read_text(encoding='utf-8'))
+        self.assertEqual(fixture['schema'], model.schema())
+        fields = {field['key']: field for group in model.schema() for field in group['fields']}
+        self.assertEqual(fields['specialInstructions']['maxLength'], 32767)
+        self.assertTrue(all(field['maxLength'] == 1000 for key, field in fields.items()
+                            if key != 'specialInstructions'))
 
     def test_derivation_defaults_and_state_is_not_jurisdiction(self):
         data = synthetic() | {'state': 'MI', 'providerZip': '00123'}
@@ -120,6 +202,11 @@ class WorkbookTests(unittest.TestCase):
         self.assertEqual(sheet['A2'].number_format, '@')
         self.assertFalse(any(cell.value for row in sheet.iter_rows(min_row=2) for cell in row))
         self.assertEqual(len(sheet.data_validations.dataValidation), 5)
+        index = next(i for i, (key, _, _) in enumerate(excel.COLUMNS, 1) if key == 'specialInstructions')
+        self.assertIn('32,767 characters', sheet.cell(1, index).comment.text)
+        notes = '\n'.join(str(row[0].value) for row in book['Instructions'])
+        self.assertIn('Special instructions: up to 32,767 characters', notes)
+        self.assertIn('All other fields: up to 1,000 characters', notes)
 
     def test_synthetic_roundtrip_and_row_numbers(self):
         self.fill(synthetic() | {'zip': '00123', 'dob': '2000-01-02'})
@@ -128,6 +215,34 @@ class WorkbookTests(unittest.TestCase):
         self.assertEqual([r['row'] for r in rows], [2, 4])
         self.assertEqual(rows[0]['data']['zip'], '00123')
         self.assertIn('customer', rows[1]['warning'])
+
+    def test_maximum_multiline_instructions_roundtrip_and_bridge_selection(self):
+        instructions = synthetic_instructions(32767)
+        self.assertEqual(len(instructions), 32767)
+        self.fill(synthetic() | {'specialInstructions': instructions, 'claimID': ' ID '})
+        self.fill(synthetic() | {'claimNumber': 'SYNTHETIC-004', 'specialInstructions': ' \n\t '}, 4)
+        rows = excel.read_workbook(self.path)
+        self.assertEqual([row['row'] for row in rows], [2, 4])
+        self.assertEqual(rows[0]['data']['specialInstructions'], instructions)
+        self.assertEqual(rows[0]['data']['claimID'], 'ID')
+        self.assertEqual(rows[1]['data']['specialInstructions'], ' \n\t ')
+        api = backend.UnityAPI(lambda: self.fail('Loading must not create controller callbacks.'))
+        self.assertTrue(api.load_excel(self.path)['ok'])
+        selected = api.select_excel_row(2)['data']['data']
+        self.assertEqual(selected['specialInstructions'], instructions)
+        checked = api.validate_fields(selected)
+        self.assertTrue(checked['ok'], checked)
+        self.assertEqual(checked['data']['fields']['specialInstructions'], instructions)
+        self.assertEqual(api.select_excel_row(4)['data']['data']['specialInstructions'], ' \n\t ')
+        self.assertIsNone(api._thread)
+
+    def test_ordinary_oversized_field_loads_for_correction_without_losing_instructions(self):
+        instructions = synthetic_instructions(1001)
+        self.fill(synthetic() | {'claimID': 'x' * 1001, 'specialInstructions': instructions})
+        record = excel.read_workbook(self.path)[0]
+        self.assertIn('claimID. Use text up to 1,000 characters', record['warning'])
+        self.assertEqual(record['data']['claimID'], 'x' * 1001)
+        self.assertEqual(record['data']['specialInstructions'], instructions)
 
     def test_excel_dates_and_zero_formatted_identifiers(self):
         from datetime import datetime, time as clocktime
@@ -201,6 +316,41 @@ class BridgeTests(unittest.TestCase):
         self.assertEqual(self.calls['run_unity'].call_args.args[2]['serviceType'], 'Medical Task')
         self.calls['complete_assignment'].assert_not_called()
         self.assertIsNone(state['prompt'])
+
+    def test_long_instructions_reach_callbacks_exactly_and_keep_approval_gate(self):
+        for length in (1001, 32767):
+            with self.subTest(length=length):
+                instructions = synthetic_instructions(length)
+                data = synthetic() | {'specialInstructions': instructions}
+                checked = self.api.validate_fields(data)
+                self.assertTrue(checked['ok'], checked)
+                self.assertEqual(checked['data']['fields']['specialInstructions'], instructions)
+                self.assertTrue(self.api.start(data)['ok'])
+                state = self.wait(lambda s: s['prompt'])
+                passed = self.calls['run_unity'].call_args.args[2]
+                self.assertEqual(passed['specialInstructions'], instructions)
+                self.assertEqual(passed['claimNumber'], data['claimNumber'])
+                self.calls['complete_assignment'].assert_not_called()
+                self.assertTrue(self.api.answer_prompt(state['prompt']['id'], True)['ok'])
+                self.assertEqual(self.finish()['status'], 'completed')
+                self.calls['complete_assignment'].assert_called_once_with(data['claimNumber'])
+                for call in self.calls.values():
+                    call.reset_mock()
+
+    def test_oversized_instructions_rejected_before_any_side_effect(self):
+        factory = Mock(return_value=self.calls)
+        self.api = backend.UnityAPI(factory)
+        data = synthetic() | {'specialInstructions': synthetic_instructions(32768)}
+        for stage in ('all', 'unity', 'assign'):
+            with self.subTest(stage=stage):
+                for reply in (self.api.validate_fields(data, stage), self.api.start(data, stage)):
+                    self.assertFalse(reply['ok'])
+                    self.assertIn('specialInstructions. Use text up to 32,767 characters', reply['error'])
+                self.assertEqual(self.api.get_state()['status'], 'idle')
+                self.assertIsNone(self.api._thread)
+        factory.assert_not_called()
+        for callback in self.calls.values():
+            callback.assert_not_called()
 
     def test_blocking_confirm_polling_and_stale_answer(self):
         self.assertTrue(self.api.start(synthetic())['ok'])

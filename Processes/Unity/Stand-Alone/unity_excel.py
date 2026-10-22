@@ -9,7 +9,7 @@ from openpyxl.styles import Font, PatternFill, Alignment
 from openpyxl.utils import get_column_letter
 from openpyxl.worksheet.datavalidation import DataValidation
 
-from unity_model import GROUPS, CHOICES, defaults, validate
+from unity_model import GROUPS, CHOICES, LENGTH_LIMITS, defaults, validate
 
 SHEET = 'Unity Input'
 PREFIXES = ['Claim', 'Claimant', 'Provider', 'Adjuster', 'Attorney']
@@ -31,6 +31,10 @@ def create_template(path):
         header.fill = PatternFill('solid', fgColor='2563EB' if required else '475569')
         header.alignment = Alignment(wrap_text=True, vertical='center')
         header.comment = Comment('Required for unity/all; claimNumber required for every stage.' if required else 'Optional. Leave unknown values blank.', 'FCM')
+        if key == 'specialInstructions':
+            header.comment = Comment(
+                f'Optional. Up to {LENGTH_LIMITS[key]:,} characters (Excel-compatible). '
+                'Line breaks and leading/trailing whitespace are preserved when loaded.', 'FCM')
         sheet.column_dimensions[get_column_letter(index)].width = 25
         for row in range(2, 502):
             sheet.cell(row, index).number_format = '@'
@@ -47,6 +51,8 @@ def create_template(path):
         'One referral and one provider per row. Start at row 2. Keep sheet and headers.',
         'claimNumber is required for every stage; customer and claimant names for unity/all.',
         'Other values are optional. Incomplete rows load with warnings for editing.',
+        f'Special instructions: up to {LENGTH_LIMITS["specialInstructions"]:,} characters; line breaks and surrounding whitespace preserved.',
+        f'All other fields: up to {LENGTH_LIMITS["claimNumber"]:,} characters. Longer supplied values must be corrected before running.',
         'Dates MM/DD/YYYY; time 08:30 AM. ZIPs, phones and identifiers are text. No formulas.',
         'Blank serviceType derives Medical Full (Medical Task for Auto / Continental Tire / MI jurisdiction).',
         'Claim jurisdiction is separate optional context entered in the app; never inferred from claimant State.',
@@ -64,7 +70,7 @@ def create_template(path):
     return str(path)
 
 
-def _text(cell):
+def _text(cell, *, preserve_whitespace=False):
     value = cell.value
     if value is None:
         return ''
@@ -79,7 +85,7 @@ def _text(cell):
             return str(int(value)).zfill(len(cell.number_format))
         if float(value).is_integer():
             return str(int(value))
-    return str(value).strip()
+    return str(value) if preserve_whitespace else str(value).strip()
 
 
 def read_workbook(path):
@@ -106,7 +112,8 @@ def read_workbook(path):
             raise ValueError('No recognized columns. Use the Unity template.')
         records = []
         for number, row in enumerate(rows, 2):
-            supplied = {key: _text(row[index]) for index, key in mapping.items()}
+            supplied = {key: _text(row[index], preserve_whitespace=key == 'specialInstructions')
+                        for index, key in mapping.items()}
             if not any(supplied.values()):
                 continue
             data = defaults()

@@ -9,6 +9,7 @@ import assert from 'node:assert/strict'
 const here = fileURLToPath(new URL('.', import.meta.url))
 const dist = join(here, 'dist')
 const evidence = resolve(here, '../acceptance')
+const fixture = JSON.parse(await readFile(join(here, 'src', 'schema.json'), 'utf8'))
 const scratch = await mkdtemp(join(here, '.browser-smoke-'))
 process.env.TEMP = scratch
 process.env.TMP = scratch
@@ -27,7 +28,7 @@ await new Promise(resolve => server.listen(0, '127.0.0.1', resolve))
 let context
 try {
   context = await chromium.launchPersistentContext(join(scratch, 'profile'), {
-    executablePath: 'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe',
+    executablePath: 'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe',
     headless: true, viewport: { width: 560, height: 900 },
   })
   const page = await context.newPage()
@@ -37,8 +38,42 @@ try {
   await page.getByLabel('Employer / customer *', {exact:true}).fill('Synthetic Widgets')
   await page.getByLabel('First name *', {exact:true}).fill('Invented')
   await page.getByLabel('Last name *', {exact:true}).fill('Example')
+  const instructions = page.locator('textarea[name="specialInstructions"]')
+  assert.equal(await instructions.count(), 1)
+  assert.ok(await instructions.evaluate(el => el.rows > 1))
+  for (const group of fixture.schema) for (const field of group.fields) {
+    if (field.choices) continue
+    const control = page.locator(`[name="${field.key}"]`)
+    assert.equal(await control.evaluate(el => el.maxLength), field.maxLength)
+    assert.equal(field.maxLength, field.key === 'specialInstructions' ? 32767 : 1000)
+    assert.equal(await control.evaluate(el => el.tagName), field.key === 'specialInstructions' ? 'TEXTAREA' : 'INPUT')
+  }
+  await page.getByText('Up to 32,767 characters (Excel-compatible).', {exact:false}).waitFor()
+  const prefix = ' \n\tSynthetic browser instructions\n', suffix = '\nEND-SYNTHETIC \t\n'
+  let longValue
+  for (const length of [1001, 32767]) {
+    longValue = prefix + 'x'.repeat(length - prefix.length - suffix.length) + suffix
+    await instructions.fill(longValue)
+    assert.equal(await instructions.inputValue(), longValue)
+    await page.getByRole('button', {name:'Validate fields'}).click()
+    await page.getByText('Derived values', {exact:true}).waitFor()
+    assert.equal(await instructions.inputValue(), longValue)
+  }
+  // Bypass the native editing cap to check explicit validation, not silent truncation.
+  await instructions.evaluate((el, value) => {
+    Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value').set.call(el, value)
+    el.dispatchEvent(new Event('input', {bubbles:true}))
+  }, longValue + 'x')
+  await page.getByRole('button', {name:'Validate fields'}).click()
+  await page.getByRole('alert').filter({hasText:'specialInstructions. Use text up to 32,767 characters.'}).waitFor()
+  assert.equal(await instructions.inputValue(), longValue + 'x')
+  await instructions.fill(longValue)
+  const claimID = page.locator('input[name="claimID"]')
+  await claimID.fill('S'.repeat(1000))
   await page.getByRole('button', {name:'Validate fields'}).click()
   await page.getByText('Derived values', {exact:true}).waitFor()
+  assert.equal(await instructions.inputValue(), longValue)
+  assert.equal(await claimID.inputValue(), 'S'.repeat(1000))
   await page.getByRole('button', {name:'Run selected stage'}).click()
   await page.getByRole('dialog').waitFor()
   await page.keyboard.press('Escape')
@@ -53,12 +88,12 @@ try {
   await page.getByRole('button', {name:'Run selected stage'}).click()
   await page.getByText('Process completed', {exact:true}).waitFor()
   assert.deepEqual(errors, [])
-  const result = {mode:'synthetic browser mock',checks:['grouped form editing','validate preview','blocking accessible confirm','Escape cannot dismiss','decline stopped reason','unity completed'],pageErrors:errors}
+  const result = {mode:'synthetic browser mock',checks:['grouped form editing','shared schema length metadata','multiline textarea','1001 and 32767 characters preserved including whitespace and suffix after validation','32768 explicitly rejected without truncation','ordinary inputs retain 1000 limit','validate preview','blocking accessible confirm','Escape cannot dismiss','decline stopped reason','unity completed'],pageErrors:errors}
   await writeFile(join(evidence, 'browser-smoke.json'), JSON.stringify(result,null,2)+'\n')
   console.log(JSON.stringify(result,null,2))
 } finally {
   if(context)await context.close()
   await new Promise(resolve=>server.close(resolve))
   assert.ok(scratch.startsWith(here) && scratch.includes('.browser-smoke-'))
-  await rm(scratch,{recursive:true,force:true})
+  await rm(scratch,{recursive:true,force:true,maxRetries:10,retryDelay:200})
 }

@@ -8,28 +8,32 @@
           "label": "Claim number",
           "required": true,
           "choices": null,
-          "date": false
+          "date": false,
+          "maxLength": 1000
         },
         {
           "key": "customer",
           "label": "Employer / customer",
           "required": true,
           "choices": null,
-          "date": false
+          "date": false,
+          "maxLength": 1000
         },
         {
           "key": "claimID",
           "label": "Claim ID",
           "required": false,
           "choices": null,
-          "date": false
+          "date": false,
+          "maxLength": 1000
         },
         {
           "key": "claimType",
           "label": "Line of insurance",
           "required": false,
           "choices": null,
-          "date": false
+          "date": false,
+          "maxLength": 1000
         },
         {
           "key": "serviceType",
@@ -44,35 +48,40 @@
             "Employer",
             "Other Services"
           ],
-          "date": false
+          "date": false,
+          "maxLength": 1000
         },
         {
           "key": "bodyPart",
           "label": "Body part",
           "required": false,
           "choices": null,
-          "date": false
+          "date": false,
+          "maxLength": 1000
         },
         {
           "key": "injuryType",
           "label": "Injury type",
           "required": false,
           "choices": null,
-          "date": false
+          "date": false,
+          "maxLength": 1000
         },
         {
           "key": "injuryCause",
           "label": "Injury cause",
           "required": false,
           "choices": null,
-          "date": false
+          "date": false,
+          "maxLength": 1000
         },
         {
           "key": "specialInstructions",
           "label": "Special instructions",
           "required": false,
           "choices": null,
-          "date": false
+          "date": false,
+          "maxLength": 32767
         }
       ]
     },
@@ -84,21 +93,24 @@
           "label": "First name",
           "required": true,
           "choices": null,
-          "date": false
+          "date": false,
+          "maxLength": 1000
         },
         {
           "key": "claimantLast",
           "label": "Last name",
           "required": true,
           "choices": null,
-          "date": false
+          "date": false,
+          "maxLength": 1000
         },
         {
           "key": "dob",
           "label": "Date of birth",
           "required": false,
           "choices": null,
-          "date": true
+          "date": true,
+          "maxLength": 1000
         },
         {
           "key": "gender",
@@ -110,21 +122,24 @@
             "Female",
             "Unknown"
           ],
-          "date": false
+          "date": false,
+          "maxLength": 1000
         },
         {
           "key": "addressLine1",
           "label": "Address line 1",
           "required": false,
           "choices": null,
-          "date": false
+          "date": false,
+          "maxLength": 1000
         },
         {
           "key": "city",
           "label": "City",
           "required": false,
           "choices": null,
-          "date": false
+          "date": false,
+          "maxLength": 1000
         },
         {
           "key": "state",
@@ -183,21 +198,24 @@
             "WI",
             "WY"
           ],
-          "date": false
+          "date": false,
+          "maxLength": 1000
         },
         {
           "key": "zip",
           "label": "ZIP",
           "required": false,
           "choices": null,
-          "date": false
+          "date": false,
+          "maxLength": 1000
         },
         {
           "key": "phoneNumber",
           "label": "Phone",
           "required": false,
           "choices": null,
-          "date": false
+          "date": false,
+          "maxLength": 1000
         }
       ]
     },
@@ -209,35 +227,40 @@
           "label": "Facility name",
           "required": false,
           "choices": null,
-          "date": false
+          "date": false,
+          "maxLength": 1000
         },
         {
           "key": "providerFirst",
           "label": "Doctor first name",
           "required": false,
           "choices": null,
-          "date": false
+          "date": false,
+          "maxLength": 1000
         },
         {
           "key": "providerLast",
           "label": "Doctor last name",
           "required": false,
           "choices": null,
-          "date": false
+          "date": false,
+          "maxLength": 1000
         },
         {
           "key": "providerAddr",
           "label": "Address",
           "required": false,
           "choices": null,
-          "date": false
+          "date": false,
+          "maxLength": 1000
         },
         {
           "key": "providerCity",
           "label": "City",
           "required": false,
           "choices": null,
-          "date": false
+          "date": false,
+          "maxLength": 1000
         },
         {
           "key": "providerState",
@@ -296,28 +319,32 @@
             "WI",
             "WY"
           ],
-          "date": false
+          "date": false,
+          "maxLength": 1000
         },
         {
           "key": "providerZip",
           "label": "ZIP",
           "required": false,
           "choices": null,
-          "date": false
+          "date": false,
+          "maxLength": 1000
         },
         {
           "key": "nextApptDate",
           "label": "Appointment date",
           "required": false,
           "choices": null,
-          "date": true
+          "date": true,
+          "maxLength": 1000
         },
         {
           "key": "nextApptTime",
           "label": "Appointment time",
           "required": false,
           "choices": null,
-          "date": false
+          "date": false,
+          "maxLength": 1000
         }
       ]
     },
@@ -329,14 +356,16 @@
           "label": "Name",
           "required": false,
           "choices": null,
-          "date": false
+          "date": false,
+          "maxLength": 1000
         },
         {
           "key": "adjAddrFull",
           "label": "Full office address",
           "required": false,
           "choices": null,
-          "date": false
+          "date": false,
+          "maxLength": 1000
         }
       ]
     },
@@ -348,21 +377,24 @@
           "label": "Name",
           "required": false,
           "choices": null,
-          "date": false
+          "date": false,
+          "maxLength": 1000
         },
         {
           "key": "claimantAttyAddr1",
           "label": "Address line 1",
           "required": false,
           "choices": null,
-          "date": false
+          "date": false,
+          "maxLength": 1000
         },
         {
           "key": "claimantAttyAddr2",
           "label": "Address line 2",
           "required": false,
           "choices": null,
-          "date": false
+          "date": false,
+          "maxLength": 1000
         },
         {
           "key": "claimantAttyState",
@@ -421,21 +453,24 @@
             "WI",
             "WY"
           ],
-          "date": false
+          "date": false,
+          "maxLength": 1000
         },
         {
           "key": "claimantAttyZip",
           "label": "ZIP",
           "required": false,
           "choices": null,
-          "date": false
+          "date": false,
+          "maxLength": 1000
         },
         {
           "key": "claimantAttyPhone",
           "label": "Phone",
           "required": false,
           "choices": null,
-          "date": false
+          "date": false,
+          "maxLength": 1000
         }
       ]
     }
