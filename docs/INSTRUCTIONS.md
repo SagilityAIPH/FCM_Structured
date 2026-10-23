@@ -41,7 +41,7 @@ Baseline checks (last verified 10/15/2026; these are not live RRS/CMS/Unity test
 
 ## Current state
 
-`Final Code/finalcode/orchestrator.py:34` defines `run(*, capture, extract, review, cms, subject_line, on_stage=None, today=None, adapt=None)`. Implemented order: `capture()` → `extract()` → `review()` → `completeness()` gate → `cms()` → one-way field adapter → `subject_line()`. CMS must resolve a nonblank customer before the Subject Line Builder stage. Its live factory now completes triage, answers the legacy prompts and exports the attachment through the existing shared RRS adapter only after a completed builder result; the same stage returns completion only after export returns. The chain does not persist run data.
+`Final Code/finalcode/orchestrator.py:34` defines `run(*, capture, extract, review, cms, subject_line, on_stage=None, today=None, adapt=None)`. Implemented order: `capture()` → `extract()` → `review()` → `completeness()` gate → `cms()` → one-way field adapter → `subject_line()`. CMS must resolve a nonblank customer before the Subject Line Builder stage. Its live factory now completes triage, answers the legacy prompts and exports the attachment through the existing shared RRS adapter only after a completed builder result; the same stage returns completion only after export returns. The orchestrator remains an in-memory state machine; the launcher and review hooks now persist one referral JSON through the shared writer (FCM-1.1-81).
 
 | Condition                                                  | Outcome / reason                                         | Source                                                 |
 | ---------------------------------------------------------- | -------------------------------------------------------- | ------------------------------------------------------ |
@@ -88,9 +88,15 @@ Baseline checks (last verified 10/15/2026; these are not live RRS/CMS/Unity test
 
 - [ ] **FCM-1.1-45 -- Confirm multi-provider extraction and review against a real referral.** Uncovered by the operator's Double Provider Issue in AI Analyzer / Multiple Provider Issue requests: per-provider JSON records, text/CSV rows and editable review groups have been checked with synthetic fixtures only. Acceptance: with operator authorization, confirm each distinct detected provider occupies one record and one separately editable review group, appointments remain attached to the correct provider, the completeness gate and downstream handoffs behave as intended, and no referral contents or identifiers enter test artifacts or logs. No live referral or packaged EXE was exercised.
 
-- [ ] **FCM-1.1-46 -- Decide retention and access for Final Code per-item audit records.** Uncovered by the operator's "[Final Code] Add JSON for each item worked" request: every worked referral now writes a JSON audit under the operator-profile `AppData/Local/FCM_Structured/FinalCode/audit/` directory, outside the repository, and those records contain referral data. Retention duration, authorized access, deletion/backup and protection for a shared or roaming operator profile are undefined. Acceptance: owner approves and documents a retention/access policy, operational cleanup and any required profile ACL or encryption controls; verify with synthetic records only and do not expose referral contents in logs.
+- [ ] **FCM-1.1-46 -- Decide retention and access for referral records.** Uncovered by the operator's "[Final Code] Add JSON for each item worked" request. The earlier Final Code-only `AppData/Local/FCM_Structured/FinalCode/audit/` writer is replaced by FCM-1.1-81's shared Final Code/Reader records in `Referrals/` beside the EXE, an outside-Git override, or the visible `%LOCALAPPDATA%/FCM_Structured/<FinalCode|AIPDFReader>/Referrals/` fallback. **Files contain PHI, including claimant names in filenames; adjacent/shared EXE folders also need an access policy.** Retention duration, authorized access, deletion/backup and protection for a shared or roaming operator profile remain undefined. Acceptance: owner approves and documents a retention/access policy, operational cleanup and any required folder/profile ACL or encryption controls; verify with synthetic records only and do not expose referral contents in logs.
 
 - [ ] **FCM-1.1-48 -- Verify Unity portal outcomes and attachment identity before relying on completion.** Reconfirmed during FCM-1.1-47 smoke review: the desktop recognizes the legacy outer failure marker, but inner upload/Complete Task handlers can swallow failures, and the CLI delegates to legacy `main`, which also catches errors. The controller's one-file preflight does not bind the selected file to the later legacy glob or verify its claim identity; tracking records an attempt even after a raised portal failure by default. The configured portal is UAT. Acceptance: with owner-approved environment and test scope, establish explicit upload/task readback and stable attachment binding using synthetic data, preserve the approval gate and owner-approved tracking policy, and record authorized live verification separately. Do not auto-run live assignments or integrate Unity into Final Code to resolve this item.
+
+
+Owner-approved FCM-1.1-81 amendment always retains full source text (and distinct
+sent text) for debugging. **FCM-1.1-46 must later define the expiry number of
+days**, along with retention/access controls for those full-text records. No
+expiry period or automatic deletion is implemented by FCM-1.1-81.
 
 ## Live verification follow-up
 
@@ -111,10 +117,65 @@ Baseline checks (last verified 10/15/2026; these are not live RRS/CMS/Unity test
 
 ## Next up
 
+- [~] **FCM-1.1-81 -- Save one referral JSON from Final Code and standalone Reader.** Shipped in Final Code v1.0.9 and AI PDF Reader v1.1.1; synthetic source and packaged self-tests passed, live confirmation pending. Shared `AI/referral_json.py` persists extraction, saved edits, completeness/approval and Final Code run-end metadata in one whitelisted, versioned record. **Owner amendment: always store full raw `source_text` for debugging at the first after-extraction write and preserve it on later overwrites; Final Code uses the full RRS viewer capture and Reader uses extracted document text after `join_pages`. If model input differs, also store exact `sent_text`. No opt-in. Earlier endings before extraction may lack text.** Frozen apps create `Referrals/` beside the EXE; source, Git worktree or unwritable locations fall back visibly to `%LOCALAPPDATA%/FCM_Structured/<FinalCode|AIPDFReader>/Referrals/`. Absolute `FCM_REFERRALS_DIR` overrides this, with Final Code's `FCM_FINAL_CODE_AUDIT_DIR` retained as an alias; every target must be outside Git. Files contain full referral PHI, including claimant names in filenames: **FCM-1.1-46 retention/access remains unresolved and applies to both locations and apps; expiry number of days will be added later under 46, with no expiry/automatic deletion implemented here**. Preserve original/current fields, providers, rename/collision protection and atomic saves; redact known secrets in all fields including source/sent text and exclude CMS payloads, credentials and raw model responses. Synthetic verification and exact evidence are recorded in the referral JSON SITREP; the full-text amendment is packaged in these builds. Live RRS/CMS/Bedrock/portal behavior remains unverified.
+- [~] **FCM-1.1-82 -- Resolve section-reader overrides of correct AI fields.** Shipped in Final Code v1.0.9 and AI PDF Reader v1.1.1; S1-S10 synthetic orderings tested: valid AI values survive contradictory/blank reader evidence, and format-valid reader evidence fills blank AI fields; disagreements are non-blocking review flags. Live viewer order and packaged operator clicks remain unconfirmed. Authorized live confirmation remains open.
+- [~] **FCM-1.1-83 -- Add field-specific format review flags.** Shipped in Final Code v1.0.9 and AI PDF Reader v1.1.1; synthetically tested for claimant/provider ZIP, DOB and injury date, SSN, phone and gender. Malformed values remain unchanged with non-blocking review flags; saving edits rechecks and clears resolved disagreements. Live viewer order and packaged operator clicks remain unconfirmed.
+
 - [ ] **FCM-1.1-76 -- Confirm Customer Defined Fields group applicability before relaxing its locator.** Uncovered during FCM-1.1-75: the current group locator requires the literal Liberty Mutual Commercial Market name and `20 fields`. Read-only inspection of the affected task found exactly one matching visible 20-field header, so this inspection does not establish a locator mismatch and the production name/count must not be changed speculatively. A portal field-count change or another customer group would not match this locator. Acceptance: owner confirms supported customer groups and any applicable mapping, then an evidence-backed group locator handles approved groups without relying on display-count metadata; synthetic negative/ambiguous-group tests and any separately authorized live verification establish the new boundary without copying referral contents.
 
 The owner-approved post-builder triage/export source fix is archived as FCM-1.1-39; its release-preparation runtime-source packaging correction is archived as FCM-1.1-40 with static, rebuilt EXE, packaged self-test and archive evidence. Live end-to-end completion remains unverified. Final Code stops before Unity assignment; ask instead of inferring further integration.
 
+At the original local allocation, the highest ID was FCM-1.1-69; after the contributor published 70-74, the unpublished items moved to 75-77, then to 81-83 after the contributor published 75-80. FCM-1.1-84 records release preparation; FCM-1.1-81 remains in progress pending live evidence. The owner-approved post-builder triage/export source fix is archived as FCM-1.1-39; its release-preparation runtime-source packaging correction is archived as FCM-1.1-40 with static, rebuilt EXE, packaged self-test and archive evidence. Live end-to-end completion remains unverified. Final Code stops before Unity assignment; ask instead of inferring further integration.
+
+FCM-1.1-81 acceptance correction: exact core `saves[].reason` values are
+`after_extraction`, `save_changes`, `complete`, `run_end`. Final Code saves
+`complete` only after operator approval and an actual `Passed` orchestrator
+gate, at CMS entry before CMS input checks/callback; incomplete/cancelled/failed
+gate paths retain their early-stop record without `complete`. Additional
+address-check, confirmation and retry reasons remain distinct. Earlier evidence
+below predates this correction and used the old extraction/edit labels.
+
+The new shared per-referral JSON uses **`schema_version: 2`**, distinct from the
+legacy Final Code audit schema 1. Only the shared writer's schema constant is
+bumped; the metadata-only adapter may retain its internal legacy version 1.
+Version-bump verification: **532 passed, 1 skipped, 56 subtests passed**;
+SLB **70 tests, OK**. Both app outputs are explicitly tested as version 2.
+Distinct source self-test output `selftest-schema2/Referrals/` was inspected for
+`schema_version: 2` and exact saves `after_extraction`, `complete`, `run_end`.
+Reports: `pytest-schema2.txt`, `slb-schema2.txt`,
+`finalcode-selftest-schema2.json`, `selftest-schema2-inspection.txt`, `SITREP.md`
+under the existing referral JSON scratch folder. This is historical source-stage evidence; no build or live run occurred at that stage.
+
+FCM-1.1-81 source verification (10/24/2026): repository unit suite **518 passed,
+1 skipped, 56 subtests passed**, versus the observed **484/1/56** baseline;
+SLB standalone **70 tests, OK**; frontend scratch production build passed and
+**21 browser tests passed**. Final Code source self-test completed all six stages
+and saved one synthetic JSON with `extraction`, `complete`, `run_end` history.
+Reports, synthetic record, hook/schema SITREP and raw Git status/diff are under
+`C:/Users/Administrator/AppData/Local/hermes/profiles/omniroute/cache/scratch/referrals-json/`.
+Both PyInstaller specs passed static path/import checks; no spec execution,
+EXE build or live RRS/CMS/Bedrock/portal run was performed at that source stage; later builds are recorded in FCM-1.1-84.
+
+Owner-approved full-text amendment verification: repository unit suite **527
+passed, 1 skipped, 56 subtests passed** (prior source baseline 518/1/56); SLB
+standalone **70 tests, OK**. Source Final Code self-test retained the complete
+synthetic capture in one JSON through `extraction`, `complete`, `run_end`.
+Synthetic tests cover uploaded two-page PDF text after `join_pages`, truncated
+model input in `sent_text`, preservation across edits/renames, and credential
+redaction in full text. Updated reports and SITREP are in the same scratch
+folder. No build or frontend change was performed at this amendment stage.
+
+Acceptance-fix verification: **530 passed, 1 skipped, 56 subtests passed**;
+SLB **70 tests, OK**. Source self-test saves exactly `after_extraction`,
+`complete`, `run_end`. Regressions exclude `complete` for incomplete approval,
+cancellation, gate exceptions and fabricated custom stage events, and verify
+that a passed gate saves `complete` before the CMS callback/input checks.
+Reader's real model-prompt builder is exercised with a synthetic clipped
+document: stored `sent_text` matches the prompt document input and the excluded
+source tail stays out of that prompt while full `source_text` remains in JSON.
+Evidence: `pytest-acceptance.txt`, `slb-acceptance.txt`,
+`finalcode-selftest-acceptance.json`, `selftest-acceptance-inspection.txt` and
+updated `SITREP.md` in the same scratch folder. This predates the release builds; no live run.
 FCM-1.1-51 adds exact session-selected local PDF binding, packaged and
 synthetically verified by FCM-1.1-52 for `unityassignment-v1.0.2`. FCM-1.1-53 extends
 the standalone source to original PDF, MSG and EML documents without conversion.
