@@ -176,8 +176,7 @@ def flag_missing_appointment_time(driver):
         ))).click()
         stage = "locating the flag note"
         note = modal_wait.until(EC.element_to_be_clickable((
-            By.XPATH,
-            "./modal-template/div/div/div/div[3]/div/form/div/div[3]/text-area/form-control/div/textarea"
+            By.ID, "intake-flag-for-intervention-description-text-area"
         )))
         stage = "clearing the flag note"
         note.clear()

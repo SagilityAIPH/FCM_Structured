@@ -92,13 +92,24 @@ continue provider work, approval or RRS completion; default attempted-assignment
 tracking is unchanged. Normal success and unrelated errors retain browser cleanup;
 other driver callers default to no detach. No new input or broader flag
 policy is added. See [standalone policy](Stand-Alone/README.md#owner-approved-missing-appointment-time-flag).
-The root of the reported flag failure remains unconfirmed. Bounded,
+At FCM-1.1-58, the root of the reported flag failure remained unconfirmed. Bounded,
 owner-authorized non-submitting inspection resolved all three existing relative
 selectors, observed reason Missing information and verified exact note readback
 with an enabled submit button; it did not submit a flag, Complete Task or
 assignment. A zero-sized Angular host alone does not prove Selenium invisibility
 or a selector defect. No source replay or server persistence was verified.
 FCM-1.1-58 is source-only, with no EXE rebuild/release.
+
+FCM-1.1-68 fixes the subsequently confirmed note-locator root cause. In a later
+owner-authorized, non-submitting inspection, selecting Missing information made
+the old numbered-div note XPath resolve nothing, while the textarea with ID
+`intake-flag-for-intervention-description-text-area` remained visible/enabled
+inside the same flag modal. The v1.0.5 error identified the same note-lookup stage.
+The helper now waits for that stable ID within the modal; reason selection,
+exact note/readback, one submission, closure, continuation and failure/browser
+recovery behavior are unchanged. Focused synthetic regressions and source smoke
+passed; no live source execution, flag submission, server readback or EXE
+build/release was performed. FCM-1.1-59 remains blocked by the customer mismatch.
 
 `completed` means injected callables returned normally, not that live records
 were verified. In particular, `legacy_unity.main` catches exceptions and returns

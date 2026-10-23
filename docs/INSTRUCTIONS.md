@@ -151,7 +151,7 @@ explicit desktop recovery policy: leave Edge open on flagging failure for manual
 recovery, releasing the detached driver service/connection without Quit. Normal
 success and unrelated failures retain cleanup; provider work, approval and RRS
 completion stop on a flag failure while default attempted tracking is unchanged.
-The reported root failure is still unconfirmed: bounded non-submitting inspection
+At FCM-1.1-58, the reported root failure was still unconfirmed: bounded non-submitting inspection
 resolved all three existing modal-relative selectors and verified reason/note
 entry, but neither source replay nor a flag submission/server persistence.
 Synthetic checks only; source-only, no build or release. Published v1.0.4 remains
@@ -163,6 +163,21 @@ Actual publication is recorded in GitHub releases. FCM-1.1-59 remains blocked
 before flag submission by the live-test customer mismatch; neither packaging
 nor release establishes the root flagging failure or server persistence.
 
+FCM-1.1-68 fixes the subsequently confirmed note XPath mismatch after selecting
+Missing information: the old numbered-div path resolves nothing while the stable
+textarea ID remains visible/enabled in the same modal. The helper now uses the
+modal-scoped ID with the existing actionable wait; reason/submit selectors,
+trigger, exact note/readback, single submission, continuation and browser
+preservation are unchanged. Focused synthetic regressions and source smoke
+passed; no live helper execution, flag submission, server validation, build or
+release occurred. FCM-1.1-58's earlier root-unconfirmed evidence is historical.
+FCM-1.1-59 remains active and blocked by the customer mismatch.
+
+FCM-1.1-69 supplements the note fix in FCM-1.1-68 with a rebuilt Unity v1.0.6
+EXE and packaged synthetic verification. Actual publication is recorded in
+GitHub releases. Read-only live inspection confirmed the selector mismatch,
+but no corrected live flag submission or server persistence was verified.
+
 ## Completed
 
-Finished items `FCM-1.1-01` through `FCM-1.1-18`, plus `FCM-1.1-27`, `FCM-1.1-28`, `FCM-1.1-30` through `FCM-1.1-40`, `FCM-1.1-43`, `FCM-1.1-47`, `FCM-1.1-49` through `FCM-1.1-58`, and `FCM-1.1-60`, are archived in `docs/completed.md`. FCM-1.1-59 remains active and blocked. FCM-1.1-50 and FCM-1.1-52 record the earlier Unity v1.0.1/v1.0.2 build/release preparation. FCM-1.1-53 retains its dated source-only Outlook attachment evidence; FCM-1.1-54 adds the rebuilt v1.0.3 artifact and packaged synthetic checks. FCM-1.1-57 records v1.0.4 packaging of flagging and provider address acceptance fixes; FCM-1.1-58 retains its source-only diagnostics/manual browser recovery evidence, supplemented by v1.0.5 packaging in FCM-1.1-60. These checks do not establish live or native-window end-to-end behavior. Move future finished items out of their active section and append there in ID history with both date markers and test/build evidence; do not renumber.
+Finished items `FCM-1.1-01` through `FCM-1.1-18`, plus `FCM-1.1-27`, `FCM-1.1-28`, `FCM-1.1-30` through `FCM-1.1-40`, `FCM-1.1-43`, `FCM-1.1-47`, `FCM-1.1-49` through `FCM-1.1-58`, `FCM-1.1-60`, and `FCM-1.1-67` through `FCM-1.1-69`, are archived in `docs/completed.md`. FCM-1.1-59 remains active and blocked; FCM-1.1-61 through FCM-1.1-66 remain parked Process Wizard items. The owner approved correcting the unpublished note-fix ID from 61 to 68 after the concurrent upstream allocation; upstream IDs are preserved, and 69 records v1.0.6 packaging. Earlier source-only entries remain historical. These checks do not establish live or native-window end-to-end behavior. Move future finished items out of their active section and append there in ID history with both date markers and test/build evidence; do not renumber.

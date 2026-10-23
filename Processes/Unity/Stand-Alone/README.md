@@ -180,7 +180,7 @@ default to `detach=False`; the CLI keeps its existing cleanup and reporting.
 Default attempted-assignment tracking on failure is unchanged.
 
 Textarea readback and modal closure are **not server-side flag/task readback**.
-The original failure root remains **unconfirmed**. Before this source change,
+At FCM-1.1-58, the original failure root remained **unconfirmed**. Before that source change,
 owner-authorized, non-submitting inspection found the modal visible and all
 three existing relative reason/note/submit XPaths resolving. The Angular host
 had a zero-sized rectangle, which does not establish Selenium invisibility or
@@ -190,6 +190,35 @@ button before/after blur, then closed the modal. No actual flag, Complete Task
 or assignment was submitted. No source replay or server persistence was
 verified. FCM-1.1-58 is source-only with synthetic regression/self-test evidence;
 no frontend, EXE build or release was made. Published v1.0.4 is unchanged.
+
+### Confirmed note layout change (10/23/2026, FCM-1.1-68)
+
+Later owner-authorized read-only inspection opened Flag, selected Missing
+information, inspected controls and closed the modal without entering a note or
+submitting. After reason selection, the old numbered-div note XPath found no
+element; the textarea with ID
+`intake-flag-for-intervention-description-text-area` was present, visible and
+enabled within that same modal. UI Automation confirmed one enabled field with
+that ID. The reported v1.0.5 error, `Unity flagging failed while locating the flag
+note`, corroborates this current root cause; the earlier FCM-1.1-58 observation
+is historical, not proof of the post-selection layout.
+
+The source now uses that stable ID with the existing modal-scoped actionable
+wait. No reason/submit selector, trigger, note text/readback, single-submit,
+closure/continuation or browser-recovery policy changed. A focused actual-source
+regression removes the old path on reason selection while retaining the stable
+ID and verifies modal-scoped lookup, exact note and one submission/continuation.
+All existing failure cases remain covered. Focused Unity regressions passed
+**87 methods / 330 JUnit cases including subtests**, zero failures/errors/skips;
+the direct source self-test exited **0** with 39 consumed keys, no context-only
+keys, the five-step flow and selected PDF/MSG/EML synthetic flows completed,
+32,767-character instructions preserved and oversized input rejected.
+
+This is source-only evidence: no live source replay, note entry, flag submission,
+server validation, browser operation, frontend/EXE build or release occurred
+during implementation. RRS, CMS, Bedrock, database and live portal integrations
+were not exercised. Published v1.0.5 does not contain this source fix.
+FCM-1.1-59 remains blocked by the customer mismatch; no full live flag is claimed.
 
 ## Outcomes, prompts and live limitations
 

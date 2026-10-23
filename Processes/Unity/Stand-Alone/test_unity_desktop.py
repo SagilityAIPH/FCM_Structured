@@ -229,6 +229,10 @@ class LegacyFlagTests(unittest.TestCase):
         self.failure = None
         self.original_error = None
         self.open = False
+        self.old_note_locator = (
+            By.XPATH,
+            './modal-template/div/div/div/div[3]/div/form/div/div[3]/text-area/form-control/div/textarea')
+        self.stable_note_locator = (By.ID, 'intake-flag-for-intervention-description-text-area')
         owner = self
 
         class Element(WebElement):
@@ -259,6 +263,8 @@ class LegacyFlagTests(unittest.TestCase):
                     owner.fail()
                 if self.name == 'flag':
                     owner.open = True
+                elif self.name == 'reason':
+                    owner.modal.children.pop(owner.old_note_locator, None)
                 elif self.name == 'submit' and owner.failure != 'still-open':
                     owner.open = False
 
@@ -296,9 +302,11 @@ class LegacyFlagTests(unittest.TestCase):
             (By.XPATH, '/html/body/my-app/div/div/div/ng-component/div[1]/div/div[1]/span'): Element('flag'),
             (By.TAG_NAME, 'flag-for-intervention-modal'): self.modal,
         }
+        note = Element('note')
         self.modal.children = {
             (By.XPATH, './modal-template/div/div/div/div[3]/div/form/div/div[1]/radio-group-input/form-control/div/label/div[1]/div/i[1]'): Element('reason'),
-            (By.XPATH, './modal-template/div/div/div/div[3]/div/form/div/div[3]/text-area/form-control/div/textarea'): Element('note'),
+            self.old_note_locator: note,
+            self.stable_note_locator: note,
             (By.XPATH, './modal-template/div/div/div/div[4]/div/div/div/button'): Element('submit'),
         }
         self.env = {'WebDriverWait': Wait, 'By': By, 'EC': EC, 'sys': sys,
@@ -337,6 +345,23 @@ class LegacyFlagTests(unittest.TestCase):
                         providerName=data['providerName'], providerFirst=data['providerFirst'],
                         providerLast=data['providerLast'])
         return data
+
+    def test_reason_layout_change_keeps_note_lookup_scoped_to_stable_id(self):
+        self.prepare(providerName='Synthetic Facility')
+        self.assertIs(self.modal.children[self.old_note_locator],
+                      self.modal.children[self.stable_note_locator])
+        exec(self.guard_code, self.env)
+        self.assertNotIn(self.old_note_locator, self.modal.children)
+        note_lookup = ('find', 'modal', *self.stable_note_locator)
+        self.assertIn(note_lookup, self.events)
+        self.assertLess(self.events.index(('click', 'reason')), self.events.index(note_lookup))
+        self.assertNotIn(('find', 'modal', *self.old_note_locator), self.events)
+        self.assertNotIn(('find', 'driver', *self.stable_note_locator), self.events)
+        self.assertEqual(self.modal.children[self.stable_note_locator].value,
+                         'Missing Provider Appointment Time')
+        self.assertEqual(self.events.count(('click', 'submit')), 1)
+        self.assertEqual(self.events[-1], ('modal-visible', False))
+        self.env['following_provider_work'].assert_called_once()
 
     def test_actual_guard_and_successful_flag_continue(self):
         cases = [({}, False), ({'providerName': 'Synthetic Facility'}, True),
