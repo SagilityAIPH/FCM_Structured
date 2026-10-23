@@ -241,6 +241,19 @@ Actual publication for `unityassignment-v1.0.8` is recorded in GitHub releases;
 neither packaging nor prior read-only inspection proves live source-helper,
 portal, RRS, CMS, Bedrock or database completion.
 
+FCM-1.1-87 prepares Unity `unityassignment-v1.0.9` after integrating latest main,
+including FCM-1.1-85's external RRS tracking configuration and preflight.
+Artifact size is 48,484,396 bytes; SHA-256:
+`017b06ded1bbd1e0dbe47188713318546e33f815396d1be4c1256c304cb0576f`.
+The packaged self-test, four isolated frozen-resolver cases and 124 post-merge
+source/config/packaging cases passed. Independent checks matched six raw sources,
+ten compiled modules and three frontend files; `.env`, protected credential blobs
+and operator/sample/session payloads were absent. Actual publication is recorded
+in GitHub releases. Configure external `.env` or `AI\.env` beside the EXE (or the
+process environment) and restart; the repository's `AI\.env` is not bundled or
+searched through parent folders. No live authentication, database write or
+already-submitted-task replay was performed. FCM-1.1-86 remains open.
+
 `completed` means injected callables returned normally, not that live records
 were verified. In particular, `legacy_unity.main` catches exceptions and returns
 None on success and failure; its upload handler also swallows failures. The live

@@ -650,3 +650,29 @@ helper was replayed against the portal and no live RRS, CMS, Bedrock, tracking,
 upload or task submission was performed. Existing Windows/WebView2 and live
 environment prerequisites remain. Other employer fields remain manual; Unity
 remains standalone. Actual publication is recorded in GitHub releases.
+
+### v1.0.9 external tracking build (10/23/2026, FCM-1.1-87)
+
+Rebuilt production frontend and Unity EXE after merging latest main, including
+FCM-1.1-85's use of `FCM_RRS_DB_CONNECTION`, desktop/CLI configuration preflight
+and value-free database failure handling. Artifact size is 48,484,396 bytes;
+SHA-256 `017b06ded1bbd1e0dbe47188713318546e33f815396d1be4c1256c304cb0576f`.
+The ignored `dist` EXE and checksum are prepared for `unityassignment-v1.0.9`;
+actual publication is recorded in GitHub releases.
+
+Packaged synthetic self-test exited 0: frozen dotenv/config imports available,
+39 consumed keys, no context-only keys, five-step main and PDF/MSG/EML flows
+completed, 32,767-character instructions and oversized rejection passed.
+Independent checks matched six raw sources, ten compiled modules and three
+frontend files, then executed the actual frozen resolver in four isolated cases:
+missing/blank settings rejected and a synthetic connection returned unchanged.
+No `.env`, `.dpapi` or operator/sample/session payload was packaged. Post-merge
+source/config/loader/flow/packaging checks passed 124 cases, no failures/errors/skips.
+
+The release intentionally contains no credentials. Set the process environment
+or put an external `.env` or `AI\.env` beside the EXE and restart the app.
+Source mode uses the repository root instead; parent-directory discovery is not
+added for packaged apps. Presence checks do not establish working database
+authentication. No real database login/write, portal submission/replay, RRS, CMS
+or Bedrock operation was performed; FCM-1.1-86 retains live verification and
+reconciliation of the already-submitted item.
