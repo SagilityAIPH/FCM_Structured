@@ -93,7 +93,7 @@ browser is closed on success and failure. The operator must still verify the
 intended RRS record; field/prompt checks do not verify server persistence or
 add automatic approval.
 
-### Manual Unity lookup sign-in (FCM-1.1-88, source only)
+### Manual Unity lookup sign-in (FCM-1.1-88)
 
 All and Assign retain the separate iCaseManager approval gate and initial RRS
 steps above. When their new lookup browser opens Unity UAT, automation now waits
@@ -115,9 +115,10 @@ original causes; the lookup browser quits on every exit as before.
 There is no login timeout, fixed sign-in sleep, retry or unattended consent.
 Unity-only, injected callbacks and offline scenarios gain no real login prompt.
 The first assignment browser, modes, tracking and business selectors/results
-remain unchanged. Synthetic tests validate source behavior only: no live Unity,
-RRS, CMS, database or Bedrock workflow was exercised, and no EXE was rebuilt
-or released for this change.
+remain unchanged. The initial FCM-1.1-88 source tests did not exercise live Unity,
+RRS, CMS, database or Bedrock, or rebuild an EXE. FCM-1.1-89 subsequently packages
+this change for v1.0.10 with synthetic frozen checks; this does not establish
+live sign-in or RRS behavior.
 
 The Unity spec includes the shared AI module and package-scoped CMS runtime
 dependency; frozen smoke checks cover resource/import prerequisites. Focused
@@ -702,3 +703,28 @@ added for packaged apps. Presence checks do not establish working database
 authentication. No real database login/write, portal submission/replay, RRS, CMS
 or Bedrock operation was performed; FCM-1.1-86 retains live verification and
 reconciliation of the already-submitted item.
+
+### v1.0.10 manual lookup login build (10/23/2026, FCM-1.1-89)
+
+Rebuilt the production frontend and existing Unity EXE spec with FCM-1.1-88's
+manual confirmation for the post-approval Unity lookup browser. Artifact size
+is 48,484,933 bytes; SHA-256
+`1ec138a1381d836ded5d3804e15de678fc6db7fb521e222dce4a4f2928fdd540`.
+The ignored `dist` EXE and checksum are prepared for `unityassignment-v1.0.10`;
+actual publication and the exact source tag are recorded in GitHub releases.
+
+Packaged synthetic self-test exited 0 with frozen prerequisites, 39 consumed keys,
+the five-step main flow, PDF/MSG/EML selection, 32,767-character instructions
+and oversized rejection. Independent verification matched six raw sources,
+eleven compiled modules (including the actual `legacy.CMS` lookup), and three
+frontend files. Ten isolated actual-frozen-helper/bundled-lookup cases verified
+strict consent, pending-response isolation, native confirmation, error propagation,
+continuation and cancellation cleanup. Four frozen configuration cases passed.
+Focused source/config/loader/flow/packaging checks passed 129 test cases.
+No `.env`, `.dpapi` or operator/sample/session assets were packaged.
+
+Sign in in the new lookup browser, then select Yes in the app; No stops completion.
+The manual pause has no login timeout. Existing external tracking configuration
+and restart requirements still apply; credentials are not included. No live
+Unity, RRS, CMS, database or Bedrock operation or previously submitted task replay
+was performed; FCM-1.1-86 remains separate.

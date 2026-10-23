@@ -82,7 +82,7 @@ customer mismatch; its identity gate is session-only, not a shipped safeguard.
 Live upload, task completion, tracking and RRS completion remain unverified.
 Unity remains standalone, outside Final Code.
 
-### Manual lookup sign-in (FCM-1.1-88, source only)
+### Manual lookup sign-in (FCM-1.1-88)
 
 After iCaseManager approval and the existing initial RRS steps, the new lookup
 browser opens Unity UAT and pauses indefinitely for manual sign-in. The desktop
@@ -103,7 +103,11 @@ This adds no timeout-based consent, automatic login detection, retries or fixed
 login delay. Unity-only and injected/offline flows gain no real sign-in prompt;
 the first assignment browser, tracking policy, modes and business results are
 unchanged. Synthetic source tests do not establish live portal/RRS/CMS/Bedrock
-or database behavior. No EXE was rebuilt or published for this change.
+or database behavior. The initial FCM-1.1-88 source change did not rebuild an EXE.
+FCM-1.1-89 packages it for v1.0.10 with a passing packaged synthetic self-test,
+archive/source correspondence and isolated frozen confirmation checks; actual
+publication and the source tag are recorded in GitHub releases. No live workflow
+or previously submitted task was replayed.
 
 ## External tracking connection (FCM-1.1-85)
 
