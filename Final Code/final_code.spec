@@ -82,6 +82,8 @@ hiddenimports = [
     # Loaded by path at runtime, so PyInstaller cannot see these statically.
     "rrs_ui", "provider_match", "office_matrix", "body_part", "injury_match",
     "AI.injury_classification",
+    # CompleteAssignment imports this lazily inside the path-loaded legacy_fcm.
+    "AI.rrs_assignment",
     # Analyze dependencies, not legacy_fcm itself: that would also pull in its
     # unused OpenUnity/CompleteAssignment imports, outside this app's boundary.
     "win32clipboard", "win32com.client", "win32api", "titlecase", "openpyxl",

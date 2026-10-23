@@ -18,9 +18,11 @@ from AI.address_enrichment import suggest_addresses, apply_suggestions
 from AI.appointment_rules import confirm_appointments
 from AI.daily_output import output_directory, save_daily_output
 from AI.injury_classification import classify
+from AI.field_review import review_formats
 from AI.provider_records import provider_summary, provider_display_name
 from AI.referral_schema import FIELD_GROUPS, OPTIONAL_FIELDS, PROVIDER_FIELDS, DERIVED_FIELDS, output_key, clean_value
 from AI.workbench.secret_store import SecretStore
+from AI.referral_json import ReferralRecord
 
 
 def _saved_bedrock(value):
@@ -63,6 +65,8 @@ class WorkbenchAPI:
         self._window = None
         self._lock = threading.RLock()
         self._documents = {}
+        self._referral_record = None
+        self._referral_notice = ""
         self._busy = False
         self._unsaved = False
         self._compact = False
@@ -124,6 +128,9 @@ class WorkbenchAPI:
         fields = doc["fields"]
         checked = core.completeness(fields) if fields is not None else None
         return {key: doc[key] for key in ("id", "name", "status", "pages", "revision", "error", "elapsed", "workbook", "save_error")} | {
+            "referral_notice": doc.get("referral_notice", ""),
+            "referral_path": doc.get("referral_path", ""),
+            "referral_error": doc.get("referral_error", ""),
             "claimant": " ".join(fields.get(k, "") for k in ("First Name", "Last Name")) if fields is not None else "—",
             "claim": fields.get("Claim Number", "Not found") if fields is not None else "—",
             "next_step": checked["status"] if checked else None,
@@ -148,7 +155,8 @@ class WorkbenchAPI:
                     "remembered_model_needs_test": self._remembered_model_pending,
                     "key_configured": bool(self._key), "key_remembered": remembered_key,
                     "cms_remembered": remembered_cms,
-                    "output_directory": str(self._directory)}
+                    "output_directory": str(self._directory),
+                    "referral_notice": self._referral_notice}
 
     @response
     def set_compact(self, value):
@@ -460,6 +468,7 @@ class WorkbenchAPI:
                     "name_inference": getattr(fields, "name_inference", []),
                     "address_review": getattr(fields, "address_review", []),
                     "classification": getattr(fields, "classification", []),
+                    "review_flags": deepcopy(getattr(fields, "review_flags", [])),
                     "sent_characters": doc["sent_characters"], "total_characters": len(doc["text"])}
 
     @response
@@ -576,17 +585,50 @@ class WorkbenchAPI:
     def _save(self, doc):
         if self._memory_only:
             return
+        with self._lock:
+            fields = deepcopy(doc["fields"])
+            source = str(doc["path"]) if doc["path"] is not None else doc["name"]
+            record_id, extracted_at = doc["record_id"], doc["extracted_at"]
         try:
-            path, _ = save_daily_output(doc["fields"], str(doc["path"]) if doc["path"] is not None else doc["name"], directory=self._directory,
-                                       record_id=doc["record_id"], extracted_at=doc["extracted_at"], update_existing=True)
-            doc.update(workbook=str(path), save_error="")
+            path, _ = save_daily_output(fields, source, directory=self._directory,
+                                       record_id=record_id, extracted_at=extracted_at, update_existing=True)
+            with self._lock:
+                doc.update(workbook=str(path), save_error="")
         except Exception as error:
-            doc["save_error"] = "Daily Excel was not saved. Close the workbook and retry. " + self._error(error)
+            with self._lock:
+                doc["save_error"] = "Daily Excel was not saved. Close the workbook and retry. " + self._error(error)
+
+    def _save_referral(self, doc, reason, *, ai_extracted=None):
+        """Snapshot under the state lock; never perform referral I/O with it held."""
+        with self._lock:
+            record = doc.get("referral_record")
+            if record is None:
+                record = self._referral_record if self._memory_only else None
+                if record is None:
+                    record = ReferralRecord("FinalCode" if self._memory_only else "AIPDFReader",
+                                            record_id=doc.get("record_id"))
+                doc["referral_record"] = record
+            fields = deepcopy(doc["fields"])
+            edits = deepcopy(doc["edits"])
+            credentials = tuple(s for s in (self._key, *self._cms_secrets, *self._audit_redactions) if s)
+            model = doc.get("model_id", self._settings["model"])
+            source = doc["name"] if not self._memory_only else None
+            status = doc["status"]
+            source_text = doc.get("referral_source_text", doc["text"])
+            sent_text = doc.get("model_sent_text")
+        record.save(reason, ai_extracted=ai_extracted, current=fields, review_edits=edits,
+                    completeness=core.completeness(fields), model_id=model,
+                    reader_status=status,
+                    source_file_name=source, source_text=source_text, sent_text=sent_text,
+                    credentials=credentials)
+        with self._lock:
+            doc.update(referral_path=str(record.path) if record.path else "",
+                       referral_notice=record.notice, referral_error=record.error)
+            self._referral_notice = record.notice
 
     def _assess(self, doc):
         doc["status"] = "Completed" if core.completeness(doc["fields"])["status"] == "Passed" else "Needs Review"
         doc["revision"] += 1
-        self._save(doc)
 
     def _enrich(self, fields):
         report = suggest_addresses(fields)
@@ -602,16 +644,22 @@ class WorkbenchAPI:
 
     @response
     def start_processing(self, identifiers, *, prepared_fields=None):
-        with self._lock:
-            self._idle()
-            if prepared_fields is not None:
+        if prepared_fields is not None:
+            with self._lock:
+                self._idle()
                 if not self._memory_only or len(identifiers) != 1:
                     raise ValueError("Prepared extraction requires one in-memory workflow document.")
                 doc = self._document(identifiers[0])
                 doc.update(fields=deepcopy(prepared_fields), error="",
-                           sent_characters=len(doc["text"]))
+                           sent_characters=len(doc["text"]), referral_record=self._referral_record,
+                           model_sent_text=doc["text"])
                 self._assess(doc)
-                return True
+            # The attended launcher already saved extraction before review.
+            if self._referral_record is None:
+                self._save_referral(doc, "after_extraction", ai_extracted=deepcopy(prepared_fields))
+            return True
+        with self._lock:
+            self._idle()
             if not self._key:
                 raise ValueError("Add a Bedrock API key in Settings first.")
             docs = [self._document(i) for i in dict.fromkeys(identifiers)]
@@ -620,6 +668,8 @@ class WorkbenchAPI:
             self._progress = {"done": 0, "total": len(docs)}
             for doc in docs:
                 doc.update(status="Queued", fields=None, raw="", record_id=None, workbook="", save_error="",
+                           referral_record=None, referral_path="", referral_notice="", referral_error="",
+                           model_sent_text=None, referral_source_text=None,
                            address_report=[], edits=[], error="")
                 doc['revision'] += 1
             def work():
@@ -632,23 +682,38 @@ class WorkbenchAPI:
                         settings = self._settings
                         with self._client() as client:
                             self._check_remembered_model(client)
-                            settings = self._settings
+                            settings = dict(self._settings)
+                            source_text = doc["text"]
+                            sent_text = source_text[:settings["document_limit"]]
                             _, fields, raw, elapsed = core.run_reasoning(client, settings["model"],
-                                doc["text"][:settings["document_limit"]], doc["text"],
+                                sent_text, source_text,
                                 settings["max_tokens"], settings["temperature"])
+                        original_fields = deepcopy(fields)
+                        with self._lock:
+                            doc.update(fields=fields, raw=raw, elapsed=elapsed, record_id=str(uuid.uuid4()),
+                                       extracted_at=datetime.now().astimezone(), address_report=[], edits=[],
+                                       sent_characters=len(sent_text), model_sent_text=sent_text,
+                                       referral_source_text=source_text, workbook="",
+                                       model_id=settings["model"])
+                            self._bedrock = "Connected"
+                            doc["status"] = ("Completed" if core.completeness(fields)["status"] == "Passed"
+                                             else "Needs Review")
+                        self._save_referral(doc, "after_extraction", ai_extracted=original_fields)
                         with self._lock:
                             self._stage = 'Checking missing addresses: ' + doc['name']
                         fields, report = self._enrich(fields)
                         with self._lock:
-                            doc.update(fields=fields, raw=raw, elapsed=elapsed, record_id=str(uuid.uuid4()),
-                                       extracted_at=datetime.now().astimezone(), address_report=report, edits=[],
-                                       sent_characters=min(len(doc["text"]), settings["document_limit"]), workbook="")
-                            self._bedrock = "Connected"
+                            doc.update(fields=fields, address_report=report)
                             self._assess(doc)
+                        self._save(doc)
+                        self._save_referral(doc, "address_check")
                     except Exception as error:
                         with self._lock:
                             doc.update(status="Failed", error=self._error(error), elapsed=round(time.monotonic() - started, 1))
                             doc["revision"] += 1
+                            has_extraction = doc["fields"] is not None
+                        if has_extraction:
+                            self._save_referral(doc, "processing_failed")
                     with self._lock:
                         self._progress["done"] += 1
                 with self._lock:
@@ -689,15 +754,24 @@ class WorkbenchAPI:
                       if e["key"] in DERIVED_FIELDS and e["provider_index"] is None}
             ai = {item["field"]: item["ai_value"] for item in getattr(fields, "classification", [])}
             fields.classification = classify(fields, ai, manual)
+            fields.review_flags = review_formats(fields, getattr(fields, 'review_flags', []),
+                                                edited={(item['key'], item['provider_index']) for item in history})
             doc.update(fields=fields, address_report=[])
             doc["edits"].extend(history)
             doc['revision'] += 1
             def work():
+                with self._lock:
+                    doc["status"] = ("Completed" if core.completeness(fields)["status"] == "Passed"
+                                     else "Needs Review")
+                # Save accepted edits before address services can block or fail.
+                self._save_referral(doc, "save_changes")
                 updated, report = self._enrich(fields)
                 with self._lock:
                     doc.update(fields=updated, address_report=report)
                     self._assess(doc)
                     self._stage = 'Changes validated and address check finished.'
+                self._save(doc)
+                self._save_referral(doc, "address_check")
             self._start('Validating edits and checking missing address components…', work)
             return True
 
@@ -708,14 +782,18 @@ class WorkbenchAPI:
             doc = self._document(identifier, fields=True)
             doc["fields"] = confirm_appointments(doc["fields"], [index])
             self._assess(doc)
-            return True
+        self._save(doc)
+        self._save_referral(doc, "appointment_confirmation")
+        return True
 
     @response
     def retry_save(self, identifier):
         with self._lock:
             self._idle()
             doc = self._document(identifier, fields=True)
-            self._save(doc)
+        self._save(doc)
+        self._save_referral(doc, "retry")
+        with self._lock:
             doc["revision"] += 1
             if doc["save_error"]:
                 raise ValueError(doc["save_error"])

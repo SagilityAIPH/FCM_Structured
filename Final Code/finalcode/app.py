@@ -23,6 +23,7 @@ webview; every one of those arrives lazily, inside a factory or a function.
 """
 
 import logging
+from copy import deepcopy
 import sys
 import threading
 from pathlib import Path
@@ -85,6 +86,7 @@ class CaptureHolder:
         self.captured_characters = None
         self.model_id = None
         self.sent_characters = None
+        self.sent_text = None
 
     def record(self, captured):
         if isinstance(captured, dict):
@@ -143,6 +145,7 @@ def make_extract(api, holder=None):
         if holder is not None:
             holder.model_id = settings["model"]
             holder.sent_characters = len(document_text)
+            holder.sent_text = document_text
         return inner(document_text)
     return invoke
 
@@ -170,24 +173,71 @@ def run_workflow(api, *, capture, extract, review, cms, subject_line,
     the guard here exists only for a wiring bug in this module - without it a
     launcher mistake would leave the window showing a stage that never resolves.
     """
-    runner = run
-    if runner is None:
-        from . import orchestrator
-        runner = orchestrator.run
-    # This seam is exclusive to Final Code. The shared Reader never writes audits.
+    from . import orchestrator
+    runner = run if run is not None else orchestrator.run
+    genuine_runner = runner is orchestrator.run
+    from AI.referral_json import ReferralRecord
+    from AI.referral_schema import completeness
     from .audit import Audit
-    audit = Audit() if getattr(api, "_memory_only", False) else None
+    audit = Audit()
+    referral = ReferralRecord("FinalCode", record_id=audit.run_id)
+    api._referral_record = referral
+    with api._lock:
+        api._referral_notice = ""
+    holder = audit_holder if audit_holder is not None else CaptureHolder()
+    approved = {"fields": None, "edits": [], "gate_started": False}
     api._workflow_active = True
-    if audit is not None and hasattr(api, "_audit_redactions"):
+    def secrets():
         with api._lock:
-            api._audit_redactions.clear()
+            return tuple(s for s in (getattr(api, "_key", ""), *getattr(api, "_cms_secrets", ()),
+                                     *getattr(api, "_audit_redactions", ())) if s)
+    def persist(reason, **values):
+        path = referral.save(reason, credentials=secrets(), model_id=holder.model_id,
+                             captured_characters=holder.captured_characters,
+                             sent_characters=holder.sent_characters,
+                             source_text=holder.text if holder.captured_characters is not None else None,
+                             sent_text=holder.sent_text, **values)
+        with api._lock:
+            api._referral_notice = referral.notice
+            doc = getattr(api, "_documents", {}).get(holder.document_id)
+            if doc is not None:
+                doc.update(referral_notice=referral.notice, referral_error=referral.error,
+                           referral_path=str(path) if path else "")
+        return path
+    def captured():
+        return holder.record(capture())
+    def extracted(text):
+        holder.sent_text = text
+        holder.sent_characters = len(text) if isinstance(text, str) else None
+        fields = extract(text)
+        # Detach before any review callback can mutate the extraction in place.
+        persist("after_extraction", ai_extracted=deepcopy(fields), current=deepcopy(fields),
+                completeness=completeness(fields, today=today) if isinstance(fields, dict) else None)
+        return fields
+    def reviewed(fields):
+        current = review(fields)
+        if current is not None:
+            with api._lock:
+                doc = getattr(api, "_documents", {}).get(holder.document_id)
+                edits = deepcopy(doc.get("edits", [])) if doc else []
+            approved.update(fields=deepcopy(current), edits=edits)
+        return current
     try:
         _value(api.set_workflow_result(None))
         def stage_started(stage):
-            if audit is not None:
-                audit.stage(stage)
+            audit.stage(stage)
             api.set_stage(stage)
-        result = runner(capture=capture, extract=extract, review=review, cms=cms,
+            if stage == "GATE":
+                approved["gate_started"] = True
+            elif (stage == "CMS" and genuine_runner and approved["gate_started"]
+                  and approved["fields"] is not None):
+                # The real orchestrator enters CMS only after its gate passed.
+                # Reuse that approved snapshot and the shared completeness rule.
+                checked = completeness(approved["fields"], today=today)
+                if checked["status"] == "Passed":
+                    persist("complete", current=approved["fields"], review_edits=approved["edits"],
+                            completeness=checked)
+        result = runner(capture=captured, extract=extracted, review=reviewed, cms=cms,
                         subject_line=subject_line, on_stage=stage_started,
                         today=today, adapt=adapt)
     except BaseException as error:  # noqa: BLE001 - a launcher bug must still surface
@@ -200,18 +250,28 @@ def run_workflow(api, *, capture, extract, review, cms, subject_line,
     if audit is not None:
         try:
             with api._lock:
-                secrets = tuple(s for s in (api._key, *api._cms_secrets, *api._audit_redactions) if s)
-                model = audit_holder.model_id if audit_holder is not None else None
-                doc = api._documents.get(audit_holder.document_id) if audit_holder is not None else None
+                model = holder.model_id
+                doc = getattr(api, "_documents", {}).get(holder.document_id)
                 edits = list(doc["edits"]) if doc else []
-            sent = audit_holder.sent_characters if audit_holder is not None else None
-            path = audit.save(result, model_id=model, sent_characters=sent,
-                              captured_characters=(audit_holder.captured_characters
-                                                   if audit_holder is not None else None),
-                              review_edits=edits, credentials=secrets)
-            result["audit_path"] = str(path)
+            metadata = audit.finish(result, model_id=model, sent_characters=holder.sent_characters,
+                                    captured_characters=holder.captured_characters,
+                                    review_edits=edits, credentials=secrets())
+            final_fields = {}
+            if approved["fields"] is not None:
+                final_fields["current"] = approved["fields"]
+                gate = (result.get("payloads") or {}).get("GATE")
+                if isinstance(gate, dict) and gate.get("status") in ("Passed", "Failed"):
+                    final_fields["completeness"] = gate
+            path = persist("run_end", run_end=metadata, review_edits=metadata["review"]["edits"],
+                           **final_fields)
+            if path is not None:
+                result["audit_path"] = result["referral_path"] = str(path)
+                result["referral_notice"] = referral.notice
+            else:
+                result["audit_error"] = result["referral_error"] = referral.notice
+                api.set_stage(referral.notice)
         except Exception as error:  # audit failure must not alter the business outcome
-            message = "Referral audit could not be saved; workflow result is unaffected."
+            message = "Referral JSON could not be saved; workflow result is unaffected."
             result["audit_error"] = message
             logger.warning("Final Code audit write failed (%s): %s", type(error).__name__, message)
             # Non-blocking: a modal acknowledgement can deadlock this worker.
@@ -224,11 +284,23 @@ def run_workflow(api, *, capture, extract, review, cms, subject_line,
 
 
 def start_workflow(api, callables, *, thread_factory=None, on_finished=None, **kwargs):
-    """Run the workflow off the UI thread. Returns the worker thread."""
+    """Run wiring and workflow off the UI thread. Returns the worker thread.
+
+    A factory may be supplied so failures constructing live integrations receive
+    the same run-end referral record as failures inside the attended chain.
+    """
     factory = thread_factory if thread_factory is not None else threading.Thread
     def worker():
         try:
-            run_workflow(api, **callables, **kwargs)
+            try:
+                built = callables() if callable(callables) else callables
+            except BaseException as error:
+                def failed_wiring(*, failure=error, **unused):
+                    raise failure
+                run_workflow(api, capture=None, extract=None, review=None, cms=None,
+                             subject_line=None, run=failed_wiring)
+            else:
+                run_workflow(api, **built, **kwargs)
         finally:
             if on_finished is not None:
                 on_finished()
@@ -287,6 +359,8 @@ def self_test(report=None):
     import time
 
     bootstrap_paths()
+    # Import the lazy, path-loaded legacy dependency in the frozen self-test.
+    from AI.rrs_assignment import complete_assignment
     from AI.workbench.backend import WorkbenchAPI
 
     api = WorkbenchAPI(memory_only=True)

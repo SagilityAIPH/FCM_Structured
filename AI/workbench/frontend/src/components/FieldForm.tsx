@@ -11,6 +11,7 @@ const sourceLabels = { AI: 'AI · from RRS list', Rules: 'Legacy rules', Manual:
 const fieldPath = (group: string, label: string) => `${group} / ${label}`
 const isProvider = (name: string) => /^Provider [1-9]\d*$/.test(name)
 const providerNumber = (name: string) => Number(name.slice('Provider '.length))
+const groupHasKey = (doc: DocumentDetail | null, name: string, key: string) => !!doc?.groups.find(group => group.name === name)?.fields.some(field => field.key === key)
 
 // Display is not storage: keep a complete, validated date for the gate and adapter.
 export function appointmentDate(value: string): string | null {
@@ -87,6 +88,8 @@ export default function FieldForm({ doc, busy, draft, memoryOnly, onDraft, onCon
   const edits = Object.values(draft)
   const validation = doc?.validation
   const missing = new Set(validation?.missing_fields || [])
+  const flags = doc?.review_flags || []
+  const fieldFlags = (field: Field) => flags.filter(item => item.field === field.key && item.provider_index === field.provider_index)
   const confirmations = validation?.appointments.filter(a => !a.confirmed && a.reasons.length &&
     validation.confirmation_required.some(item => item.startsWith(`Provider ${a.provider_index} / `))) || []
   const pendingProvider = (name: string) => confirmations.some(item => name === `Provider ${item.provider_index}`) ||
@@ -95,13 +98,14 @@ export default function FieldForm({ doc, busy, draft, memoryOnly, onDraft, onCon
     const providerGaps = isProvider(name) ? validation?.provider_missing_fields[providerNumber(name) - 1] || [] : []
     const required = (validation?.missing_fields || []).filter(item => item.startsWith(`${name} / `)).length
     const needsConfirmation = isProvider(name) && pendingProvider(name) ? 1 : 0
-    return {required, providerGaps: providerGaps.length, needsConfirmation}
+    const flagged = flags.filter(item => (isProvider(name) ? item.provider_index === providerNumber(name) - 1 : item.provider_index === null && groupHasKey(doc, name, item.field))).length
+    return {required, providerGaps: providerGaps.length, needsConfirmation, flagged}
   }
   // FieldForm is keyed by document revision; toggling a group never resets draft in App.
   const [openGroups, setOpenGroups] = useState<string[]>(() => doc?.groups.filter((group, index) =>
     !memoryOnly || index === 0 || (validation?.missing_fields || []).some(item => item.startsWith(`${group.name} / `)) ||
     (isProvider(group.name) && (validation?.provider_missing_fields[providerNumber(group.name) - 1]?.length || 0) > 0) ||
-    pendingProvider(group.name)).map(group => group.name) || [])
+    pendingProvider(group.name) || flags.some(item => isProvider(group.name) ? item.provider_index === providerNumber(group.name) - 1 : item.provider_index === null && groupHasKey(doc, group.name, item.field))).map(group => group.name) || [])
   const expanded = (name: string) => !!query.trim() || openGroups.includes(name)
   const toggleGroup = (name: string) => setOpenGroups(current => current.includes(name) ? current.filter(item => item !== name) : [...current, name])
   const update = (field: Field, value: string) => {
@@ -134,20 +138,21 @@ export default function FieldForm({ doc, busy, draft, memoryOnly, onDraft, onCon
           const open = expanded(group.name)
           const identity = isProvider(group.name) ? group.fields.find(field => field.label === 'Doctor / Facility') : undefined
           const providerName = identity && (identity.display_value ?? identity.value)
-          return <section className="field-section" key={group.name}><button type="button" className="field-section-header" aria-expanded={open} aria-controls={`fields-${group.name.replace(/[^a-zA-Z0-9-]/g, '-')}`} onClick={() => toggleGroup(group.name)}><span><Icon size={14} />{group.name}{providerName && providerName !== 'Not found' ? <small className="truncate" title={providerName}> / {providerName}</small> : null}</span><span className="section-count">{groupAttention.required || groupAttention.providerGaps ? <span className="section-attention">{groupAttention.required ? `Missing ${groupAttention.required}` : `Provider gaps ${groupAttention.providerGaps}`}</span> : null}{groupAttention.needsConfirmation ? <span className="section-attention">Needs confirmation {groupAttention.needsConfirmation}</span> : null}{visible.length}<ChevronDown size={13} /></span></button><div id={`fields-${group.name.replace(/[^a-zA-Z0-9-]/g, '-')}`} className="field-grid" hidden={!open}>{visible.map(field => {
+          return <section className="field-section" key={group.name}><button type="button" className="field-section-header" aria-expanded={open} aria-controls={`fields-${group.name.replace(/[^a-zA-Z0-9-]/g, '-')}`} onClick={() => toggleGroup(group.name)}><span><Icon size={14} />{group.name}{providerName && providerName !== 'Not found' ? <small className="truncate" title={providerName}> / {providerName}</small> : null}</span><span className="section-count">{groupAttention.required || groupAttention.providerGaps ? <span className="section-attention">{groupAttention.required ? `Missing ${groupAttention.required}` : `Provider gaps ${groupAttention.providerGaps}`}</span> : null}{groupAttention.needsConfirmation ? <span className="section-attention">Needs confirmation {groupAttention.needsConfirmation}</span> : null}{groupAttention.flagged ? <span className="section-attention">Review {groupAttention.flagged}</span> : null}{visible.length}<ChevronDown size={13} /></span></button><div id={`fields-${group.name.replace(/[^a-zA-Z0-9-]/g, '-')}`} className="field-grid" hidden={!open}>{visible.map(field => {
             const id = fieldId(field)
             const displayOnly = field.display_value != null && field.display_value !== field.value
             const value = displayOnly ? field.display_value! : appointmentInputs[id] ?? appointmentDisplay(field.key, draft[id]?.value ?? field.value)
             const providerGap = isProvider(group.name) && (validation?.provider_missing_fields[providerNumber(group.name) - 1] || []).includes(field.label)
             const identityGap = isProvider(group.name) && field.label === 'Doctor / Facility' && (validation?.provider_missing_fields[providerNumber(group.name) - 1] || []).includes('Facility name or doctor first and last names')
             const gap = missing.has(fieldPath(group.name, field.label)) || providerGap || identityGap
+            const warnings = fieldFlags(field)
             const needsConfirmation = field.label === 'Appointment Date' && pendingProvider(group.name)
             const large = /Description|Instructions|Compensable/.test(field.key)
             const wide = large || /Address|Email|E-mail|Customer Name|Contact Name|Claims Office Name|Response To|Doctor \/ Facility/.test(field.label) || field.label.length > 25
             return <label key={id} className={cn('field-control', wide && 'field-wide')}><span className="field-label">{field.label}{field.optional ? <small>Optional</small> : field.conditional ? <small>Conditional</small> : <span className="required-mark" title="Required">*</span>}</span>
-              {large ? <textarea aria-label={`${group.name} / ${field.label}`} className={cn('field-textarea', gap && 'has-gap', needsConfirmation && 'needs-confirmation')} value={value} disabled={busy} onChange={e => update(field, e.target.value)} rows={field.key === 'Special Instructions' ? 9 : 3} /> : <Input aria-label={`${group.name} / ${field.label}`} className={cn(gap && 'has-gap', needsConfirmation && 'needs-confirmation', value === 'Not found' && 'text-slate-400')} value={value} readOnly={displayOnly} disabled={busy} onChange={e => { if (field.key === 'Appointment Date' || field.key === 'Appointment Time') setAppointmentInputs(current => ({...current, [id]: e.target.value})); update(field, e.target.value) }} onBlur={() => setAppointmentInputs(current => { const next = {...current}; delete next[id]; return next })} />}
+              {large ? <textarea aria-label={`${group.name} / ${field.label}`} className={cn('field-textarea', gap && 'has-gap', (needsConfirmation || !!warnings.length) && 'needs-confirmation')} value={value} disabled={busy} onChange={e => update(field, e.target.value)} rows={field.key === 'Special Instructions' ? 9 : 3} /> : <Input aria-label={`${group.name} / ${field.label}`} className={cn(gap && 'has-gap', (needsConfirmation || !!warnings.length) && 'needs-confirmation', value === 'Not found' && 'text-slate-400')} value={value} readOnly={displayOnly} disabled={busy} onChange={e => { if (field.key === 'Appointment Date' || field.key === 'Appointment Time') setAppointmentInputs(current => ({...current, [id]: e.target.value})); update(field, e.target.value) }} onBlur={() => setAppointmentInputs(current => { const next = {...current}; delete next[id]; return next })} />}
               {displayOnly ? <Input aria-label={`${group.name} / Facility name (preserved)`} value={draft[id]?.value ?? field.value} disabled={busy} onChange={e => update(field, e.target.value)} /> : null}
-              <span className="field-meta">{displayOnly ? <span>Facility: {field.value}. Edit doctor names in their own fields.</span> : null}{gap ? <span className="text-amber-700">Required information missing</span> : needsConfirmation ? <span className="text-amber-700">Appointment needs confirmation</span> : field.manual || draft[id] ? <span className="text-blue-600">{draft[id] ? 'Unsaved edit' : 'Manually edited'}</span> : field.source ? <span>{sourceLabels[field.source]}</span> : <span>{field.confidence === null ? 'Not scored' : `${field.confidence}% confidence`}</span>}</span>
+              <span className="field-meta">{warnings.map((warning, index) => <span key={index} className="text-amber-700">{warning.reason}</span>)}{displayOnly ? <span>Facility: {field.value}. Edit doctor names in their own fields.</span> : null}{gap ? <span className="text-amber-700">Required information missing</span> : needsConfirmation ? <span className="text-amber-700">Appointment needs confirmation</span> : field.manual || draft[id] ? <span className="text-blue-600">{draft[id] ? 'Unsaved edit' : 'Manually edited'}</span> : field.source ? <span>{sourceLabels[field.source]}</span> : <span>{field.confidence === null ? 'Not scored' : `${field.confidence}% confidence`}</span>}</span>
             </label>
           })}</div></section>
         })}

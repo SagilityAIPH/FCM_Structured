@@ -304,6 +304,7 @@ class ReferralFields(dict):
     def __init__(self, values, providers):
         super().__init__(values)
         self.providers = providers
+        self.review_flags = []
 
 
 def split_claims_manager_name(fields):
@@ -357,7 +358,11 @@ def parse_field_block(text, source_text='', today=None):
     if not isinstance(fallback, dict):
         raise ValueError("Special Instruction Fields must be an object.")
     fallback = dict(fallback)
-    fields.update(explicit_form_fields(source_text))
+    try:
+        from .field_review import merge_form_fields, review_formats
+    except ImportError:
+        from field_review import merge_form_fields, review_formats
+    review_flags = merge_form_fields(fields, explicit_form_fields(source_text), today)
     fallback.update(special_evidence(source_text))
     split_claims_manager_name(fields)
     split_claims_manager_name(fallback)
@@ -445,6 +450,7 @@ def parse_field_block(text, source_text='', today=None):
             fields[key] = "Not found"
     result = ReferralFields({key: fields[key] for key in REQUIRED_FIELDS}, records)
     result.name_inference = name_inference
+    result.review_flags = review_formats(result, review_flags, today=today)
     # After extraction: RRS dropdown items from the model, checked against the lists and legacy rules.
     ai_classification = data.get("RRS Classification")
     result.classification = classify(result, ai_classification if isinstance(ai_classification, dict) else {})
@@ -555,6 +561,8 @@ def export_payload(fields):
         output['Name Inference'] = fields.name_inference
     if getattr(fields, 'classification', None):
         output['RRS Classification Detail'] = fields.classification
+    if getattr(fields, 'review_flags', None):
+        output['Review Flags'] = fields.review_flags
     return output
 
 

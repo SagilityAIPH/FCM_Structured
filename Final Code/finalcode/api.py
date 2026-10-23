@@ -35,9 +35,9 @@ class FinalCodeAPI(WorkbenchAPI):
             self._attended_reserved = True
             self._external_stage = "Starting referral intake…"
         try:
-            callables = build_live_callables(self, app=self._attended_app,
-                                             runtime=self._attended_runtime)
-            start_workflow(self, callables, on_finished=self._finish_attended)
+            start_workflow(self, lambda: build_live_callables(
+                self, app=self._attended_app, runtime=self._attended_runtime),
+                on_finished=self._finish_attended)
         except BaseException:
             with self._lock:
                 self._attended_reserved = False
