@@ -357,6 +357,164 @@ class LegacyFlagTests(unittest.TestCase):
                 self.assertEqual(self.events.count(('click', 'submit')), clicks)
 
 
+class LegacyProviderAddressTests(unittest.TestCase):
+    def setUp(self):
+        from selenium.webdriver.common.by import By
+        from selenium.webdriver.remote.webelement import WebElement
+        from selenium.webdriver.support import expected_conditions as EC
+
+        self.events = []
+        self.failure = None
+        self.open = False
+        self.closing = False
+        self.closure_polls = 0
+        owner = self
+
+        class Element(WebElement):
+            def __init__(self, name, classes='', visible=True, enabled=True):
+                self.name = name
+                self.classes = classes
+                self.visible = visible
+                self.enabled = enabled
+                self.children = []
+                self.synthetic_text = 'Invalid address'
+
+            @property
+            def text(self):
+                return self.synthetic_text
+
+            def find_element(self, by, selector):
+                if self.name == 'section':
+                    return owner.provider
+                if self.name == 'provider' and selector == ".//button[normalize-space()='Validate Address']":
+                    return owner.validate
+                raise AssertionError(f'Unexpected single lookup: {self.name}, {selector}')
+
+            def find_elements(self, by, selector):
+                if self.name == 'driver':
+                    owner.events.append(('modal-lookup',))
+                    if owner.failure == 'wait':
+                        raise RuntimeError('synthetic wait failure')
+                    if by != By.CSS_SELECTOR:
+                        raise AssertionError('Expected token-based modal selector')
+                    selectors = [part.strip().split('.') for part in selector.split(',')]
+                    return [element for element in self.children
+                            if any(parts[0] == 'div' and set(parts[1:]) <= set(element.classes.split())
+                                   for parts in selectors)]
+                if by == By.XPATH and selector == ".//button[normalize-space()='Use']":
+                    return self.children
+                raise AssertionError(f'Unexpected child lookup: {self.name}, {selector}')
+
+            def is_displayed(self):
+                if self.name == 'modal':
+                    if owner.closing:
+                        owner.closure_polls += 1
+                        if owner.closure_polls >= 2 and owner.failure != 'still-open':
+                            owner.open = False
+                    owner.events.append(('modal-visible', owner.open))
+                    return owner.open
+                return self.visible
+
+            def is_enabled(self):
+                return self.enabled
+
+            def click(self):
+                owner.events.append(('click', self.name))
+                if owner.failure == self.name:
+                    raise RuntimeError('synthetic click failure')
+                if self.name == 'validate':
+                    owner.open = owner.failure != 'modal-timeout'
+                elif self.name == 'use':
+                    owner.closing = True
+
+        class Wait:
+            def __init__(self, target, timeout):
+                self.target = target
+
+            def until(self, condition):
+                for _ in range(3):
+                    value = condition(self.target)
+                    if value:
+                        return value
+                raise TimeoutError('synthetic address timeout')
+
+        self.section = Element('section')
+        self.provider = Element('provider')
+        self.validate = Element('validate')
+        self.modal = Element('modal', classes='modal fade show')
+        self.use = Element('use')
+        self.modal.children = [self.use]
+        self.driver = Element('driver')
+        self.driver.children = [self.modal]
+        self.driver.execute_script = Mock()
+        self.element = Element
+        validation = legacy_function('validate_and_complete_task')
+        helper, = [node for node in ast.walk(validation)
+                   if isinstance(node, ast.FunctionDef) and node.name == 'ValidateAddrPrv']
+        env = {'driver': self.driver, 'By': By, 'EC': EC, 'WebDriverWait': Wait}
+        exec(compile(ast.Module(body=[helper], type_ignores=[]), '<actual provider address helper>', 'exec'), env)
+        self.run_helper = env['ValidateAddrPrv']
+
+    def test_current_and_legacy_modal_tokens_accept_only_after_closure(self):
+        for classes in ('modal fade show', 'show extra modal fade', 'modal fade in', 'in fade modal'):
+            with self.subTest(classes=classes):
+                self.setUp()
+                self.modal.classes = classes
+                self.assertIs(self.run_helper(self.section), True)
+                self.assertEqual([event for event in self.events if event[0] == 'click'],
+                                 [('click', 'validate'), ('click', 'use')])
+                self.assertEqual(self.events[-1], ('modal-visible', False))
+                self.assertEqual(self.closure_polls, 2)
+
+    def test_hidden_and_unrelated_use_controls_are_not_clicked(self):
+        hidden = self.element('hidden-modal', classes='modal fade show', visible=False)
+        hidden.children = [self.element('hidden-modal-use')]
+        hidden_button = self.element('hidden-use', visible=False)
+        disabled_button = self.element('disabled-use', enabled=False)
+        unrelated = self.element('unrelated', classes='modal-dialog fade show')
+        unrelated.children = [self.element('unrelated-use')]
+        self.driver.children = [hidden, unrelated, self.element('outside-use'), self.modal]
+        self.modal.children = [hidden_button, disabled_button, self.use]
+        self.assertIs(self.run_helper(self.section), True)
+        self.assertEqual([event for event in self.events if event[0] == 'click'],
+                         [('click', 'validate'), ('click', 'use')])
+
+    def test_missing_hidden_disabled_or_ambiguous_confirmation_returns_false(self):
+        for case in ('hidden-modal', 'hidden-use', 'disabled-use', 'wrong-class', 'ambiguous'):
+            with self.subTest(case=case):
+                self.setUp()
+                if case == 'hidden-modal':
+                    self.modal = self.element('hidden-modal', classes='modal fade show', visible=False)
+                    self.modal.children = [self.use]
+                    self.driver.children = [self.modal]
+                elif case == 'hidden-use':
+                    self.use.visible = False
+                elif case == 'disabled-use':
+                    self.use.enabled = False
+                elif case == 'wrong-class':
+                    self.modal.classes = 'modal fade showing'
+                else:
+                    self.modal.children.append(self.element('other-use'))
+                self.assertIs(self.run_helper(self.section), False)
+                self.assertEqual([event for event in self.events if event[0] == 'click'],
+                                 [('click', 'validate')])
+
+    def test_click_wait_and_closure_failures_never_report_acceptance(self):
+        for failure in ('validate', 'modal-timeout', 'wait', 'use', 'still-open'):
+            with self.subTest(failure=failure):
+                self.setUp()
+                self.failure = failure
+                self.assertIs(self.run_helper(self.section), False)
+                self.assertEqual(self.events.count(('click', 'validate')), 1)
+                self.assertEqual(self.events.count(('click', 'use')),
+                                 int(failure in ('use', 'still-open')))
+
+    def test_already_validated_provider_preserves_existing_fast_path(self):
+        self.provider.synthetic_text = 'Validated'
+        self.assertIs(self.run_helper(self.section), True)
+        self.assertEqual(self.events, [])
+
+
 class WorkbookTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory(dir=HERE)

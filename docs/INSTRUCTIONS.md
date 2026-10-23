@@ -117,6 +117,22 @@ attempt tracking is unchanged. Synthetic source tests and self-test passed,
 but neither live flag UI/server persistence nor a rebuilt EXE was verified.
 FCM-1.1-48 remains open; this change does not authorize live execution.
 
+FCM-1.1-56 fixes only provider address Use-modal detection in shared Unity
+source, accepting visible `modal fade show` and legacy `modal fade in` with
+class-order-independent matching and confirming modal closure before True.
+The owner-authorized bounded live UI check clicked Validate Address and Use
+once each after the owner supplied test details; Use's immediate parent was
+`modal fade show`, and it closed. This was not a live run of the source fix
+and proved no save, task completion, assignment or server persistence.
+Actual-source synthetic tests and source self-test passed; no EXE was rebuilt.
+FCM-1.1-48 remains open and Unity remains standalone.
+
+FCM-1.1-57 supplements the dated source-only evidence for FCM-1.1-55 and
+FCM-1.1-56 with a rebuilt Unity v1.0.4 EXE and packaged synthetic self-test.
+Both the missing-time flag and provider address Use-modal fix are included.
+Actual publication is recorded in GitHub releases; packaging does not verify
+live flag persistence, server-side address acceptance or task completion.
+
 ## Completed
 
-Finished items `FCM-1.1-01` through `FCM-1.1-18`, plus `FCM-1.1-27`, `FCM-1.1-28`, `FCM-1.1-30` through `FCM-1.1-40`, `FCM-1.1-43`, `FCM-1.1-47`, and `FCM-1.1-49` through `FCM-1.1-55`, are archived in `docs/completed.md`. FCM-1.1-50 and FCM-1.1-52 record the earlier Unity v1.0.1/v1.0.2 build/release preparation. FCM-1.1-53 retains its dated source-only Outlook attachment evidence; FCM-1.1-54 adds the rebuilt v1.0.3 artifact and packaged synthetic checks. These checks do not establish live or native-window end-to-end behavior. Move future finished items out of their active section and append there in ID history with both date markers and test/build evidence; do not renumber.
+Finished items `FCM-1.1-01` through `FCM-1.1-18`, plus `FCM-1.1-27`, `FCM-1.1-28`, `FCM-1.1-30` through `FCM-1.1-40`, `FCM-1.1-43`, `FCM-1.1-47`, and `FCM-1.1-49` through `FCM-1.1-57`, are archived in `docs/completed.md`. FCM-1.1-50 and FCM-1.1-52 record the earlier Unity v1.0.1/v1.0.2 build/release preparation. FCM-1.1-53 retains its dated source-only Outlook attachment evidence; FCM-1.1-54 adds the rebuilt v1.0.3 artifact and packaged synthetic checks. FCM-1.1-57 records v1.0.4 packaging of flagging and provider address acceptance fixes. These checks do not establish live or native-window end-to-end behavior. Move future finished items out of their active section and append there in ID history with both date markers and test/build evidence; do not renumber.

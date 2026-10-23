@@ -1025,36 +1025,21 @@ def validate_and_complete_task(driver, customer_name: str, claimant_name: str,da
                     providerValidateAddr = providerSection.find_element(By.XPATH,".//button[normalize-space()='Validate Address']")
                     if providerValidateAddr:
                         driver.execute_script("arguments[0].scrollIntoView({block:'center', inline:'nearest'});", providerValidateAddr)
-                        providerValidateAddr.click()
-                        time.sleep(2)
+                        WebDriverWait(driver,5).until(EC.element_to_be_clickable(providerValidateAddr)).click()
                         try:
-                            # modalAddress = WebDriverWait(driver,3).until(
-                            #     EC.visibility_of_element_located(
-                            #         (By.XPATH,
-                            #         "//div[contains(@class,'modal-dialog')"
-                            #         " and .//h1[contains(normalize-space(),"
-                            #         "'The address that was found did not match')]]"
-                            #         )
-                            #     )
-                            # )
-                            # modalAddress.click()
-                            # use_xpath = (
-                            #     "//div[contains(@class,'modal-dialog') and "
-                            #     "contains(@style,'display: block')]"   # visible dialog only
-                            #     "//button[normalize-space()='Use']"
-                            # )
+                            def address_confirmation(current_driver):
+                                candidates = []
+                                for modal in current_driver.find_elements(
+                                        By.CSS_SELECTOR, "div.modal.fade.show, div.modal.fade.in"):
+                                    if modal.is_displayed():
+                                        for button in modal.find_elements(By.XPATH, ".//button[normalize-space()='Use']"):
+                                            if button.is_displayed() and button.is_enabled():
+                                                candidates.append((modal, button))
+                                return candidates[0] if len(candidates) == 1 else False
 
-                            use_xpath = (
-                            # visible modal (has 'modal', 'fade', 'in')
-                            "//div[contains(@class,'modal') and contains(@class,'fade') and contains(@class,'in')]"
-                            # descendant button with text 'Use'
-                            "//button[normalize-space()='Use']"
-                            )
-
-
-
-                            useAddr =  WebDriverWait(driver,3).until(EC.element_to_be_clickable((By.XPATH,use_xpath)))#".//button[normalize-space()='Use']"
+                            modalAddress, useAddr = WebDriverWait(driver,5).until(address_confirmation)
                             useAddr.click()
+                            WebDriverWait(driver,5).until(EC.invisibility_of_element(modalAddress))
                             return True
                         except:
                             return False
@@ -1635,5 +1620,4 @@ if __name__ == "__main__":
  'state': 'MI',
  'zip': '48371'}
     main("Baldauf Enterprises Inc", "BRAD DEVRIES",dataRef)
-
 

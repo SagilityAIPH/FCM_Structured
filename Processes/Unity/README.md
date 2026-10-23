@@ -60,6 +60,24 @@ contains trailing CMS helper definitions; it was not extracted or changed.
 
 ## Limits of reported success
 
+Provider address confirmation keeps the existing details and Validate Address
+workflow. Its shared legacy helper waits for an actionable Validate Address
+button, then exactly one visible/enabled Use control inside a visible
+`modal fade show` or legacy `modal fade in` container (class order is irrelevant).
+Hidden controls and ambiguous matches are not clicked. It clicks Use once and
+waits for that modal to close before returning True; click/wait failures retain
+the existing False result and surrounding caller behavior.
+
+During the owner-authorized bounded live check for FCM-1.1-56, Add new Provider
+opened blank fields; the owner manually supplied test details. One Validate
+Address click exposed exactly one enabled Use button whose immediate parent
+Window had class `modal fade show`. One Use click closed that modal. This
+establishes the observed UI structure and bounded interaction, not execution
+of the source fix against the portal or server persistence. No Complete Task,
+save or assignment was performed. Actual-source isolated synthetic tests cover
+both modal class versions, hidden/disabled and ambiguous controls, click/wait
+failures and confirmed closure. No EXE was rebuilt.
+
 The owner-approved missing appointment-time flag is restored in the shared
 legacy path only when provider/name details or an appointment date exist and
 time is blank. It keeps the legacy reason selector and exact note
