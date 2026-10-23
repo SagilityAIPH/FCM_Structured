@@ -28,7 +28,7 @@ require(repo / "Final Code/finalcode/field_adapter.py", "Final Code/finalcode", 
 require(repo / "Processes/Reopen-Check/Deploy-Ready/reopen_flow.py", "Processes/Reopen-Check/Deploy-Ready", "Restore the legacy FCM import dependency.")
 for name in ("subject_line_flow.py", "legacy_steps.py", "office_matrix.py", "provider_match.py", "rrs_ui.py", "body_part.py", "injury_match.py", "excel_input.py", "manual_flow.py"):
     require(slb / name, "Processes/SubjectLineBuilder/Deploy-Ready", "Restore the shared SubjectLineBuilder modules.")
-for name in ("legacy_unity.py", "legacy_fcm.py", "legacy_providerresultchecker.py", "legacy_googlesearch.py", "legacy_reopencheck.py", "legacy_customerchecker.py", "legacy_cem.py"):
+for name in ("legacy_unity.py", "legacy_fcm.py", "CMS.py", "legacy_providerresultchecker.py", "legacy_googlesearch.py", "legacy_reopencheck.py", "legacy_customerchecker.py", "legacy_cem.py"):
     require(legacy / name, "src/fcm_intake/legacy", "Restore the legacy runtime modules.")
 matrix = repo / "docs/Liberty Mutual Claims Office Matrix_08-29-19.xlsx"
 require(matrix, ".", "Restore the Claims Office Matrix workbook from docs.")
@@ -44,7 +44,7 @@ hiddenimports = ["run", "smoke", "fcm_intake.config", "fcm_intake.legacy_loader"
     "pyodbc", "pythoncom", "dateutil.relativedelta", "edge_auto",
     "webview.platforms.edgechromium", "office_matrix", "rrs_ui", "provider_match",
     "body_part", "injury_match", "AI.injury_classification", "AI.appointment_rules", "AI.referral_attachments",
-    "AI.unity_errors"]
+    "AI.unity_errors", "AI.rrs_assignment", "legacy.CMS"]
 hiddenimports += collect_submodules("selenium.webdriver")
 hiddenimports += collect_submodules("pywinauto")
 hiddenimports += collect_submodules("webview")

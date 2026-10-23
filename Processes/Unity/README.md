@@ -52,11 +52,35 @@ claimNumber for all/unity; assign requires claimNumber only. Blank keys raise
 ValueError before side effects. claimantFull joins trimmed first and last names.
 
 RRS completion locates Referral Routing System, clicks btnAssign, waits for
-frmInputBox, sets tbInput to literal `"19"`, clicks btnOk and answers Yes to
-`Unity Complete ?`. Inspection of this call site and searches of src/ and
+frmInputBox, sets tbInput to literal `"19"`, clicks btnOk, answers Yes to an
+optional `Unity Complete ?`, looks up the supplied current claim in Unity,
+fills the required RRS `Case Id` and clicks OK, then answers the optional second
+`Unity Complete ?` and final `ReferralRoutingSystem` OK. The existing
+`CMS.CheckCaseUnity` lookup targets Unity UAT and selects the case with the
+latest valid assigned date; it is not CMS registration or CheckAdvNotice.
+Inspection of this call site and searches of src/ and
 Processes/ found no business definition for `19`; do not label it a user, queue,
-status or team code without RRS owner confirmation. The legacy function also
-contains trailing CMS helper definitions; it was not extracted or changed.
+status or team code without RRS owner confirmation.
+
+The sequence now has one implementation in `AI/rrs_assignment.py`; legacy
+`CompleteAssignment` is a thin delegate shared by the standalone CLI and desktop.
+Lookup uses the selected claim argument, never legacy global referral data, and
+loads `legacy.CMS` lazily through the runtime package. A missing/blank case ID
+fails before Case Id entry or submission. Required interactions and present
+optional-dialog failures report `complete_assignment_failed` with value-free
+stage text and the original exception cause retained. Only absence timeouts
+skip optional dialogs; clicks are not retried. Both required input writes have
+exact readback before OK, and Case Id must close after its single OK click.
+The lookup browser is closed on
+success and failure. Modes and the attended iCaseManager gate are unchanged.
+Synthetic tests exercise this continuation and runtime resource prerequisites;
+no live RRS/Unity/CMS/Bedrock/database workflow or EXE build was performed for
+the FCM-1.1-70 source change. FCM-1.1-74 subsequently packages that source for
+v1.0.7, with packaged synthetic and archive/source correspondence checks. The
+bounded UAT attempt selected the first result but stopped before Assign on
+customer mismatch; its identity gate is session-only, not a shipped safeguard.
+Live upload, task completion, tracking and RRS completion remain unverified.
+Unity remains standalone, outside Final Code.
 
 ## Limits of reported success
 

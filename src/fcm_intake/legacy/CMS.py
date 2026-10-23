@@ -2157,10 +2157,17 @@ def CheckCaseUnity(claim_number):
         return latest_case_id
 
     driver = create_driver()
-    loginUnity(driver)
-    CaseID = NavigateSearch(claim_number,driver)
-    driver.quit()
-    return CaseID
+    try:
+        loginUnity(driver)
+        return NavigateSearch(claim_number,driver)
+    finally:
+        # Release the lookup browser on failure without masking its cause.
+        lookup_failed = sys.exc_info()[0] is not None
+        try:
+            driver.quit()
+        except Exception:
+            if not lookup_failed:
+                raise
 
 
 def run_case(
@@ -2225,7 +2232,6 @@ if __name__ == "__main__":
         interactive=True  # set False when used by another bot
     )
     # CheckCaseUnity()
-
 
 
 

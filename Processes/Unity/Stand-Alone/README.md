@@ -41,6 +41,42 @@ arguments retains the existing offline happy-path scenario; desktop is explicit.
    attachment / portal / tracking only. **Assign** waits for approval and completes
    RRS assignment; it does not run the portal, resolve attachments or write tracking.
 
+### RRS assignment continuation
+
+All and Assign use the same shared `AI/rrs_assignment.py` implementation through
+legacy `CompleteAssignment`; Unity-only still stops after tracking. After the
+operator confirms iCaseManager approval, completion performs RRS Assign ->
+literal `"19"` in the input box -> OK -> optional Unity Complete Yes ->
+Unity case lookup for the selected form/workbook claim -> required RRS Case Id
+entry and OK -> optional second Unity Complete Yes -> optional RRS OK.
+`19` keeps its original literal value; its business meaning is not established.
+The existing `legacy.CMS.CheckCaseUnity` searches Unity UAT and chooses the
+latest valid assigned-date case. No CMS registration or CheckAdvNotice is added.
+
+The selected claim argument replaces stale legacy global data. Lookup errors or
+blank case IDs stop before Case Id entry/submission; required write/click errors
+and present optional-dialog failures now report `complete_assignment_failed`.
+Only an optional dialog's absence timeout is ignored, and clicks are never
+retried. The assignment input and Case Id are read back exactly before OK;
+Case Id must close after its single OK click before final confirmations.
+Operator messages identify the failed stage without including case or
+referral values, retaining the original exception cause internally. The lookup
+browser is closed on success and failure. The operator must still verify the
+intended RRS record; field/prompt checks do not verify server persistence or
+add automatic approval.
+
+The Unity spec includes the shared AI module and package-scoped CMS runtime
+dependency; frozen smoke checks cover resource/import prerequisites. Focused
+synthetic controller/delegate tests cover order, the approval gate, current-claim
+lookup, blank/error results, UI failures and optional-dialog absence. Source work
+at FCM-1.1-70 did not exercise live RRS, Unity, CMS, Bedrock or the database and did
+not build an EXE. FCM-1.1-74 subsequently packages this source for v1.0.7, with
+packaged synthetic and bundled-source/module correspondence checks. The later
+bounded UAT test selected the first queue result but stopped before Assign on
+customer mismatch; no upload, task completion, tracking or RRS completion was
+verified. Its identity gate was session-only, not a new production safeguard.
+Unity is not integrated into Final Code.
+
 ### Standalone local referral document selection
 
 Choose **Choose referral document** to select one existing PDF (`.pdf`), Outlook

@@ -66,10 +66,31 @@ UI notification errors propagate. KeyboardInterrupt is not swallowed.
 - legacy_unity.py currently targets a UAT Azure Web Apps host via UNITY_URL.
   Confirm the intended environment before any live run; do not assume production.
 - The runner delegates to legacy_unity.main, InsertIntoTable and CompleteAssignment.
-  Legacy portal exceptions and some RRS dialog failures are swallowed. No-return
+  Legacy portal exceptions can still be swallowed. CompleteAssignment now delegates
+  to the shared `AI/rrs_assignment.py` sequence: Assign -> literal `19` -> input OK
+  -> optional Unity Yes -> current-claim Unity case lookup -> required RRS Case Id
+  and OK -> optional Unity Yes -> optional RRS OK. `legacy.CMS.CheckCaseUnity`
+  retains the latest-valid-assigned-date selection in Unity UAT, not CMS
+  registration; CheckAdvNotice remains disabled. Missing/blank lookup results,
+  required write/click failures and present optional-dialog interaction failures
+  propagate as value-free, stage-specific `RRSCompletionError` with the original
+  cause. Only optional dialog absence timeouts are ignored; no click is retried.
+  Required input writes are read back exactly before OK, and the Case Id prompt
+  must close after its single OK click.
+  The lookup browser is cleaned up even on failure. No-return
   is not an independently verified success. Reliable production integration
   requires outcome-reporting wrappers/read-back; offline tests do not certify it.
 
-Literal `"19"` is preserved by the unchanged legacy RRS callback. Its business
+Literal `"19"` is preserved by the shared RRS callback. Its business
 meaning is undocumented in the inspected code; obtain RRS owner confirmation.
-No portal body was copied, no credentials are bundled, and no EXE is produced.
+The standalone CLI and desktop share the legacy delegate; All/Unity/Assign
+boundaries and attended approval are unchanged. Ship the shared AI module and
+legacy CMS runtime file as declared in the Unity spec; frozen smoke checks cover
+their presence/import prerequisites without opening live systems. This source
+change at FCM-1.1-70 was tested synthetically only, not against RRS, Unity, CMS,
+Bedrock or the database. FCM-1.1-74 subsequently packages it for v1.0.7 with
+synthetic packaged and source-correspondence checks. The later bounded UAT
+attempt selected the first result but stopped before Assign on customer
+mismatch; no upload, task completion, tracking or RRS completion was verified.
+That identity gate is session-only, not a new production safeguard. No
+credentials are bundled.

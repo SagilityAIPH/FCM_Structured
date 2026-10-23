@@ -19,6 +19,7 @@ def main():
             'Processes/Unity/Deploy-Ready/unity_flow.py',
             'src/fcm_intake/legacy/legacy_unity.py',
             'src/fcm_intake/legacy/legacy_fcm.py',
+            'src/fcm_intake/legacy/CMS.py',
             'Processes/Reopen-Check/Deploy-Ready/reopen_flow.py',
             'Final Code/finalcode/field_adapter.py',
             'Processes/SubjectLineBuilder/Deploy-Ready/office_matrix.py',
@@ -29,11 +30,16 @@ def main():
         import titlecase
         import pyodbc
         import edge_auto
+        from AI.rrs_assignment import complete_assignment, RRSCompletionError
+        assert callable(complete_assignment) and issubclass(RRSCompletionError, RuntimeError)
         from fcm_intake.config import UNITY_SCRIPT, FCM_SCRIPT
         assert UNITY_SCRIPT.is_file() and FCM_SCRIPT.is_file()
+        from fcm_intake.legacy_loader import _ensure_legacy_compat
+        _ensure_legacy_compat(FCM_SCRIPT)
+        import importlib.util
+        assert importlib.util.find_spec("legacy.CMS") is not None
         # Exercise the shared adapter's original lazy file loader in isolation;
         # do not import legacy_fcm, which binds live systems at import time.
-        import importlib.util
         spec = importlib.util.spec_from_file_location('_packaged_adapter_probe', ROOT / 'Final Code/finalcode/field_adapter.py')
         module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(module)

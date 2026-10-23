@@ -16,6 +16,7 @@ from types import SimpleNamespace
 
 from openpyxl import load_workbook
 from AI.unity_errors import UnityFlagError
+from AI.rrs_assignment import RRSCompletionError
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
@@ -36,9 +37,9 @@ def synthetic_instructions(length):
     return prefix + 'x' * (length - len(prefix) - len(suffix)) + suffix
 
 
-def legacy_function(name):
+def legacy_function(name, filename='legacy_unity.py'):
     """Read one function, stopping before the next definition or sample records."""
-    path = model.ROOT / 'src' / 'fcm_intake' / 'legacy' / 'legacy_unity.py'
+    path = model.ROOT / 'src' / 'fcm_intake' / 'legacy' / filename
     lines = []
     with path.open(encoding='utf-8-sig') as source:
         for line in source:
@@ -94,6 +95,8 @@ class StartupTests(unittest.TestCase):
                     and node.module.startswith('AI.')}
         required.add('AI.referral_attachments')
         required.add('AI.unity_errors')
+        required.add('AI.rrs_assignment')
+        required.add('legacy.CMS')
         spec_tree = ast.parse((HERE / 'unity_assignment.spec').read_text(encoding='utf-8'))
         hiddenimports = next(ast.literal_eval(node.value) for node in spec_tree.body
                              if isinstance(node, ast.Assign)
@@ -101,6 +104,32 @@ class StartupTests(unittest.TestCase):
                                      for target in node.targets))
         self.assertFalse(required - set(hiddenimports),
                          f'Raw field adapter imports missing from hiddenimports: {required - set(hiddenimports)}')
+
+    def test_case_lookup_runtime_package_and_frozen_resources(self):
+        with patch.object(sys, 'path', [str(model.ROOT / 'src'), *sys.path]):
+            from fcm_intake.legacy_loader import _ensure_legacy_compat
+            with patch.dict(sys.modules):
+                sys.modules.pop('legacy', None)
+                sys.modules.pop('legacy.CMS', None)
+                legacy = model.ROOT / 'src' / 'fcm_intake' / 'legacy'
+                _ensure_legacy_compat(legacy / 'legacy_fcm.py')
+                # Resolve without executing CMS's Windows/browser imports.
+                found = importlib.util.find_spec('legacy.CMS')
+                self.assertEqual(Path(found.origin), legacy / 'CMS.py')
+        tree = ast.parse((HERE / 'unity_assignment.spec').read_text(encoding='utf-8'))
+        raw_files = next(ast.literal_eval(node.iter) for node in tree.body
+                         if isinstance(node, ast.For) and isinstance(node.iter, ast.Tuple)
+                         and 'legacy_fcm.py' in ast.literal_eval(node.iter))
+        self.assertIn('CMS.py', raw_files)
+        self.assertTrue((legacy / 'CMS.py').is_file())
+        smoke_tree = ast.parse((HERE / 'smoke.py').read_text(encoding='utf-8'))
+        required = next(ast.literal_eval(node.value) for node in ast.walk(smoke_tree)
+                        if isinstance(node, ast.Assign)
+                        and any(isinstance(target, ast.Name) and target.id == 'required'
+                                for target in node.targets))
+        self.assertIn('src/fcm_intake/legacy/CMS.py', required)
+        self.assertTrue(any(isinstance(node, ast.ImportFrom) and node.module == 'AI.rrs_assignment'
+                            for node in ast.walk(smoke_tree)))
 
     def test_actual_edge_driver_detach_is_opt_in(self):
         from selenium.webdriver.edge.options import Options
@@ -122,6 +151,216 @@ class StartupTests(unittest.TestCase):
                 webdriver.Edge.assert_called_once_with(service=service, options=options)
                 driver.set_page_load_timeout.assert_called_once_with(60)
                 driver.set_script_timeout.assert_called_once_with(60)
+
+
+class RRSCompletionTests(unittest.TestCase):
+    """Actual CLI/desktop completion delegate and controller, with synthetic UI."""
+
+    class DialogAbsent(Exception):
+        pass
+
+    def setUp(self):
+        self.events = []
+        self.original_error = RuntimeError('SYNTHETIC-PRIVATE-PAGE-CONTENT')
+        self.lookup = Mock(side_effect=lambda claim: self.events.append(('lookup', claim)) or 'SYNTHETIC-CASE')
+        self.dlg, self.form, self.case = Mock(), Mock(), Mock()
+        self.assign, self.input, self.input_ok = Mock(), Mock(), Mock()
+        self.first, self.second, self.final = Mock(), Mock(), Mock()
+        self.yes_first, self.yes_second, self.final_ok = Mock(), Mock(), Mock()
+        self.first.__getitem__ = Mock(return_value=self.yes_first)
+        self.second.__getitem__ = Mock(return_value=self.yes_second)
+        controls = {'btnAssign': self.assign, 'frmInputBox': self.form,
+                    'tbInput': self.input, 'btnOk': self.input_ok}
+        for control in controls.values():
+            control.wrapper_object.return_value = control
+        self.dlg.child_window.side_effect = lambda **kw: controls[kw['auto_id']]
+        self.form.child_window.side_effect = lambda **kw: controls[kw['auto_id']]
+        self.final.child_window.return_value.wrapper_object.return_value = self.final_ok
+        desktop = Mock()
+        unity_prompts = iter((self.first, self.second))
+        def window(**kw):
+            if kw.get('title_re') == r'Unity Complete \?':
+                return next(unity_prompts)
+            if kw.get('title_re') == 'ReferralRoutingSystem':
+                return self.final
+            return self.dlg
+        desktop.return_value.window.side_effect = window
+        application = Mock()
+        application.return_value.connect.return_value.window.return_value = self.case
+        for control, name in ((self.assign, 'Assign'), (self.input_ok, 'input OK'),
+                              (self.yes_first, 'first Yes'), (self.case.OK, 'Case Id OK'),
+                              (self.yes_second, 'second Yes'), (self.final_ok, 'RRS OK')):
+            control.click_input.side_effect = lambda name=name: self.events.append(name)
+        self.input.iface_value.SetValue.side_effect = lambda value: self.events.append(('input', value))
+        self.input.iface_value.CurrentValue = '19'
+        self.case.Edit.set_edit_text.side_effect = lambda value: self.events.append(('Case Id', value))
+        self.case.Edit.window_text.return_value = 'SYNTHETIC-CASE'
+        env = {'Desktop': desktop, 'Application': application,
+               'time': SimpleNamespace(sleep=lambda _: None),
+               'data': {'claimNumber': 'SYNTHETIC-STALE'}}
+        function = legacy_function('CompleteAssignment', 'legacy_fcm.py')
+        exec(compile(ast.Module(body=[function], type_ignores=[]), '<actual RRS delegate>', 'exec'), env)
+        self.legacy = SimpleNamespace(CompleteAssignment=env['CompleteAssignment'])
+        self.enterContext(patch.dict(sys.modules, {
+            'pywinauto.timings': SimpleNamespace(TimeoutError=self.DialogAbsent),
+            'legacy': SimpleNamespace(CMS=SimpleNamespace(CheckCaseUnity=self.lookup))}))
+        self.enterContext(patch.object(sys, 'path', [str(model.ROOT / 'src'), *sys.path]))
+        from fcm_intake import legacy_loader
+        self.loader = self.enterContext(patch.object(
+            legacy_loader, 'load_module_from_path', return_value=self.legacy))
+        self.runner = backend._runner()
+        self.core = self.runner.load_core()
+
+    def run_completion(self, *, stage='all', approved=True):
+        # Both live frontends use this callback, not a parallel implementation.
+        callbacks = backend.live_callbacks()
+        callbacks.update(list_attachments=lambda: self.events.append('attachment') or ['synthetic.pdf'],
+                         run_unity=lambda *args: self.events.append('Unity'),
+                         record_assignment=lambda *args: self.events.append('tracking'))
+        def confirm(*args):
+            self.events.append('approval')
+            return approved
+        return self.core.run_flow(synthetic(), stage=stage, **callbacks,
+                                  confirm=confirm, notify=Mock())
+
+    def test_all_order_uses_selected_claim_despite_stale_legacy_global(self):
+        result = self.run_completion()
+        self.assertEqual(result['status'], 'completed')
+        self.assertEqual(self.events, [
+            'attachment', 'Unity', 'tracking', 'approval', 'Assign', ('input', '19'),
+            'input OK', 'first Yes', ('lookup', 'SYNTHETIC-001'),
+            ('Case Id', 'SYNTHETIC-CASE'), 'Case Id OK', 'second Yes', 'RRS OK'])
+        self.lookup.assert_called_once_with('SYNTHETIC-001')
+        self.loader.assert_called_once()
+        self.case.Edit.window_text.assert_called_once()
+        self.case.wait_not.assert_called_once_with('visible', timeout=10)
+
+    def test_denied_gate_and_unity_only_never_touch_rrs_or_lookup(self):
+        for stage, approved in (('all', False), ('assign', False), ('unity', True)):
+            with self.subTest(stage=stage):
+                self.events.clear()
+                result = self.run_completion(stage=stage, approved=approved)
+                self.assertEqual(result['status'], 'completed' if stage == 'unity' else 'stopped')
+                self.assign.click_input.assert_not_called()
+                self.lookup.assert_not_called()
+                self.case.Edit.set_edit_text.assert_not_called()
+                self.loader.assert_not_called()
+
+    def test_missing_or_failed_lookup_blocks_case_id_submission_and_retains_cause(self):
+        for value in (None, '', ' \t', self.original_error):
+            with self.subTest(value_type=type(value).__name__):
+                self.doCleanups()
+                self.setUp()
+                self.lookup.side_effect = self.original_error if isinstance(value, Exception) else None
+                self.lookup.return_value = value
+                result = self.run_completion(stage='assign')
+                self.assertEqual(result['reason'], 'complete_assignment_failed')
+                self.assertNotIn('SYNTHETIC', result['error']['message'])
+                self.case.Edit.set_edit_text.assert_not_called()
+                self.case.OK.click_input.assert_not_called()
+        self.lookup.side_effect = self.original_error
+        with self.assertRaises(RRSCompletionError) as raised:
+            self.legacy.CompleteAssignment('SYNTHETIC-CURRENT')
+        self.assertIs(raised.exception.__cause__, self.original_error)
+
+    def test_required_writes_and_clicks_fail_without_retry_or_false_completion(self):
+        for action in ('assign', 'input', 'input_ok', 'case_entry', 'case_ok'):
+            with self.subTest(action=action):
+                self.doCleanups()
+                self.setUp()
+                methods = {'assign': self.assign.click_input, 'input': self.input.iface_value.SetValue,
+                           'input_ok': self.input_ok.click_input,
+                           'case_entry': self.case.Edit.set_edit_text, 'case_ok': self.case.OK.click_input}
+                methods[action].side_effect = self.original_error
+                result = self.run_completion(stage='assign')
+                self.assertEqual(result['reason'], 'complete_assignment_failed')
+                self.assertNotIn('SYNTHETIC', result['error']['message'])
+                methods[action].assert_called_once()
+                self.final_ok.click_input.assert_not_called()
+                if action in ('assign', 'input', 'input_ok'):
+                    self.lookup.assert_not_called()
+                if action != 'case_ok':
+                    self.case.OK.click_input.assert_not_called()
+
+    def test_optional_absence_is_allowed_but_present_action_or_readiness_failure_is_not(self):
+        for dialog in ('first', 'second', 'final'):
+            for failure in ('absent', 'click', 'ready', 'focus', 'wait'):
+                with self.subTest(dialog=dialog, failure=failure):
+                    self.doCleanups()
+                    self.setUp()
+                    prompt = getattr(self, dialog)
+                    button = {'first': self.yes_first, 'second': self.yes_second,
+                              'final': self.final_ok}[dialog]
+                    if failure == 'absent':
+                        prompt.wait.side_effect = self.DialogAbsent()
+                    elif failure == 'click':
+                        button.click_input.side_effect = self.original_error
+                    elif failure == 'ready':
+                        prompt.wait.side_effect = [None, self.DialogAbsent()]
+                    elif failure == 'focus':
+                        prompt.set_focus.side_effect = self.original_error
+                    else:
+                        prompt.wait.side_effect = self.original_error
+                    result = self.run_completion(stage='assign')
+                    self.assertEqual(result['status'], 'completed' if failure == 'absent' else 'failed')
+                    if failure == 'absent':
+                        button.click_input.assert_not_called()
+                    else:
+                        self.assertEqual(result['reason'], 'complete_assignment_failed')
+                        self.assertNotIn('SYNTHETIC', result['error']['message'])
+
+    def test_silent_write_mismatch_or_unclosed_case_prompt_stops_continuation(self):
+        for failure, expected_stage in (
+                ('input', 'assignment input verification'),
+                ('case_entry', 'Case Id verification'),
+                ('case_close', 'Case Id closure')):
+            with self.subTest(failure=failure):
+                self.doCleanups()
+                self.setUp()
+                if failure == 'input':
+                    self.input.iface_value.CurrentValue = ''
+                elif failure == 'case_entry':
+                    self.case.Edit.window_text.return_value = 'SYNTHETIC-STALE'
+                else:
+                    self.case.wait_not.side_effect = self.DialogAbsent()
+                result = self.run_completion(stage='assign')
+                self.assertEqual(result['reason'], 'complete_assignment_failed')
+                self.assertIn(expected_stage, result['error']['message'])
+                self.assertNotIn('SYNTHETIC', result['error']['message'])
+                self.yes_second.click_input.assert_not_called()
+                self.final_ok.click_input.assert_not_called()
+                if failure == 'input':
+                    self.input_ok.click_input.assert_not_called()
+                    self.lookup.assert_not_called()
+                if failure != 'case_close':
+                    self.case.OK.click_input.assert_not_called()
+                else:
+                    self.case.OK.click_input.assert_called_once()
+
+    def test_lookup_browser_cleanup_retains_original_failure(self):
+        function = legacy_function('CheckCaseUnity', 'CMS.py')
+        function.body = [node for node in function.body if not isinstance(node, ast.FunctionDef)]
+        for failed_stage in (None, 'login', 'search'):
+            for cleanup_fails in (False, True):
+                with self.subTest(failed_stage=failed_stage, cleanup_fails=cleanup_fails):
+                    driver = Mock()
+                    if cleanup_fails:
+                        driver.quit.side_effect = RuntimeError('synthetic cleanup failure')
+                    login, search = Mock(), Mock(return_value='SYNTHETIC-CASE')
+                    if failed_stage:
+                        (login if failed_stage == 'login' else search).side_effect = self.original_error
+                    env = {'create_driver': lambda: driver, 'loginUnity': login,
+                           'NavigateSearch': search, 'sys': sys}
+                    exec(compile(ast.Module(body=[function], type_ignores=[]), '<actual lookup cleanup>', 'exec'), env)
+                    if failed_stage or cleanup_fails:
+                        with self.assertRaises(RuntimeError) as raised:
+                            env['CheckCaseUnity']('SYNTHETIC-CURRENT')
+                        if failed_stage:
+                            self.assertIs(raised.exception, self.original_error)
+                    else:
+                        self.assertEqual(env['CheckCaseUnity']('SYNTHETIC-CURRENT'), 'SYNTHETIC-CASE')
+                        search.assert_called_once_with('SYNTHETIC-CURRENT', driver)
+                    driver.quit.assert_called_once()
 
 
 class ModelTests(unittest.TestCase):
