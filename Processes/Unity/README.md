@@ -82,6 +82,33 @@ customer mismatch; its identity gate is session-only, not a shipped safeguard.
 Live upload, task completion, tracking and RRS completion remain unverified.
 Unity remains standalone, outside Final Code.
 
+## External tracking connection (FCM-1.1-85)
+
+Live All / Unity runs now require the existing `FCM_RRS_DB_CONNECTION`.
+The shared legacy insert resolves this value through `fcm_intake.config`,
+passes it unchanged to the driver and retains the same INSERT, parameters,
+commit and attempted-assignment policy. There is no legacy connection fallback,
+new credential form or credential store. Keep credentials outside Git, workbook,
+bridge payloads and logs.
+
+Use the real environment or an external `.env` / `AI\.env`: under the repository
+root for source execution, or beside the EXE for frozen execution (`SETTINGS_ROOT`
+is the EXE directory, not `_MEIPASS`). A packaged app does not discover the source
+repository's `AI\.env`; no `.env` is bundled or copied automatically. Existing
+environment variables take precedence; dotenv files load without overriding them.
+Restart the app after editing an external `.env`; the existing loader runs once
+when configuration is imported.
+
+Desktop and CLI check presence/nonblank configuration before starting live
+All / Unity work. This is not a database connection/login test or authentication
+proof. Assign-only, injected callbacks and offline scenarios do not require it.
+Database driver failures report value-free text, retain the original cause
+internally and stop before approval/RRS after a tracking failure; there are no
+automatic retries or Unity replays. Verify any previous portal submission and
+tracking outcome before manually running again, especially after uncertain writes.
+This change is source-only: the published v1.0.8 EXE is unchanged. No live portal,
+database, RRS, CMS or Bedrock workflow was exercised and no EXE was rebuilt.
+
 ## Limits of reported success
 
 Provider address confirmation keeps the existing details and Validate Address

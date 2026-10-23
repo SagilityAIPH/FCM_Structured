@@ -4098,14 +4098,23 @@ def CompleteTriageAndExportAttachment():
     safe_click(exportExitBtn)
 
 def InsertIntoTable(Claimant,ClaimNumber):
-    global connection_string
-    with pyodbc.connect(connection_string) as conn:
-        with conn.cursor() as cursor:
-            sql = """INSERT INTO [dbo].[RRS_APP_Sagility_Bot_Assignment_Log] ([Claimant],[ClaimNumber],[isAssigned]) VALUES (?,?,?)"""
-            values = (Claimant,ClaimNumber,0)
-            cursor.execute(sql,values)
-            conn.commit()
-            print("Successfully Added")
+    from fcm_intake.config import get_rrs_db_connection
+
+    tracking_connection = get_rrs_db_connection()
+    try:
+        with pyodbc.connect(tracking_connection) as conn:
+            with conn.cursor() as cursor:
+                sql = """INSERT INTO [dbo].[RRS_APP_Sagility_Bot_Assignment_Log] ([Claimant],[ClaimNumber],[isAssigned]) VALUES (?,?,?)"""
+                values = (Claimant,ClaimNumber,0)
+                cursor.execute(sql,values)
+                conn.commit()
+                print("Successfully Added")
+    except pyodbc.Error as error:
+        raise RuntimeError(
+            "Unity tracking database operation failed. No automatic retry or "
+            "Unity replay will occur; verify the submission and tracking record "
+            "before running again."
+        ) from error
 
 
 def OpenUnity():

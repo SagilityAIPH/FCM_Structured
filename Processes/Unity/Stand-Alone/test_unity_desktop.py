@@ -12,7 +12,7 @@ import tempfile
 import threading
 import time
 import unittest
-from unittest.mock import Mock, patch
+from unittest.mock import MagicMock, Mock, patch
 from types import SimpleNamespace
 
 from openpyxl import load_workbook
@@ -98,6 +98,8 @@ class StartupTests(unittest.TestCase):
         required.add('AI.unity_errors')
         required.add('AI.rrs_assignment')
         required.add('legacy.CMS')
+        required.add('fcm_intake.config')
+        required.add('dotenv')
         spec_tree = ast.parse((HERE / 'unity_assignment.spec').read_text(encoding='utf-8'))
         hiddenimports = next(ast.literal_eval(node.value) for node in spec_tree.body
                              if isinstance(node, ast.Assign)
@@ -152,6 +154,125 @@ class StartupTests(unittest.TestCase):
                 webdriver.Edge.assert_called_once_with(service=service, options=options)
                 driver.set_page_load_timeout.assert_called_once_with(60)
                 driver.set_script_timeout.assert_called_once_with(60)
+
+
+class TrackingConfigurationTests(unittest.TestCase):
+    CONNECTION = 'DRIVER={Synthetic Driver};SERVER=synthetic;PWD={fake;brace}}value}; '
+
+    def setUp(self):
+        self.enterContext(patch.dict(os.environ, {'FCM_RRS_DB_CONNECTION': self.CONNECTION}))
+        self.enterContext(patch.object(sys, 'path', [str(model.ROOT / 'src'), *sys.path]))
+        from fcm_intake import config, legacy_loader
+        self.config = config
+        self.runner = backend._runner()
+        self.driver_error = type('SyntheticDriverError', (Exception,), {})
+        self.odbc = MagicMock(Error=self.driver_error)
+        self.connection = self.odbc.connect.return_value.__enter__.return_value
+        self.cursor = self.connection.cursor.return_value.__enter__.return_value
+        namespace = {'pyodbc': self.odbc}
+        function = legacy_function('InsertIntoTable', 'legacy_fcm.py')
+        exec(compile(ast.Module(body=[function], type_ignores=[]), '<actual tracking>', 'exec'), namespace)
+        self.insert = namespace['InsertIntoTable']
+        self.loader = self.enterContext(patch.object(legacy_loader, 'load_module_from_path',
+            return_value=SimpleNamespace(InsertIntoTable=self.insert, main=Mock())))
+
+    def test_existing_connection_and_exact_single_insert_are_preserved(self):
+        with backend.redirect_stdout(backend.StringIO()):
+            callbacks = backend.live_callbacks()
+            callbacks['record_assignment']('Invented Person', 'SYNTHETIC-001')
+        self.odbc.connect.assert_called_once_with(self.CONNECTION)
+        self.cursor.execute.assert_called_once_with(
+            'INSERT INTO [dbo].[RRS_APP_Sagility_Bot_Assignment_Log] ([Claimant],[ClaimNumber],[isAssigned]) VALUES (?,?,?)',
+            ('Invented Person', 'SYNTHETIC-001', 0))
+        self.connection.commit.assert_called_once_with()
+        self.loader.assert_called_once()
+
+    def test_missing_and_blank_stop_desktop_before_worker_and_callbacks(self):
+        for value in (None, '', ' \t '):
+            for stage in ('all', 'unity'):
+                with self.subTest(value=value, stage=stage):
+                    if value is None:
+                        os.environ.pop('FCM_RRS_DB_CONNECTION', None)
+                    else:
+                        os.environ['FCM_RRS_DB_CONNECTION'] = value
+                    api = backend.UnityAPI()
+                    with patch.object(backend.threading, 'Thread') as thread, \
+                            patch.object(backend, 'live_callbacks') as live:
+                        result = api.start(synthetic(), stage)
+                    self.assertFalse(result['ok'])
+                    self.assertIn('FCM_RRS_DB_CONNECTION', result['error'])
+                    self.assertIn('beside the EXE', result['error'])
+                    self.assertIn('No automatic Unity replay', result['error'])
+                    self.assertEqual(api.get_state()['status'], 'idle')
+                    self.assertFalse(api.get_state()['busy'])
+                    self.assertIsNone(api._thread)
+                    thread.assert_not_called()
+                    live.assert_not_called()
+        self.odbc.connect.assert_not_called()
+        self.loader.assert_not_called()
+
+    def test_cli_preflight_stops_before_loading_portal(self):
+        for value in ('', ' \t '):
+            for stage in ('all', 'unity'):
+                with self.subTest(stage=stage, value=value):
+                    os.environ['FCM_RRS_DB_CONNECTION'] = value
+                    output = backend.StringIO()
+                    with backend.redirect_stdout(output), patch('sys.stderr', output):
+                        code = self.runner.main(['--live', '--stage', stage])
+                    self.assertEqual(code, 1)
+                    self.assertIn('FCM_RRS_DB_CONNECTION', output.getvalue())
+        self.loader.assert_not_called()
+        self.odbc.connect.assert_not_called()
+
+    def test_assign_injected_and_offline_do_not_require_tracking_configuration(self):
+        os.environ['FCM_RRS_DB_CONNECTION'] = ''
+        # Do not start a real worker: assign must get as far as worker creation.
+        with patch.object(backend.threading, 'Thread') as thread:
+            self.assertTrue(backend.UnityAPI().start({'claimNumber': 'SYNTHETIC-001'}, 'assign')['ok'])
+            thread.assert_called_once()
+        with patch.object(backend.threading, 'Thread') as thread:
+            factory = Mock()
+            self.assertTrue(backend.UnityAPI(factory).start(synthetic(), 'all')['ok'])
+            thread.assert_called_once()
+            factory.assert_not_called()
+        with backend.redirect_stdout(backend.StringIO()), patch.object(
+                self.runner, '_preflight_tracking', side_effect=AssertionError('Unexpected preflight')), \
+                patch.object(self.runner, 'ask_yes_no', return_value=False):
+            self.assertEqual(self.runner.main([]), 0)
+            self.assertEqual(self.runner.main(['--live', '--stage', 'assign',
+                                             '--claim-number', 'SYNTHETIC-001']),
+                             2)  # The operator declines; no completion call is made.
+        self.odbc.connect.assert_not_called()
+
+    def test_driver_errors_are_value_free_keep_cause_and_never_retry(self):
+        private = 'SYNTHETIC-PRIVATE-PASSWORD-ENDPOINT'
+        for boundary in ('connect', 'execute', 'commit'):
+            with self.subTest(boundary=boundary):
+                self.odbc.reset_mock(return_value=False, side_effect=True)
+                self.cursor.execute.side_effect = None
+                self.connection.commit.side_effect = None
+                error = self.driver_error('28000', private)
+                target = {'connect': self.odbc.connect, 'execute': self.cursor.execute,
+                          'commit': self.connection.commit}[boundary]
+                target.side_effect = error
+                with self.assertRaises(RuntimeError) as caught:
+                    self.insert('Invented Person', 'SYNTHETIC-001')
+                self.assertIs(caught.exception.__cause__, error)
+                self.assertNotIn(private, str(caught.exception))
+                self.odbc.connect.reset_mock()
+                confirm, complete = Mock(), Mock()
+                output = backend.StringIO()
+                with backend.redirect_stdout(output):
+                    result = self.runner.load_core().run_flow(synthetic(),
+                        list_attachments=lambda: ['synthetic.pdf'], run_unity=Mock(),
+                        record_assignment=self.insert, confirm=confirm, notify=Mock(),
+                        complete_assignment=complete)
+                self.assertEqual(result['reason'], 'record_assignment_failed')
+                self.assertNotIn(private, json.dumps(result) + output.getvalue())
+                self.assertIn('No automatic retry', result['error']['message'])
+                self.odbc.connect.assert_called_once_with(self.CONNECTION)
+                confirm.assert_not_called()
+                complete.assert_not_called()
 
 
 class RRSCompletionTests(unittest.TestCase):
@@ -1740,7 +1861,9 @@ class BridgeTests(unittest.TestCase):
     def test_default_factory_com_lifecycle(self):
         com = Mock()
         self.api = backend.UnityAPI()
-        with patch.dict(sys.modules, {'pythoncom': com}), patch.object(backend, 'live_callbacks', return_value=self.calls) as live:
+        with patch.dict(os.environ, {'FCM_RRS_DB_CONNECTION': 'SYNTHETIC-TRACKING'}), \
+                patch.dict(sys.modules, {'pythoncom': com}), \
+                patch.object(backend, 'live_callbacks', return_value=self.calls) as live:
             self.api.start(synthetic(), 'unity')
             self.assertEqual(self.finish()['status'], 'completed')
             live.assert_called_once()

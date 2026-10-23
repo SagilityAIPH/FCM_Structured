@@ -24,6 +24,13 @@ def ask_yes_no(title, message):
             return answer in {"y", "yes"}
 
 
+def _preflight_tracking():
+    """Presence check only; never connects to the database."""
+    sys.path.insert(0, str(ROOT / "src"))
+    from fcm_intake.config import get_rrs_db_connection
+    get_rrs_db_connection()
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(prog="UnityAssignment", description=__doc__)
     parser.add_argument("--stage", choices=["all", "unity", "assign"], default="all")
@@ -84,6 +91,8 @@ def main(argv=None):
                     "claimantFirst": args.claimant_first or "", "claimantLast": args.claimant_last or ""}
             sys.path.insert(0, str(ROOT))
             sys.path.insert(0, str(ROOT / "src"))
+            if args.stage != "assign":
+                _preflight_tracking()
             from fcm_intake.config import ATTACHMENT_FOLDER
             from fcm_intake.legacy_loader import load_module_from_path
             from fcm_intake.config import UNITY_SCRIPT

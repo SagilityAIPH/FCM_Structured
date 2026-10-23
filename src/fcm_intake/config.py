@@ -34,6 +34,20 @@ def _load_dotenv_files() -> None:
 
 _load_dotenv_files()
 
+
+def get_rrs_db_connection() -> str:
+    """Resolve the existing external tracking configuration without altering it."""
+    value = os.environ.get("FCM_RRS_DB_CONNECTION", "")
+    if not value.strip():
+        raise ValueError(
+            "FCM_RRS_DB_CONNECTION is required for Unity tracking. Configure the "
+            "environment or external .env / AI\\.env under the repository root "
+            "(source) or beside the EXE (packaged). No automatic Unity replay "
+            "will occur; verify any prior submission before running again."
+        )
+    return value
+
+
 FCM_SCRIPT = LEGACY_DIR / "legacy_fcm.py"
 REOPENCHECK_SCRIPT = LEGACY_DIR / "legacy_reopencheck.py"
 CUSTOMERCHECKER_SCRIPT = LEGACY_DIR / "legacy_customerchecker.py"

@@ -2,7 +2,7 @@
 from pathlib import Path
 import importlib.util
 
-for dependency in ("titlecase", "pyodbc", "selenium", "pywinauto", "webview", "openpyxl"):
+for dependency in ("titlecase", "pyodbc", "selenium", "pywinauto", "webview", "openpyxl", "dotenv"):
     if importlib.util.find_spec(dependency) is None:
         raise SystemExit(f"Missing Python dependency: {dependency}. Install it in .venv-bedrock before building (webview is provided by pywebview).")
 from PyInstaller.utils.hooks import collect_data_files, collect_submodules
@@ -41,7 +41,7 @@ datas += collect_data_files("selenium")
 hiddenimports = ["run", "smoke", "fcm_intake.config", "fcm_intake.legacy_loader",
     "fcm_intake.legacy.legacy_unity", "fcm_intake.legacy.legacy_fcm",
     "legacy.legacy_providerresultchecker", "legacy.legacy_googlesearch",
-    "pyodbc", "pythoncom", "dateutil.relativedelta", "edge_auto",
+    "pyodbc", "pythoncom", "dateutil.relativedelta", "edge_auto", "dotenv",
     "webview.platforms.edgechromium", "office_matrix", "rrs_ui", "provider_match",
     "body_part", "injury_match", "AI.injury_classification", "AI.appointment_rules", "AI.referral_attachments",
     "AI.unity_errors", "AI.rrs_assignment", "legacy.CMS"]

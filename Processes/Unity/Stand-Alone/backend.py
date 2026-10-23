@@ -251,6 +251,8 @@ class UnityAPI:
         data = to_controller(checked['data']['fields'], claim_jurisdiction=jurisdiction)
         with self._lock:
             self._idle()
+            if self._factory is None and stage != 'assign':
+                _runner()._preflight_tracking()
             attachment_path = self._attachment_path if stage != 'assign' else None
             if attachment_path is not None:
                 attachment_path = referral_document(attachment_path)

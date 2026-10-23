@@ -32,8 +32,10 @@ def main():
         import edge_auto
         from AI.rrs_assignment import complete_assignment, RRSCompletionError
         assert callable(complete_assignment) and issubclass(RRSCompletionError, RuntimeError)
-        from fcm_intake.config import UNITY_SCRIPT, FCM_SCRIPT
+        import dotenv
+        from fcm_intake.config import UNITY_SCRIPT, FCM_SCRIPT, get_rrs_db_connection
         assert UNITY_SCRIPT.is_file() and FCM_SCRIPT.is_file()
+        assert callable(get_rrs_db_connection) and callable(dotenv.load_dotenv)
         from fcm_intake.legacy_loader import _ensure_legacy_compat
         _ensure_legacy_compat(FCM_SCRIPT)
         import importlib.util

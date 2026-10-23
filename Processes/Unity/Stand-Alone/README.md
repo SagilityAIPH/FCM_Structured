@@ -17,6 +17,34 @@ npm --prefix Processes/Unity/Stand-Alone/frontend run build
 openpyxl and the configured legacy automation dependencies are required. `run.py` with no
 arguments retains the existing offline happy-path scenario; desktop is explicit.
 
+## External tracking configuration (FCM-1.1-85)
+
+Live **All** and **Unity** (desktop or `--live` CLI) require the existing
+`FCM_RRS_DB_CONNECTION`. The common config resolver loads external dotenv files
+without overriding real environment variables. For source runs use the repository
+root `.env` or `AI\.env`. For a frozen app use `.env` beside the EXE or
+`AI\.env` beneath that same EXE directory; `SETTINGS_ROOT` is not `_MEIPASS`.
+The EXE does not discover the source repository's credentials. No `.env` is
+bundled or copied automatically. Never put credentials in Git, workbook fields,
+bridge payloads, results or logs. No new credential UI or storage is added.
+Restart the app after editing an external `.env`; the existing loader runs once
+when configuration is imported.
+
+Before creating a desktop worker or invoking CLI portal work, the app checks
+that the setting is present and nonblank. This is **not** a connection/login
+probe or proof of valid authentication. Assign-only, offline scenarios and
+custom injected callbacks remain independent of this tracking requirement.
+The configured connection is passed unchanged to the shared legacy insert;
+there is no fallback to the legacy empty-password connection. INSERT parameters,
+commit, `isAssigned=0` and attempted-assignment-on-failure policy are unchanged.
+Driver failures return value-free text with the original cause retained internally.
+Tracking failure stops approval/RRS; no automatic retry or Unity replay occurs.
+Verify the portal submission and tracking record before any manual rerun after
+a failure or uncertain write; do not resubmit merely to retry tracking.
+
+This is a source-only change. The released v1.0.8 EXE remains unchanged; no EXE
+build, live portal/database/RRS/CMS/Bedrock run or credential validation is implied.
+
 ## Workbook and manual workflows
 
 1. Use `Unity-Input.xlsx`, or choose **Save template** in the app. The template
