@@ -1,27 +1,9 @@
-"""Final Code's per-run audit. Never serialize raw capture, CMS payloads or secrets."""
+"""Final Code run-end whitelist adapter; storage is shared in AI.referral_json."""
 from datetime import datetime, timezone
-import json
-import logging
-import os
-from pathlib import Path
 import re
-import tempfile
 from uuid import uuid4
 
-logger = logging.getLogger(__name__)
 ENV_DIRECTORY = "FCM_FINAL_CODE_AUDIT_DIR"
-
-
-def output_directory():
-    """Allow an absolute override, but refuse any directory inside a git tree."""
-    default = Path(os.environ.get("LOCALAPPDATA") or Path.home() / "AppData" / "Local") / "FCM_Structured" / "FinalCode" / "audit"
-    path = Path(os.environ.get(ENV_DIRECTORY) or default).expanduser()
-    if not path.is_absolute():
-        raise ValueError("Audit directory must be an absolute path outside any repository")
-    path = path.resolve()
-    if any((parent / ".git").exists() for parent in (path, *path.parents)):
-        raise ValueError("Audit directory must be outside every Git repository")
-    return path
 
 
 def now():
@@ -171,9 +153,9 @@ class Audit:
             self.stage_ends[previous] = timestamp
         self.stage_times[name] = timestamp
 
-    def save(self, result, *, model_id=None, sent_characters=None,
+    def finish(self, result, *, model_id=None, sent_characters=None,
              captured_characters=None, review_edits=None, credentials=()):
-        """Atomic replacement; caller catches failures and continues the workflow."""
+        """Return safe metadata for the existing referral record, never a second file."""
         record = build_record(self.run_id, self.started_at, self.stage_times, result,
                               model_id=model_id, sent_characters=sent_characters,
                               captured_characters=captured_characters,
@@ -181,22 +163,4 @@ class Audit:
                               stage_ends=self.stage_ends)
         if record["stages"]:
             record["stages"][-1]["ended_at"] = record["ended_at"]
-        directory = output_directory()
-        directory.mkdir(parents=True, exist_ok=True)
-        path = directory / f"{self.started_at[:19].replace(':', '-')}-{self.run_id}.json"
-        temp = None
-        try:
-            with tempfile.NamedTemporaryFile(mode="w", encoding="utf-8", dir=directory,
-                                             prefix=".audit-", suffix=".tmp", delete=False) as stream:
-                temp = Path(stream.name)
-                json.dump(record, stream, ensure_ascii=False, indent=2, allow_nan=False)
-                stream.write("\n")
-                stream.flush()
-                os.fsync(stream.fileno())
-            os.replace(temp, path)
-            self.path = path
-            logger.info("Final Code audit saved: %s (%d stages)", path, len(record["stages"]))
-            return path
-        finally:
-            if temp is not None:
-                temp.unlink(missing_ok=True)
+        return record

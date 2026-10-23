@@ -1,6 +1,6 @@
 import {test, expect} from '@playwright/test'
 
-const scratch = 'C:/Users/Administrator/AppData/Local/hermes/profiles/omniroute/cache/scratch'
+const scratch = 'C:/Users/Administrator/AppData/Local/hermes/profiles/omniroute/cache/scratch/referrals-json'
 
 test('Final Code empty copy and compact attention-first groups retain drafts', async ({page}) => {
   await page.setViewportSize({width: 480, height: 650})
@@ -9,7 +9,8 @@ test('Final Code empty copy and compact attention-first groups retain drafts', a
     const url = '/src/lib/preview.ts'
     const {previewAPI} = await import(url) as typeof import('../src/lib/preview')
     const getState = previewAPI.get_state
-    previewAPI.get_state = async () => ({...await getState(), memory_only: true})
+    previewAPI.get_state = async () => ({...await getState(), memory_only: true,
+      referral_notice: 'Saved Referrals\\2030-01-02_030405_Example-Synthetic.json'})
     const getDocument = previewAPI.get_document
     previewAPI.get_document = async id => {
       const doc = await getDocument(id)
@@ -25,6 +26,7 @@ test('Final Code empty copy and compact attention-first groups retain drafts', a
   await expect(page.getByText('Waiting for RRS capture', {exact: true})).toBeVisible()
   await expect(page.getByText('Select Start to capture referral text from RRS for review.')).toBeVisible()
   await expect(page.locator('.save-row')).toContainText('Awaiting RRS capture')
+  await expect(page.getByRole('status').filter({hasText: 'Saved Referrals\\2030-01-02_030405_Example-Synthetic.json'})).toBeVisible()
   await expect(page.getByText('Import a document.')).toHaveCount(0)
   await page.evaluate(async () => {
     const url = '/src/lib/preview.ts'
@@ -53,7 +55,7 @@ test('Final Code empty copy and compact attention-first groups retain drafts', a
   await expect(page.getByLabel('Provider 1 / Appointment Date')).toHaveClass(/needs-confirmation/)
   await expect(page.getByText('Appointment needs confirmation', {exact: true})).toBeVisible()
   await expect(page.getByText(/Only 0 of/)).toHaveCount(0)
-  await expect(page.locator('.save-row')).toContainText('Changes kept in memory')
+  await expect(page.locator('.save-row')).toContainText('Review fields before approving')
   await page.getByLabel('Claimant Information / Customer Name').scrollIntoViewIfNeeded()
   await page.screenshot({path: `${scratch}/fc-ui-attention-open.png`})
   const customer = page.getByLabel('Claimant Information / Customer Name')
@@ -74,7 +76,7 @@ test('Final Code empty copy and compact attention-first groups retain drafts', a
   await expect(claim).toHaveAttribute('aria-expanded', 'true')
   await page.screenshot({path: `${scratch}/fc-ui-groups-expanded.png`})
   await page.getByRole('button', {name: 'Save field changes (1)'}).click()
-  await expect(page.locator('.save-row')).toContainText('Changes kept in memory')
+  await expect(page.locator('.save-row')).toContainText('Review fields before approving')
   await expect(page.getByText('NEXT STEP: Passed', {exact: true})).toBeVisible()
   page.once('dialog', dialog => dialog.accept())
   await page.getByRole('button', {name: 'Confirm this appointment'}).click()

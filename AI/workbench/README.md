@@ -56,8 +56,9 @@ Workbook errors remain visible and can be retried without duplicating rows.
 
 The current engine provides no calibrated confidence percentages. The form shows
 `Not scored` instead of made-up numbers, identifies manual edits, and displays
-address/name inference provenance inline. Manual edit history is session-only;
-the edited values and existing address/appointment review metadata persist in Excel.
+address/name inference provenance inline. Saved edit metadata and original/current
+fields persist in the referral JSON; the edited values and existing
+address/appointment review metadata also persist in Excel.
 
 **RRS Classification** (Body Part, Injury Type, Injury Cause) is chosen after
 extraction from the RRS dropdown lists: the AI's pick when it is a list item,
@@ -111,6 +112,60 @@ Output uses `FCM_AI_OUTPUT_DIR` or the shared default `Output/AI` (beside the EX
 when packaged). The in-memory queue and unsaved edits are cleared on exit; daily
 workbooks persist for standalone consumers such as CMSCustomerSearch.
 
+Each successful extraction also creates one versioned JSON record using the
+shared `AI/referral_json.py` writer. **Save changes**, appointment confirmation
+and retry saves update that record, its Reader status and completeness status.
+The initial save reason is exactly `after_extraction`; **Save changes** uses
+exactly `save_changes`. Address checks, appointment confirmations and retries
+use their own additional reasons. Final Code uses `complete` only after operator
+approval and an actual `Passed` gate, followed by `run_end` on termination.
+The extraction snapshot is saved before address lookup; the address-check save
+then captures any enrichment in current fields. An address-processing failure
+after successful extraction saves the Reader's `Failed` status while retaining
+the extraction. Accepted field edits are also saved before address lookup, so
+an unavailable service cannot discard them from the JSON. Retrying
+extraction creates a new record, matching the workbook Record ID behavior.
+The original extracted canonical AI fields stay frozen; current fields and
+whitelisted edit metadata change as review proceeds. Providers remain an array.
+Daily Excel output and its schema are unchanged.
+
+Frozen apps create `Referrals/` beside `Path(sys.executable).parent`. Source runs,
+EXEs inside a Git checkout/worktree and unwritable EXE folders fall back to
+`%LOCALAPPDATA%/FCM_Structured/AIPDFReader/Referrals/`. An absolute
+`FCM_REFERRALS_DIR` can select another folder outside every Git repository.
+The existing status area displays `Saved Referrals\<filename>` for adjacent
+output, or the fallback path/warning. JSON failures are nonfatal and visible;
+Excel output can still succeed independently.
+
+The local first-save filename is `YYYY-MM-DD_HHMMSS_<Last>-<First>.json`.
+Missing claimant names use `Unknown-Claimant`; invalid filename characters,
+commas, apostrophes and controls are removed, spaces become dashes and the
+claimant component is capped at about 60 characters. Saved name edits rename
+the same record. `_2`, `_3`, etc. protect different referrals with matching
+names/timestamps; writes are atomic and never intentionally replace another
+record. **Owner decision: always store the full raw source text for debugging.**
+`source_text` contains the uploaded document's complete extracted text after
+`join_pages`, saved at the first after-extraction write and preserved through
+later edits/overwrites. If the model receives different text (for example the
+configured character limit truncates it), `sent_text` also stores the exact
+model input. No opt-in is required. An earlier run ending before extraction may
+lack text. CMS input payloads, raw model responses and credentials remain
+excluded; configured secrets are redacted in source/sent text and other allowed
+values. Character counts describe input before redaction.
+The saved model input is the exact document argument passed to `run_reasoning`
+and embedded in its prompt; the full source is passed separately for Python
+validation. This save hook does not change either extraction input or rules.
+The record identifies its app, `app_version: "source"` and `schema_version: 2`;
+the source marker does not claim a newly packaged application version.
+
+These JSON files contain referral PHI, including claimant names in filenames.
+Retention, deletion, authorized access and protection for adjacent EXE folders,
+shared drives and operator profiles remain open under **FCM-1.1-46**. Full-text
+storage is explicitly owner-approved. **The expiry number of days will be added
+later under FCM-1.1-46; no expiry or automatic deletion is implemented here.** Source
+tests use only synthetic data. No EXE release or live integration validation is
+established by this source change (FCM-1.1-81).
+
 ## Independent checks
 
 ```powershell
@@ -157,3 +212,11 @@ rtk proxy dist/AI-FCM-Workbench.exe --self-test --report Output/workbench-exe-sm
 
 The packaged self-test uses synthetic incomplete fields and verifies the native
 window, bridge, PDF preview, and daily output without Bedrock or Census calls.
+
+Shared field review (FCM-1.1-82/83; packaged in v1.1.1): section evidence no longer
+overwrites a conflicting AI value; blank AI fields accept only format-valid reader
+values. Disagreements and malformed ZIP/date/SSN/phone/gender values have
+non-blocking field and collapsed-group badges in both apps. Saving an edited
+field clears its disagreement and rechecks format flags. Referral JSON schema 2
+includes `review_flags` in both original and current field snapshots. The Reader EXE
+is packaged in the verified v1.1.1 build; live viewer text order and operator clicks remain unconfirmed.

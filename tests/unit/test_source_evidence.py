@@ -30,7 +30,7 @@ def parsed(source, **changes):
     return schema.parse_field_block(json.dumps(data), source_text=source)
 
 
-def test_explicit_blank_customer_fields_cannot_be_filled_with_employer_contact():
+def test_explicit_blank_customer_fields_flag_model_contact_instead_of_erasing_it():
     source = FORM + '''Special Instructions:
 Employer name and contact: Jane Example
 Phone #: (727) 362-7200 EXT 7854
@@ -40,7 +40,10 @@ Referrer Name: Someone
 '''
     fields = parsed(source, **{'Employer Contact Name': 'Jane Example',
                               'Employer Contact Mobile': '(727) 362-7200 EXT 7854'})
-    assert fields['Employer Contact Name'] == fields['Employer Contact Mobile'] == 'Not found'
+    assert fields['Employer Contact Name'] == 'Jane Example'
+    assert fields['Employer Contact Mobile'] == fields['Employer Mobile']
+    assert {item['field'] for item in fields.review_flags if item['kind'] == 'disagreement'} >= {
+        'Employer Contact Name', 'Employer Contact Mobile'}
     assert fields['Employer First Name'] == 'Jane'
     assert fields['Employer Mobile'] == '(727) 362-7200 EXT 7854'
     assert fields['Social Security Number'] == '***-**-1234'

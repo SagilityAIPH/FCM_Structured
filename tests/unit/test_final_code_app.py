@@ -37,6 +37,7 @@ class WorkflowApi:
     """Records what the launcher publishes, and when."""
 
     def __init__(self):
+        self._lock = threading.RLock()
         self._workflow_active = False
         self.active_during_run = None
         self.results, self.stages = [], []

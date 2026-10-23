@@ -55,13 +55,88 @@ The published workflow outcome is **Completed**, **Ended**, **Stopped**, or **Fa
 ## What is not done
 
 - The Final Code intake boundary does **not** open/read/copy a PDF file or send PDF bytes to Bedrock; RRS itself opens an attachment viewer, and Final Code scrapes its accessible text. An image-only or lazily rendered page may have no captured text. (`Final Code/finalcode/rrs_capture.py:39-49`; `Final Code/finalcode/live_wiring.py:27-32`; `AI/workbench/backend.py:272-295`)
-- Final Code does **not automatically write the Reader's daily Excel workbook** or persist the extraction/result as a run audit. State and workflow result remain in memory and disappear when the session closes. This does not mean all downstream external systems are read-only: the Subject Line Builder fills RRS UI, and the shared frontend still exposes an **explicit JSON/CSV/TXT export** action if the operator chooses it. (`AI/workbench/backend.py:424-437`; `AI/workbench/backend.py:570-590`; `Final Code/finalcode/app.py:145-172`; `AI/workbench/frontend/src/App.tsx:181-184`)
+- Final Code does **not automatically write the Reader's daily Excel workbook**. It now saves one automatic referral JSON through the shared `AI/referral_json.py` module, including extraction, saved review and terminal outcome. The earlier separate run-audit writer is replaced; the legacy `audit_path` result key points to the same referral JSON. Explicit JSON/CSV/TXT export remains a separate operator action. Subject Line Builder still fills RRS UI.
 - The **Claims Office Matrix workbook is read**, not written, to look up adjuster physical/mailing address from Claims Office Number (with a claim-number fallback). Missing lookup data leaves address keys blank. This reference workbook is distinct from the absent daily-output workbook. (`Final Code/finalcode/field_adapter.py:133-144`; `Processes/SubjectLineBuilder/Deploy-Ready/office_matrix.py:147-153`; `Processes/SubjectLineBuilder/Deploy-Ready/office_matrix.py:269-290`)
+
+## Automatic referral JSON (FCM-1.1-81)
+
+Final Code creates a shared `ReferralRecord` for each run. The exact core
+`saves[].reason` tokens are `after_extraction`, `save_changes`, `complete`, and
+`run_end`. Extraction and **Save changes** save immediately. `complete` is saved
+only after operator approval and the orchestrator's actual `Passed` completeness
+gate, at entry to CMS before its input checks/callback. Approval alone does not
+save `complete`; cancellation, an incomplete gate or a gate exception never does.
+Extra address-check/confirmation/retry saves retain their own reason tokens.
+Early capture/extraction failures, cancellation, incomplete gates,
+CMS stops/failures, builder failures and launcher errors still get a run-end
+record, using `Unknown-Claimant` when no claimant is available. All saves for the
+run use one record ID and one current file; name edits rename that file while
+preserving its first-save timestamp. Reader uses the same writer for its own
+per-document records and keeps its existing daily workbook behavior.
+
+For a frozen app the preferred folder is `Path(sys.executable).parent / Referrals`,
+created automatically. Source execution, an EXE inside Git (including a `.git`
+worktree file), or an unwritable folder falls back visibly to
+`%LOCALAPPDATA%/FCM_Structured/FinalCode/Referrals/`. Absolute `FCM_REFERRALS_DIR`
+overrides this; `FCM_FINAL_CODE_AUDIT_DIR` remains a Final Code alias. Every
+selected folder must be outside Git. Invalid/unwritable targets produce a
+fallback or nonfatal warning in the existing status area. A successful adjacent
+save displays `Saved Referrals\<filename>`; fallback output shows its path.
+State locks are released before file I/O and operator waits.
+
+Filename: local first-save `YYYY-MM-DD_HHMMSS_<Last>-<First>.json`, with
+`Unknown-Claimant` for absent names. Invalid characters, controls, commas and
+apostrophes are removed, spaces become dashes, and the claimant component is
+capped at about 60 characters. Different records with the same name/timestamp
+use `_2`, `_3`, etc.; atomic writes preserve the previous file on failure and
+protect other referrals from replacement.
+
+The versioned whitelist stores app, `app_version: "source"`, `schema_version: 2`
+and record ID, local/UTC save
+history, model ID, immutable `ai_extracted`, current canonical fields, provider
+arrays, edit metadata and completeness (missing fields, provider gaps and
+appointment confirmations). Final Code adds captured/sent character counts and
+terminal outcome/reason, value-free error type/stage, stage timings, resolved
+CMS customer/status and Subject Line Builder status. Reader adds the
+source filename and current Reader status on each save. **Owner decision:
+always store the full raw source text for debugging**, beginning with the first
+after-extraction save, and preserve it through later edits/overwrites.
+`source_text` is the full RRS viewer capture in Final Code (the text counted by
+`captured_characters`), or the uploaded document's extracted text after
+`join_pages` in Reader. If the model receives different text, `sent_text` also
+stores that exact model input, including a Reader character-limit truncation.
+Reader passes `sent_text` as `run_reasoning`'s `full_document_text` argument,
+which is inserted into the model prompt; the full `source_text` is the separate
+`validation_source_text` argument used by Python post-processing. No inference
+input or section-reader rule is changed by this persistence hook.
+No opt-in is required. Runs ending before extraction may lack these texts.
+CMS inputs/cases, credentials, raw model responses and free-form exception
+messages remain excluded; configured secrets are redacted in source/sent text
+and all other allowed values. Character counts describe input before redaction.
+The original field snapshot is the canonical extraction returned by
+the current engine; it is not the raw model response. Shared extraction now keeps
+the AI value when the section reader disagrees or returns blank; a valid reader
+value fills a blank AI value, and format validity breaks a one-valid-one-invalid
+tie. Disagreements and malformed ZIP, date, SSN, phone and gender values are
+non-blocking review flags shown in both apps and persisted in `ai_extracted`
+and `current` as `review_flags` (`field`, `provider_index`, `kind`, `reason`,
+optional `reader_value`). Saving an edit clears its disagreement and reruns
+format checks; completeness and the approval gate are unchanged.
+
+These records contain PHI and claimant names in filenames. **FCM-1.1-46** remains
+open for retention, access, deletion/backup and folder/profile protections,
+including the folder beside the EXE. **The expiry number of days will be added
+later under FCM-1.1-46; no expiry or automatic deletion is implemented here.**
+The full-text retention is explicitly owner-approved. FCM-1.1-81, FCM-1.1-82
+and FCM-1.1-83 ship in Final Code v1.0.9 and AI PDF Reader v1.1.1, with
+synthetic unit and packaged self-tests. No live RRS/CMS/Bedrock/portal behavior
+or packaged operator clicks are established by these tests; supervised live
+confirmation remains separate work.
 
 ## Known limitations and open items
 
 - Live RRS/CMS/Bedrock/Subject Line Builder integration and multi-page viewer text coverage are not established by the synthetic self-test. Confirm capture completeness and native window/prompt behavior during a supervised live verification. The `README-exe.md` notes the same validation boundary; the current backlog is [[INSTRUCTIONS]], not this document. (`Final Code/finalcode/app.py:226-284`; `Final Code/finalcode/rrs_capture.py:14-18`)
-- The UI/backend code in shared files was being edited concurrently while this note was written. The review controls, idle Start state, and wording above were observed in the working tree at verification; an older EXE or a later unverified edit may differ. No claim is made that the packaged binary was rebuilt from these exact files. Earlier `PLAN.md` says “spec only”; that status is obsolete given the live source described above.
+- The UI/backend code in shared files was being edited concurrently while this note was written. The review controls, idle Start state, and wording above were observed in the working tree at verification; an older EXE or a later unverified edit may differ. The v1.0.9 binary packages these source changes; packaged UI clicks were not tested. Earlier `PLAN.md` says “spec only”; that status is obsolete given the live source described above.
 
 ## Run and verify
 
