@@ -5,6 +5,8 @@ This vault is the FCM_Structured documentation set.
 - [[INSTRUCTIONS]] — live task list and item ID rules.
 - [[completed]] — archive of finished items.
 - [[FINAL-CODE-FLOW]] — current attended Final Code chain, outcomes, data contract, and verification.
+- [[brd/INDEX]] — converted BRD for the end-to-end Liberty Mutual intake flow.
+- [[process-wizard/INVESTIGATION]] — parked Process Wizard findings and design blockers; recall with "JARVIS".
 
 ## Conventions
 
