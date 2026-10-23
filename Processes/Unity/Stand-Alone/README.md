@@ -199,8 +199,9 @@ flagging is not an early stop. Opening, visible-dialog wait, reason selection,
 note lookup/clear/type/readback, submission and closure failures raise a typed
 `UnityFlagError` with the failed stage and original exception chain/type retained
 in memory. Operator text excludes Selenium messages and page/referral content.
-The legacy validation boundary re-raises only this flag error; unrelated errors
-retain the existing marker behavior. The desktop reports `run_unity_failed`,
+The legacy validation boundary re-raises this flag error and the Customer/Employer
+Defined Fields errors described below; unrelated errors retain the existing marker behavior.
+The desktop reports `run_unity_failed`,
 stops provider work and never proceeds to approval or RRS completion.
 
 **Owner-selected recovery policy (FCM-1.1-58): leave the browser open on flagging
@@ -214,6 +215,79 @@ the flag failure and are reported without their underlying details. Normal
 success and unrelated failures still Quit. Other `create_driver()` callers
 default to `detach=False`; the CLI keeps its existing cleanup and reporting.
 Default attempted-assignment tracking on failure is unchanged.
+
+Customer Defined Fields failures separately raise `UnityCustomerFieldsError`.
+The shared legacy helper preserves populated Date of First Appointment and Claim
+Identifier values, fills blanks only from supplied nonblank `nextApptDate` and
+`claimID`, and requires exact UI readback of each write within the existing bounded
+wait. Read-only polling allows asynchronous updates without repeating writes or
+clicks. Blank optional source
+values remain allowed. Stage-only operator text excludes referral/DOM/Selenium
+details; the original exception remains chained. Under the owner's selected
+customer-fields recovery policy, desktop automation stops before employer fields,
+the existing manual-validation gate, Complete Task, approval and RRS, leaving
+detached Edge open while releasing its service/connection. Cleanup failures are
+reported without replacing the customer-fields error. Flag recovery text and
+semantics, normal-success cleanup and unrelated-failure cleanup are unchanged.
+CLI cleanup remains unchanged.
+
+Owner-authorized read-only UAT inspection resolved exactly one visible existing
+Liberty Mutual Commercial Market / `20 fields` header and both existing field
+locators. Both inputs were initially hidden and populated; one header expansion
+made both visible, enabled and not readonly. No field values were changed or
+submitted. Because the header toggles visibility, the helper leaves an already
+expanded group alone. It clicks once only when both fields are hidden, then
+waits for both to become visible; mixed visibility, ambiguous matches and
+unreadable state stop safely without multi-click fallback. No `aria-expanded`
+state is assumed.
+
+The full Unity suite includes actual-source synthetic tests for these states,
+blank/populated/whitespace handling, write-readback failures, stopped continuation
+and desktop cleanup failures. Neither these tests nor the inspection confirms
+the owner's original live failure trigger. The three-second wait, exact header
+selector and existing field locators remain unchanged; the field-count constraint
+remains brittle despite matching the inspected task. No live source replay,
+RRS/CMS/Bedrock calls, submission, build or release was exercised for this fix.
+
+**Employer Defined Fields (FCM-1.1-78, source-only):** one shared legacy helper
+preserves any populated Facility selection. For a blank, it selects only a unique
+enabled non-placeholder option: recognized special-instructions facilities take
+precedence over a nonblank provider-city fallback. Multiple recognized facilities,
+ambiguous options and no matches leave the field unchanged for the existing
+no-match notice and attended manual-validation gate. A recognized facility absent
+from the options does not fall back to city. Blank city never selects a placeholder.
+An already-visible Facility leaves the header untouched; a hidden field permits
+one header click followed by a visibility wait. The existing Goodyear-only
+applicability, employer name / `4 fields` header requirement, Facility ID and 25 recognized
+facilities are retained; no other employer-field policy is introduced.
+
+Each selection is a single write with exact selected text/value verification
+using bounded read-only polling. Locate, visibility, read, selection and readback
+failures raise stage-only `UnityEmployerFieldsError`, retaining the original
+exception cause without exposing referral/DOM/Selenium details. Desktop recovery
+leaves detached Edge open for inspection and releases the service/connection
+without Quit, reporting release failures without replacing the employer error.
+Later portal work, Complete Task, approval and RRS do not run on that error.
+Existing attempted-assignment tracking, other recovery messages, normal/unrelated
+cleanup and CLI cleanup are unchanged. Actual-source synthetic regressions cover
+these states and asynchronous readback; they do not prove live portal persistence.
+No live source replay, RRS/CMS/Bedrock call, submission, EXE build or release was
+performed for this source change.
+
+**Header capitalization correction (FCM-1.1-79, source-only):** the employer
+header XPath normalizes only capitalization of the same Goodyear name, retaining
+its whitespace normalization and `4 fields` requirement. Exactly one visible
+matching header is required; count token boundaries exclude `14 fields` and `24 fields`.
+That header must be enabled; duplicate visible headers, read failures and
+an unavailable actionable header stop safely. Owner-authorized read-only UAT
+inspection found exactly one visible header after case normalization, but none
+with the old case-sensitive name predicate. The Facility select was visible and
+enabled, with 37 options and a selected blank-text, empty-value placeholder.
+It was not a populated Facility. No field values were changed, no options were
+selected and no source fix was replayed live. Actual-XPath synthetic DOM coverage
+includes mixed-case/whitespace headers, wrong employers/counts and duplicate or
+hidden groups. This does not broaden employer applicability or relax field count;
+no live writes, submission, build or release was performed.
 
 Textarea readback and modal closure are **not server-side flag/task readback**.
 At FCM-1.1-58, the original failure root remained **unconfirmed**. Before that source change,
@@ -524,3 +598,27 @@ contents were read. Synthetic metadata/path handling does not establish MSG/EML
 server acceptance or portal/task readback. Unity remains standalone;
 FCM-1.1-48 remains open. Operator workbook/sample files and graph output were
 excluded.
+
+### v1.0.8 field recovery build (10/23/2026, FCM-1.1-80)
+
+Rebuilt the production frontend and existing Unity spec with installed Python
+and PyInstaller, including FCM-1.1-75 customer fields and FCM-1.1-78/79 employer
+Facility safeguards, header capitalization and desktop browser recovery.
+The artifact prepared for `unityassignment-v1.0.8` is 48,483,856 bytes; SHA-256:
+`910adb3d318e8254f2d63b9b3216264b8057cba937e8f3c36e84525f49c1d89a`.
+The EXE and its `.sha256` sidecar belong in ignored `dist`, not source control.
+
+Packaged `--self-test` exited 0 with frozen resource/import prerequisites OK,
+39 consumed keys and no context-only keys. The five-step main flow and selected
+PDF/MSG/EML three-step flows completed through synthetic callbacks; 32,767-character
+instructions and oversized rejection passed. Independent archive checks matched
+six raw sources, six compiled modules (including both new error classes and the
+legacy UI helper), and all three built frontend files to the worktree. No
+operator/sample/session payload assets were found. Source/Final Code packaging
+boundary checks passed 93 test cases with no failures, errors or skips.
+
+This supplements the dated source-only records, not live validation: no corrected
+helper was replayed against the portal and no live RRS, CMS, Bedrock, tracking,
+upload or task submission was performed. Existing Windows/WebView2 and live
+environment prerequisites remain. Other employer fields remain manual; Unity
+remains standalone. Actual publication is recorded in GitHub releases.

@@ -17,7 +17,7 @@ import re
 from datetime import datetime
 from edge_auto import build_edge_service, find_msedge_path
 from fcm_intake.config import ATTACHMENT_FOLDER as CONFIG_ATTACHMENT_FOLDER, EDGE_DRIVER_PATH as CONFIG_EDGE_DRIVER_PATH
-from AI.unity_errors import UnityFlagError
+from AI.unity_errors import UnityCustomerFieldsError, UnityEmployerFieldsError, UnityFlagError
  
 # ---------- Config ----------
 EDGE_DRIVER_PATH = CONFIG_EDGE_DRIVER_PATH
@@ -193,6 +193,158 @@ def flag_missing_appointment_time(driver):
         wait.until(EC.invisibility_of_element(modal))
     except Exception as error:
         raise UnityFlagError(stage) from error
+
+
+def fill_customer_defined_fields(driver, *, next_appointment_date, claim_identifier):
+    """Preserve existing values and verify supplied writes before continuing."""
+    stage = "locating the customer field group"
+    try:
+        wait = WebDriverWait(driver, 3)
+        button = wait.until(EC.element_to_be_clickable((
+            By.XPATH,
+            "//button[contains(@class,'btn') and contains(@class,'btn-link') and "
+            "contains(normalize-space(.), 'Liberty Mutual Commercial Market') and "
+            "contains(normalize-space(.), '20 fields')]"
+        )))
+        fields = (
+            ("Date of First Appointment", next_appointment_date, (By.XPATH,
+             "//field-label[normalize-space()='Date of First Appointment']"
+             "/following::input[@type='text'][1]")),
+            ("Claim Identifier", claim_identifier, (By.ID,
+             "intake-customer-specific-field-fields--Claim Identifier-text-general-input")),
+        )
+        elements = []
+        for label, _, locator in fields:
+            stage = f"locating {label}"
+            matches = wait.until(EC.presence_of_all_elements_located(locator))
+            if len(matches) != 1:
+                raise RuntimeError("Unity customer field lookup was ambiguous")
+            elements.append(matches[0])
+        stage = "inspecting customer field visibility"
+        visibility = [field.is_displayed() for field in elements]
+        if any(visibility) and not all(visibility):
+            raise RuntimeError("Unity customer field visibility was inconsistent")
+        if not all(visibility):
+            stage = "opening the customer field group"
+            driver.execute_script("arguments[0].scrollIntoView({block:'center'});", button)
+            button.click()
+            stage = "waiting for customer fields to become visible"
+            wait.until(lambda _: all(field.is_displayed() for field in elements))
+        for label, supplied, locator in fields:
+            stage = f"locating {label}"
+            field = wait.until(EC.element_to_be_clickable(locator))
+            driver.execute_script("arguments[0].scrollIntoView({block:'center'});", field)
+            stage = f"reading {label}"
+            if (field.get_attribute("value") or "").strip():
+                continue
+            supplied = supplied or ""
+            if not supplied.strip():
+                continue
+            stage = f"focusing {label}"
+            field.click()
+            stage = f"clearing {label}"
+            field.clear()
+            stage = f"entering {label}"
+            field.send_keys(supplied)
+            stage = f"verifying {label}"
+            wait.until(lambda _: field.get_attribute("value") == supplied)
+            if label == "Date of First Appointment":
+                time.sleep(0.5)
+    except Exception as error:
+        raise UnityCustomerFieldsError(stage) from error
+
+
+def fill_employer_defined_fields(driver, *, special_instructions, provider_city):
+    """Preserve Facility, or fill a blank only from one unambiguous match."""
+    facilities = [
+        "PL0153 Lawton", "RE Retail Stores", "PL0133 Topeka",
+        "CT Commercial Tire Centers", "CP0001 Texarkana", "PL0126 Danville",
+        "PL0161 Fayetteville", "PL0155 Asheboro", "CP0016 Tupelo",
+        "PL0130 Social Circle", "PL0131 Gadsden", "PL0933 Akron",
+        "CP0018 Findlay", "CH0148 Bayport", "PL0129 Union City",
+        "MS9999 Mileage Sales", "MS9999 Lake Buena Vista", "MS9999 Sun Valley",
+        "MS9999 Chatsworth", "MS9999 El Monte", "PL0170 Kingman",
+        "CH0141 Houston", "CH0137 Niagara Falls", "EP0112 Saint Marys",
+        "ML1286 Eglin Air Force Base",
+    ]
+
+    def norm_ws(value):
+        return re.sub(r"\s+", " ", value).strip().lower()
+
+    def option_details(option):
+        text, value = option.text, option.get_attribute("value")
+        if not isinstance(text, str) or not isinstance(value, str):
+            raise RuntimeError("Unity Facility option was unreadable")
+        # Angular may serialize the empty option's null model as "0: null".
+        empty = (not text.strip() or not value.strip()
+                 or re.fullmatch(r"(?:\d+:\s*)?(?:null|undefined)", value.strip()) is not None)
+        return text, value, empty
+
+    stage = "locating the employer field group"
+    try:
+        wait = WebDriverWait(driver, 20)
+        header_xpath = (
+            "//button[contains(@class,'btn') and contains(@class,'btn-link') and "
+            "contains(translate(normalize-space(.), 'abcdefghijklmnopqrstuvwxyz', "
+            "'ABCDEFGHIJKLMNOPQRSTUVWXYZ'), 'GOODYEAR TIRE & RUBBER CO') and "
+            "contains(concat(' ', normalize-space(.), ' '), ' 4 fields ')]"
+        )
+
+        def unique_actionable_header(current_driver):
+            visible = [header for header in current_driver.find_elements(By.XPATH, header_xpath)
+                       if header.is_displayed()]
+            if len(visible) > 1:
+                raise RuntimeError("Unity employer field group lookup was ambiguous")
+            return visible[0] if visible and visible[0].is_enabled() else False
+
+        button = WebDriverWait(driver, 3).until(unique_actionable_header)
+        locator = (By.ID, "intake-customer-specific-field-fields--Facility-select-input")
+        stage = "locating Facility"
+        fields = wait.until(EC.presence_of_all_elements_located(locator))
+        if len(fields) != 1:
+            raise RuntimeError("Unity Facility lookup was ambiguous")
+        field = fields[0]
+        stage = "inspecting employer field visibility"
+        if not field.is_displayed():
+            stage = "opening the employer field group"
+            driver.execute_script("arguments[0].scrollIntoView({block:'center'});", button)
+            button.click()
+            stage = "waiting for Facility to become visible"
+            wait.until(lambda _: field.is_displayed())
+        stage = "reading Facility"
+        select = Select(field)
+        existing_text, _, blank = option_details(select.first_selected_option)
+        if not blank:
+            return existing_text
+        stage = "matching Facility"
+        instructions = (special_instructions or "").lower()
+        tokens = [item for item in facilities if item.lower() in instructions]
+        if len(tokens) > 1:
+            return ""
+        token = norm_ws(tokens[0] if tokens else (provider_city or ""))
+        if not token:
+            return ""
+        matches = []
+        for option in select.options:
+            text, value, empty = option_details(option)
+            if not empty and option.is_enabled() and token in norm_ws(text):
+                matches.append((text, value))
+        if len(matches) != 1:
+            return ""
+        text, value = matches[0]
+        stage = "selecting Facility"
+        wait.until(lambda _: field.is_displayed() and field.is_enabled())
+        select.select_by_visible_text(text)
+        stage = "verifying Facility"
+
+        def selected_matches(_):
+            selected_text, selected_value, empty = option_details(select.first_selected_option)
+            return not empty and selected_text == text and selected_value == value
+
+        wait.until(selected_matches)
+        return text
+    except Exception as error:
+        raise UnityEmployerFieldsError(stage) from error
 
 
 def validate_and_complete_task(driver, customer_name: str, claimant_name: str,dataRef: dict, *, attachment_path=None):
@@ -1311,131 +1463,14 @@ def validate_and_complete_task(driver, customer_name: str, claimant_name: str,da
             print(f"Attachment step skipped/failed: {ex}")
 
 
-        wait = WebDriverWait(driver, 3)
-        btnCustDefined = wait.until(EC.element_to_be_clickable((
-            By.XPATH,
-            "//button[contains(@class,'btn') and contains(@class,'btn-link') and "
-            "contains(normalize-space(.), 'Liberty Mutual Commercial Market') and "
-            "contains(normalize-space(.), '20 fields')]"
-        )))
-        driver.execute_script("arguments[0].scrollIntoView({block:'center'});", btnCustDefined)
-        btnCustDefined.click()
-
-        dateOfAppointment = wait.until(EC.element_to_be_clickable((By.XPATH,
-                                                                   "//field-label[normalize-space()='Date of First Appointment']"
-                                                                   "/following::input[@type='text'][1]"
-                                                                   )))
-        driver.execute_script("arguments[0].scrollIntoView({block:'center'});", dateOfAppointment)
-        dateAppointmentVal = (dateOfAppointment.get_attribute("value") or "").strip
-        if not dateAppointmentVal:
-            dateOfAppointment.click()
-            dateOfAppointment.clear()
-            dateOfAppointment.send_keys(dataRef['nextApptDate'])
-            time.sleep(0.5)
-        ClaimIdentifier =  wait.until(EC.element_to_be_clickable((By.ID,"intake-customer-specific-field-fields--Claim Identifier-text-general-input")))
-        driver.execute_script("arguments[0].scrollIntoView({block:'center'});", ClaimIdentifier)
-        ClaimIdentifierVal = (ClaimIdentifier.get_attribute("value") or "").strip
-        if not ClaimIdentifierVal:
-            ClaimIdentifier.click()
-            ClaimIdentifier.clear()
-            ClaimIdentifier.send_keys(dataRef['claimID'])
+        fill_customer_defined_fields(
+            driver, next_appointment_date=dataRef['nextApptDate'],
+            claim_identifier=dataRef['claimID'])
 
         if "goodyear tire & rubber co" in dataRef['customer'].lower():
-
-            wait = WebDriverWait(driver, 3)
-            btnEmpDefined = wait.until(EC.presence_of_element_located((
-                By.XPATH,
-                "//button[contains(@class,'btn') and contains(@class,'btn-link') and "
-                "contains(normalize-space(.), 'GOODYEAR TIRE & RUBBER CO') and "
-                "contains(normalize-space(.), '4 fields')]"
-            )))
-            driver.execute_script("arguments[0].scrollIntoView({block:'center'});", btnEmpDefined)
-            btnEmpDefined.click()
-            time.sleep(0.5)
-
-            GOODYEAR_FACILITIES = [
-                "PL0153 Lawton",
-                "RE Retail Stores",
-                "PL0133 Topeka",
-                "CT Commercial Tire Centers",
-                "CP0001 Texarkana",
-                "PL0126 Danville",
-                "PL0161 Fayetteville",
-                "PL0155 Asheboro",
-                "CP0016 Tupelo",
-                "PL0130 Social Circle",
-                "PL0131 Gadsden",
-                "PL0933 Akron",
-                "CP0018 Findlay",
-                "CH0148 Bayport",
-                "PL0129 Union City",
-                "MS9999 Mileage Sales",
-                "MS9999 Lake Buena Vista",
-                "MS9999 Sun Valley",
-                "MS9999 Chatsworth",
-                "MS9999 El Monte",
-                "PL0170 Kingman",
-                "CH0141 Houston",
-                "CH0137 Niagara Falls",
-                "EP0112 Saint Marys",
-                "ML1286 Eglin Air Force Base",
-            ]
-
-            def GoodyearSearchFacilityName(special_instructions: str) -> str:
-                if not special_instructions:
-                    return ""
-                text = special_instructions.lower()
-                for item in GOODYEAR_FACILITIES:
-                    if item.lower() in text:
-                        return item
-                return ""
-            
-            def _norm_ws(s: str) -> str:
-                return re.sub(r"\s+", " ", (s or "")).strip().lower()
-            
-
-            
-            def select_goodyear_facility_or_leave_blank(
-                driver,
-                special_instructions: str,
-                select_id: str = "intake-customer-specific-field-fields--Facility-select-input",
-                timeout: int = 20,
-            ) -> str:
-                """
-                If a match is found, selects it and returns the selected option text.
-                If no match is found, leaves the field unchanged (blank) and returns "".
-                """
-                facility_token = GoodyearSearchFacilityName(special_instructions)
-
-                wait = WebDriverWait(driver, timeout)
-                sel_el = wait.until(EC.presence_of_element_located((By.ID, select_id)))
-                sel = Select(sel_el)
-
-                if not facility_token:
-                    providerCity = dataRef['providerCity']
-                    for opt in sel.options:
-                        drpMatchFacility = opt.text.strip()
-                        if providerCity.lower() in drpMatchFacility.lower():
-                            facility_token = drpMatchFacility
-                            break
-
-                if not facility_token:
-                    return ""
-            
-               
-            
-                token_n = _norm_ws(facility_token)
-            
-                # Select only when we find a matching option
-                for opt in sel.options:
-                    if token_n in _norm_ws(opt.text):
-                        sel.select_by_visible_text(opt.text)
-                        return opt.text
-            
-                # No match -> do nothing (leave as-is / blank)
-                return ""
-            
-            selected = select_goodyear_facility_or_leave_blank(driver,dataRef['specialInstructions'])
+            selected = fill_employer_defined_fields(
+                driver, special_instructions=dataRef['specialInstructions'],
+                provider_city=dataRef['providerCity'])
             if not selected:
                 notify("Goodyear Employer Defined Field - Facility","No matching Facility from Dropdown.")
     
@@ -1454,7 +1489,7 @@ def validate_and_complete_task(driver, customer_name: str, claimant_name: str,da
             pass
 
         time.sleep(15)
-    except UnityFlagError:
+    except (UnityFlagError, UnityCustomerFieldsError, UnityEmployerFieldsError):
         raise
     except Exception as ex:
         exc_type, exc_obj, tb = sys.exc_info()

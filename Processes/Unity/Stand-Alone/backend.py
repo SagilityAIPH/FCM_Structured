@@ -16,7 +16,7 @@ sys.path.insert(0, str(HERE))
 from unity_model import defaults, schema, validate, warnings, to_controller, adapter
 from unity_excel import create_template, read_workbook
 from AI.referral_attachments import referral_document
-from AI.unity_errors import UnityFlagError
+from AI.unity_errors import UnityCustomerFieldsError, UnityEmployerFieldsError, UnityFlagError
 
 
 def _runner():
@@ -55,7 +55,7 @@ def live_callbacks(attachment_path=None):
                 checked_validate(unity, driver, customer, claimant, data)
             else:
                 checked_validate(unity, driver, customer, claimant, data, attachment_path=attachment_path)
-        except UnityFlagError as error:
+        except (UnityFlagError, UnityCustomerFieldsError, UnityEmployerFieldsError) as error:
             preserve_browser = True
             error.browser_left_open = True
             # Detach keeps Edge alive even when the worker/service is collected.

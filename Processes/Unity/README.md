@@ -135,6 +135,85 @@ recovery behavior are unchanged. Focused synthetic regressions and source smoke
 passed; no live source execution, flag submission, server readback or EXE
 build/release was performed. FCM-1.1-59 remains blocked by the customer mismatch.
 
+Customer Defined Fields now uses one shared legacy UI helper for Date of First
+Appointment (`nextApptDate`) and Claim Identifier (`claimID`). Populated values
+are preserved; whitespace-only values are blank. Supplied nonblank values are
+written only to blanks and must match exact UI readback before continuing.
+Readback polls within the existing bounded wait to allow asynchronous updates;
+it does not repeat writes or clicks.
+Missing/blank source values add no new input requirement or fallback. The
+existing manual-validation gate is unchanged.
+Failures raise stage-specific `UnityCustomerFieldsError` with the original cause
+retained and value-free operator text. Desktop automation stops before employer
+fields, Complete Task, approval or RRS, leaves detached Edge open for manual
+recovery under the owner's selected policy, and releases its service/connection;
+cleanup failures are recorded without replacing the original error.
+
+Owner-authorized read-only UAT inspection found one visible Liberty Mutual
+Commercial Market / `20 fields` header matching the existing selector. Both
+existing field locators resolved populated, initially hidden inputs; one header
+expansion made both visible, enabled and not readonly. No field values were
+changed or submitted. The helper now checks both fields before opening: already
+visible fields require no toggle; both hidden fields permit one click followed
+by a visibility wait. Ambiguous, inconsistent or unreadable state fails safely,
+without multi-click fallback.
+
+The full Unity suite passes with actual-source synthetic coverage; neither this
+nor the inspection confirms the original live failure trigger or a live source
+fix. The existing three-second wait, header selector, appointment XPath and Claim
+Identifier ID remain unchanged. The exact field-count constraint is brittle
+despite matching the inspected task; no other customer-group behavior is
+inferred. No live source replay, RRS/CMS/Bedrock calls, submission, EXE build or
+release was performed.
+
+FCM-1.1-78 adds source-only Employer Defined Fields safeguards in one shared
+legacy UI helper. The existing Goodyear applicability, employer name /
+`4 fields` header requirement, Facility locator and 25 recognized facilities are retained.
+An already-visible Facility does not toggle the header; a hidden Facility permits
+one header click and a bounded visibility wait. Populated selections are preserved,
+even when provider city differs. Blank selections are filled only from one
+recognized special-instructions token matching one enabled, non-placeholder
+option, or from one nonblank provider-city match when no token is recognized.
+Multiple recognized tokens, ambiguous options and missing matches leave the
+selection unchanged for the existing notice and attended manual-validation gate.
+A recognized token that has no option never falls back to provider city.
+Selection is written once and requires exact selected text/value readback within
+a bounded read-only wait. Other employer fields remain manual; no yes/no rules
+or new employer mappings are added.
+
+Employer interaction/readback failures raise value-free `UnityEmployerFieldsError`
+with the original cause retained. Desktop recovery stops subsequent portal work,
+approval and RRS, leaves detached Edge open, and releases the driver service and
+connection without Quit. Cleanup failures are reported without replacing the
+employer error. Attempted-assignment tracking, flag/customer recovery, success
+and unrelated-failure cleanup, and CLI cleanup remain unchanged. Actual-source
+synthetic tests cover these safeguards; no live source replay, RRS, CMS, Bedrock,
+submission, build or release was performed for this change.
+
+FCM-1.1-79 narrowly normalizes capitalization of that same employer name in the
+header XPath, retaining whitespace normalization and the `4 fields` constraint.
+The count has whitespace-token boundaries, so `14 fields` and `24 fields` do not match.
+Exactly one visible matching header must be actionable; multiple visible matches
+or unreadable states fail safely. Owner-authorized read-only UAT inspection found
+one visible matching header after case normalization, while the old case-sensitive
+name predicate returned none. The Facility select was visible/enabled with 37
+options and a selected blank-text, empty-value placeholder, not a populated Facility.
+No field values were changed or selected, and no source replay was performed.
+Synthetic DOM tests evaluate the actual XPath against mixed-case headers,
+wrong employers/counts and duplicate/hidden groups. No new employer applicability,
+field-count relaxation, live writes, submission, build or release is implied.
+
+FCM-1.1-80 supplements the dated source-only FCM-1.1-75/78/79 evidence with a
+rebuilt production frontend and Unity v1.0.8 EXE. The packaged synthetic self-test
+passed, and independent archive checks matched the raw legacy/helper sources,
+compiled error/recovery modules and all three frontend files to this worktree.
+The prepared artifact is 48,483,856 bytes with SHA-256
+`910adb3d318e8254f2d63b9b3216264b8057cba937e8f3c36e84525f49c1d89a`.
+Source/packaging-boundary checks passed 93 tests, with zero failures/errors/skips.
+Actual publication for `unityassignment-v1.0.8` is recorded in GitHub releases;
+neither packaging nor prior read-only inspection proves live source-helper,
+portal, RRS, CMS, Bedrock or database completion.
+
 `completed` means injected callables returned normally, not that live records
 were verified. In particular, `legacy_unity.main` catches exceptions and returns
 None on success and failure; its upload handler also swallows failures. The live

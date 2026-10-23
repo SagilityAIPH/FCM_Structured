@@ -4,6 +4,7 @@ import importlib.util
 import json
 from copy import deepcopy
 import os
+import re
 from pathlib import Path
 import subprocess
 import sys
@@ -15,7 +16,7 @@ from unittest.mock import Mock, patch
 from types import SimpleNamespace
 
 from openpyxl import load_workbook
-from AI.unity_errors import UnityFlagError
+from AI.unity_errors import UnityCustomerFieldsError, UnityEmployerFieldsError, UnityFlagError
 from AI.rrs_assignment import RRSCompletionError
 
 HERE = Path(__file__).resolve().parent
@@ -549,7 +550,9 @@ class LegacyFlagTests(unittest.TestCase):
             (By.XPATH, './modal-template/div/div/div/div[4]/div/div/div/button'): Element('submit'),
         }
         self.env = {'WebDriverWait': Wait, 'By': By, 'EC': EC, 'sys': sys,
-                    'UnityFlagError': UnityFlagError}
+                    'UnityFlagError': UnityFlagError,
+                    'UnityCustomerFieldsError': UnityCustomerFieldsError,
+                    'UnityEmployerFieldsError': UnityEmployerFieldsError}
         helper = legacy_function('flag_missing_appointment_time')
         exec(compile(ast.Module(body=[helper], type_ignores=[]), '<actual flag helper>', 'exec'), self.env)
         validation = legacy_function('validate_and_complete_task')
@@ -717,6 +720,612 @@ class LegacyFlagTests(unittest.TestCase):
         record.assert_called_once()
         confirm.assert_not_called()
         complete.assert_not_called()
+
+
+class LegacyCustomerFieldsTests(unittest.TestCase):
+    def setUp(self):
+        from selenium.webdriver.common.by import By
+        from selenium.webdriver.support import expected_conditions as EC
+
+        self.events = []
+        self.failure = None
+        self.original_error = None
+        owner = self
+
+        class Element:
+            def __init__(self, name, value=''):
+                self.name, self.value, self.reads = name, value, 0
+                self.visible = name not in ('date', 'claim')
+
+            def is_displayed(self):
+                self.action('visibility')
+                return self.visible
+
+            def is_enabled(self):
+                return True
+
+            def action(self, action):
+                owner.events.append((self.name, action))
+                if owner.failure == (self.name, action):
+                    owner.original_error = ValueError('SYNTHETIC-PRIVATE Selenium/referral details')
+                    raise owner.original_error
+
+            def click(self):
+                self.action('click')
+                if self.name == 'group' and owner.failure != ('group', 'still-hidden'):
+                    owner.date.visible = not owner.date.visible
+                    owner.claim.visible = not owner.claim.visible
+
+            def clear(self):
+                self.action('clear')
+                self.value = ''
+
+            def send_keys(self, value):
+                self.action('type')
+                self.value += value
+
+            def get_attribute(self, name):
+                self.reads += 1
+                self.action('read' if self.reads == 1 else 'readback')
+                if owner.failure == (self.name, 'mismatch') and self.reads > 1:
+                    return 'SYNTHETIC-PRIVATE wrong value'
+                if owner.failure == (self.name, 'delayed') and self.reads == 2:
+                    return ''
+                return self.value
+
+        class Wait:
+            def __init__(self, target, timeout):
+                self.target = target
+
+            def until(self, condition):
+                for _ in range(3):
+                    result = condition(self.target)
+                    if result:
+                        return result
+                owner.original_error = TimeoutError('SYNTHETIC-PRIVATE wait')
+                raise owner.original_error
+
+        self.group, self.date, self.claim, self.complete = [
+            Element(name) for name in ('group', 'date', 'claim', 'complete')]
+        locators = {
+            (By.XPATH, "//button[contains(@class,'btn') and contains(@class,'btn-link') and "
+             "contains(normalize-space(.), 'Liberty Mutual Commercial Market') and "
+             "contains(normalize-space(.), '20 fields')]"): self.group,
+            (By.XPATH, "//field-label[normalize-space()='Date of First Appointment']"
+             "/following::input[@type='text'][1]"): self.date,
+            (By.ID, 'intake-customer-specific-field-fields--Claim Identifier-text-general-input'): self.claim,
+            (By.XPATH, '/html/body/my-app/div/div/div/ng-component/div[1]/div/div[3]/span/button[3]'): self.complete,
+        }
+
+        def find(by, selector):
+            field = locators.get((by, selector))
+            if field is None:
+                self.events.append(('unexpected-lookup', selector))
+                raise AssertionError('Unexpected later portal work')
+            field.action('locate')
+            return field
+
+        def find_all(by, selector):
+            field = find(by, selector)
+            return [field, field] if self.failure == (field.name, 'ambiguous') else [field]
+
+        self.driver = SimpleNamespace(find_element=find, find_elements=find_all, execute_script=Mock(),
+                                      service=Mock(), command_executor=Mock(), quit=Mock())
+        self.env = {'WebDriverWait': Wait, 'By': By, 'EC': EC, 'sys': sys,
+                    'time': Mock(), 'notify': Mock(), 'UnityFlagError': UnityFlagError,
+                    'UnityCustomerFieldsError': UnityCustomerFieldsError,
+                    'UnityEmployerFieldsError': UnityEmployerFieldsError}
+        helper = legacy_function('fill_customer_defined_fields')
+        validation = legacy_function('validate_and_complete_task')
+        statements = validation.body[0].body
+        index, = [i for i, node in enumerate(statements)
+                  if isinstance(node, ast.Expr) and isinstance(node.value, ast.Call)
+                  and isinstance(node.value.func, ast.Name)
+                  and node.value.func.id == 'fill_customer_defined_fields']
+        # Execute the actual customer call, employer branch, manual gate,
+        # Complete Task block and outer handlers, excluding earlier portal work.
+        validation.body[0].body = statements[index:]
+        exec(compile(ast.fix_missing_locations(ast.Module(
+            body=[helper, validation], type_ignores=[])), '<actual customer fields>', 'exec'), self.env)
+        self.data = model.to_controller(synthetic() | {
+            'nextApptDate': '10/23/2026', 'claimID': 'SYNTHETIC-ID'})
+
+    def test_actual_helper_fills_blanks_preserves_populated_and_skips_missing_sources(self):
+        for existing in ('', ' \t ', 'Already populated', '  Already populated \t '):
+            with self.subTest(existing=existing):
+                self.setUp()
+                self.date.value = self.claim.value = existing
+                self.env['validate_and_complete_task'](
+                    self.driver, 'Synthetic', 'Example', self.data)
+                for field, key in ((self.date, 'nextApptDate'), (self.claim, 'claimID')):
+                    expected = existing if existing.strip() else self.data[key]
+                    self.assertEqual(field.value, expected)
+                    self.assertEqual(field.reads, 1 if existing.strip() else 2)
+                    self.assertEqual(self.events.count((field.name, 'type')), int(not existing.strip()))
+                self.env['notify'].assert_called_once_with(
+                    'Notice', 'Stopped for Manual Validation before Completing Task.')
+                self.assertEqual(self.events.count(('complete', 'click')), 1)
+        for source in ({}, {'nextApptDate': '', 'claimID': None},
+                       {'nextApptDate': ' \t ', 'claimID': ' \t '}):
+            with self.subTest(source=source):
+                self.setUp()
+                self.date.value = self.claim.value = ' \t '
+                self.env['fill_customer_defined_fields'](
+                    self.driver, next_appointment_date=source.get('nextApptDate'),
+                    claim_identifier=source.get('claimID'))
+                self.assertEqual((self.date.value, self.claim.value), (' \t ', ' \t '))
+                self.assertFalse(any(action in ('clear', 'type') for _, action in self.events))
+        for delayed in ('date', 'claim'):
+            with self.subTest(delayed_readback=delayed):
+                self.setUp()
+                self.failure = (delayed, 'delayed')
+                self.env['fill_customer_defined_fields'](
+                    self.driver, next_appointment_date='10/23/2026', claim_identifier='SYNTHETIC-ID')
+                self.assertEqual(self.date.value, '10/23/2026')
+                self.assertEqual(self.claim.value, 'SYNTHETIC-ID')
+                field = self.date if delayed == 'date' else self.claim
+                self.assertEqual(field.reads, 3)
+                self.assertEqual(self.events.count((delayed, 'type')), 1)
+                self.assertEqual(self.events.count(('group', 'click')), 1)
+
+    def test_actual_helper_toggles_only_collapsed_group_and_requires_visible_unambiguous_fields(self):
+        for expanded in (False, True):
+            with self.subTest(expanded=expanded):
+                self.setUp()
+                self.date.visible = self.claim.visible = expanded
+                self.date.value = self.claim.value = 'Already populated'
+                self.env['fill_customer_defined_fields'](
+                    self.driver, next_appointment_date='10/23/2026', claim_identifier='SYNTHETIC-ID')
+                self.assertEqual(self.events.count(('group', 'click')), int(not expanded))
+                self.assertTrue(self.date.visible and self.claim.visible)
+                self.assertEqual((self.date.value, self.claim.value), ('Already populated', 'Already populated'))
+                self.assertFalse(any(action in ('clear', 'type') for _, action in self.events))
+        cases = [
+            (('group', 'still-hidden'), 'waiting for customer fields to become visible', 1),
+            (('date', 'visibility'), 'inspecting customer field visibility', 0),
+            (('date', 'ambiguous'), 'locating Date of First Appointment', 0),
+            (('claim', 'ambiguous'), 'locating Claim Identifier', 0),
+            (('group', 'mixed'), 'inspecting customer field visibility', 0),
+        ]
+        for failure, stage, clicks in cases:
+            with self.subTest(failure=failure):
+                self.setUp()
+                self.failure = failure
+                if failure == ('group', 'mixed'):
+                    self.date.visible = True
+                with self.assertRaises(UnityCustomerFieldsError) as caught:
+                    self.env['validate_and_complete_task'](
+                        self.driver, 'Synthetic', 'Example', self.data)
+                self.assertEqual(caught.exception.stage, stage)
+                if self.original_error is not None:
+                    self.assertIs(caught.exception.__cause__, self.original_error)
+                else:
+                    self.assertIsInstance(caught.exception.__cause__, RuntimeError)
+                self.assertNotIn('SYNTHETIC-PRIVATE', str(caught.exception))
+                self.assertEqual(self.events.count(('group', 'click')), clicks)
+                self.assertFalse(any(action in ('clear', 'type') for _, action in self.events))
+                self.env['notify'].assert_not_called()
+                self.assertNotIn(('complete', 'click'), self.events)
+
+    def test_actual_helper_errors_are_safe_chained_and_stop_later_source_work(self):
+        stages = {'locate': 'locating', 'read': 'reading', 'click': 'focusing',
+                  'clear': 'clearing', 'type': 'entering',
+                  'readback': 'verifying', 'mismatch': 'verifying'}
+        cases = [(('group', 'locate'), 'locating the customer field group'),
+                 (('group', 'click'), 'opening the customer field group')]
+        cases += [((field, action), f'{verb} {label}')
+                  for field, label in (('date', 'Date of First Appointment'), ('claim', 'Claim Identifier'))
+                  for action, verb in stages.items()]
+        for failure, stage in cases:
+            with self.subTest(failure=failure):
+                self.setUp()
+                self.failure = failure
+                self.data['customer'] = 'GOODYEAR TIRE & RUBBER CO'
+                unity = SimpleNamespace(validate_and_complete_task=self.env['validate_and_complete_task'])
+                with self.assertRaises(UnityCustomerFieldsError) as caught:
+                    backend.checked_validate(unity, self.driver, 'Synthetic', 'Example', self.data)
+                self.assertEqual(caught.exception.stage, stage)
+                self.assertIn(stage, str(caught.exception))
+                self.assertNotIn('SYNTHETIC-PRIVATE', str(caught.exception))
+                self.assertIs(caught.exception.__cause__, self.original_error)
+                self.env['notify'].assert_not_called()
+                self.assertFalse(any(name in ('unexpected-lookup', 'complete') for name, _ in self.events))
+                if failure[0] != 'claim':
+                    self.assertNotIn(('claim', 'read'), self.events)
+
+    def test_actual_customer_failure_desktop_recovery_stops_gate_rrs_and_records_cleanup_failures(self):
+        for release_failure in (None, 'service', 'connection', 'both'):
+            with self.subTest(release_failure=release_failure):
+                self.setUp()
+                self.failure = ('claim', 'readback')
+                if release_failure in ('service', 'both'):
+                    self.driver.service.stop.side_effect = RuntimeError('SYNTHETIC-PRIVATE service')
+                if release_failure in ('connection', 'both'):
+                    self.driver.command_executor.close.side_effect = RuntimeError('SYNTHETIC-PRIVATE connection')
+                raised = []
+
+                def validate(*args):
+                    try:
+                        self.env['validate_and_complete_task'](*args)
+                    except UnityCustomerFieldsError as error:
+                        raised.append(error)
+                        raise
+
+                unity = SimpleNamespace(create_driver=Mock(return_value=self.driver), login=Mock(),
+                                        validate_and_complete_task=validate)
+                config = SimpleNamespace(ATTACHMENT_FOLDER='synthetic', UNITY_SCRIPT='synthetic.py')
+                with patch.dict(sys.modules, {
+                        'fcm_intake.config': config,
+                        'fcm_intake.legacy_loader': SimpleNamespace(load_module_from_path=lambda *args: unity)}):
+                    calls = backend.live_callbacks()
+                record, confirm, complete = Mock(), Mock(return_value=True), Mock()
+                result = backend._runner().load_core().run_flow(
+                    self.data, list_attachments=lambda: [Path('synthetic.pdf')],
+                    run_unity=calls['run_unity'], record_assignment=record,
+                    confirm=confirm, complete_assignment=complete, notify=Mock())
+                self.assertEqual((result['status'], result['reason']), ('failed', 'run_unity_failed'))
+                self.assertEqual(result['error']['type'], 'UnityCustomerFieldsError')
+                self.assertIn('verifying Claim Identifier', result['error']['message'])
+                self.assertIn('Browser left open for manual recovery', result['error']['message'])
+                self.assertNotIn('SYNTHETIC-PRIVATE', result['error']['message'])
+                self.assertEqual(len(raised), 1)
+                self.assertIs(raised[0].__cause__, self.original_error)
+                self.assertTrue(raised[0].browser_left_open)
+                self.assertIs(raised[0].service_release_failed, release_failure is not None)
+                self.assertEqual('release could not be confirmed' in result['error']['message'],
+                                 release_failure is not None)
+                unity.create_driver.assert_called_once_with(detach=True)
+                self.driver.service.stop.assert_called_once()
+                self.driver.command_executor.close.assert_called_once()
+                self.driver.quit.assert_not_called()
+                self.env['notify'].assert_not_called()
+                self.assertNotIn(('complete', 'click'), self.events)
+                record.assert_called_once()
+                confirm.assert_not_called()
+                complete.assert_not_called()
+
+
+class LegacyEmployerFieldsTests(unittest.TestCase):
+    def setUp(self):
+        LegacyCustomerFieldsTests.setUp(self)
+        owner = self
+        self.date.value = self.claim.value = 'Already populated'
+        self.data.update(customer='GOODYEAR TIRE & RUBBER CO',
+                         specialInstructions='', providerCity='Lawton')
+        self.selected_index = 0
+        self.selection_reads = 0
+        self.written = False
+
+        class Element:
+            def __init__(self, name, text='', value='', enabled=True):
+                self.name, self.text, self.value = name, text, value
+                self.enabled = enabled
+                self.visible = name != 'facility'
+
+            def action(self, action):
+                owner.events.append((self.name, action))
+                if owner.failure == (self.name, action):
+                    owner.original_error = ValueError('SYNTHETIC-PRIVATE employer details')
+                    raise owner.original_error
+
+            def click(self):
+                self.action('click')
+                if owner.failure != ('employer', 'still-hidden'):
+                    owner.facility.visible = not owner.facility.visible
+
+            def is_displayed(self):
+                self.action('visibility')
+                return self.visible
+
+            def is_enabled(self):
+                self.action('enabled')
+                return self.enabled
+
+            def get_attribute(self, name):
+                self.action('read')
+                return self.value
+
+        self.employer, self.facility = Element('employer'), Element('facility')
+        self.options = [Element('placeholder', 'Select...', '0: null'),
+                        Element('lawton', 'PL0153 Lawton', '1: facility-a'),
+                        Element('topeka', 'PL0133 Topeka', '2: facility-b')]
+
+        class Select:
+            def __init__(self, field):
+                self.field = field
+
+            @property
+            def first_selected_option(self):
+                self.field.action('readback' if owner.written else 'read')
+                owner.selection_reads += 1
+                if owner.written:
+                    if owner.failure == ('facility', 'mismatch'):
+                        return owner.options[0]
+                    if owner.failure == ('facility', 'wrong-value'):
+                        return Element('wrong', owner.options[1].text, 'SYNTHETIC-wrong-value')
+                    if owner.failure == ('facility', 'wrong-text'):
+                        return Element('wrong', 'SYNTHETIC-wrong-text', owner.options[1].value)
+                    if owner.failure == ('facility', 'delayed') and owner.selection_reads == 2:
+                        return owner.options[0]
+                return owner.options[owner.selected_index]
+
+            @property
+            def options(self):
+                self.field.action('options')
+                return owner.options
+
+            def select_by_visible_text(self, text):
+                self.field.action('select')
+                owner.written = True
+                owner.selected_index, = [i for i, option in enumerate(owner.options) if option.text == text]
+
+        original_find = self.driver.find_element
+        By = self.env['By']
+
+        def find(by, selector):
+            if 'GOODYEAR TIRE & RUBBER CO' in selector:
+                self.employer.action('locate')
+                return self.employer
+            if selector == 'intake-customer-specific-field-fields--Facility-select-input':
+                self.facility.action('locate')
+                return self.facility
+            return original_find(by, selector)
+
+        def find_all(by, selector):
+            field = find(by, selector)
+            if field is self.facility and self.failure == ('facility', 'ambiguous'):
+                return [field, field]
+            return [field]
+
+        self.driver.find_element, self.driver.find_elements = find, find_all
+        self.env.update(Select=Select, re=re)
+        exec(compile(ast.fix_missing_locations(ast.Module(
+            body=[legacy_function('fill_employer_defined_fields')], type_ignores=[])),
+            '<actual employer fields>', 'exec'), self.env)
+
+    def helper(self, instructions='', city='Lawton'):
+        return self.env['fill_employer_defined_fields'](
+            self.driver, special_instructions=instructions, provider_city=city)
+
+    def test_actual_helper_opens_once_only_when_hidden_and_preserves_populated(self):
+        for visible in (True, False):
+            for populated in (True, False):
+                with self.subTest(visible=visible, populated=populated):
+                    self.setUp()
+                    self.facility.visible = visible
+                    self.selected_index = 2 if populated else 0
+                    result = self.helper()
+                    self.assertEqual(result, 'PL0133 Topeka' if populated else 'PL0153 Lawton')
+                    self.assertEqual(self.events.count(('employer', 'click')), int(not visible))
+                    self.assertEqual(self.events.count(('facility', 'select')), int(not populated))
+                    if populated:
+                        self.assertNotIn(('facility', 'options'), self.events)
+
+    def test_actual_header_xpath_matches_mixed_case_but_keeps_group_scope_and_uniqueness(self):
+        from xml.etree import ElementTree
+        from win32com.client import Dispatch
+
+        cases = [
+            ('Goodyear Tire & Rubber Co', '4 fields', 1, True, True),
+            ('goodyear  tire &\n rubber co', '4 fields', 1, True, True),
+            ('GOODYEAR TIRE & RUBBER CO', '4 fields', 1, True, True),
+            ('Other Synthetic Employer', '4 fields', 1, True, False),
+            ('Goodyear Tire & Rubber Company', '3 fields', 1, True, False),
+            ('Goodyear Tire & Rubber Co', '3 fields', 1, True, False),
+            ('Goodyear Tire & Rubber Co', '14 fields', 1, True, False),
+            ('Goodyear Tire & Rubber Co', '24 fields', 1, True, False),
+            ('Goodyear Tire & Rubber Co', '4 fields', 2, True, False),
+            ('Goodyear Tire & Rubber Co', '4 fields', 2, False, True),
+        ]
+        for name, count, number, second_visible, succeeds in cases:
+            with self.subTest(name=name, count=count, number=number, second_visible=second_visible):
+                self.setUp()
+                root = ElementTree.Element('div')
+                headers = []
+                for index in range(number):
+                    node = ElementTree.SubElement(root, 'button', attrib={
+                        'class': 'btn btn-link', 'data-index': str(index)})
+                    node.text = f' \n {name} \t {count} '
+                    header = self.employer if index == 0 else deepcopy(self.employer)
+                    header.visible = index == 0 or second_visible
+                    headers.append(header)
+                document = Dispatch('Msxml2.DOMDocument.6.0')
+                self.assertTrue(document.loadXML(ElementTree.tostring(root, encoding='unicode')))
+                original_find_all = self.driver.find_elements
+
+                def find_all(by, selector):
+                    if 'GOODYEAR TIRE & RUBBER CO' not in selector:
+                        return original_find_all(by, selector)
+                    self.employer.action('locate')
+                    return [headers[int(node.getAttribute('data-index'))]
+                            for node in document.selectNodes(selector)]
+
+                self.driver.find_elements = find_all
+                if succeeds:
+                    self.assertEqual(self.helper(), 'PL0153 Lawton')
+                    self.assertEqual(self.events.count(('employer', 'click')), 1)
+                else:
+                    with self.assertRaises(UnityEmployerFieldsError) as caught:
+                        self.helper()
+                    self.assertEqual(caught.exception.stage, 'locating the employer field group')
+                    self.assertNotIn(('employer', 'click'), self.events)
+                    self.assertNotIn(('facility', 'select'), self.events)
+        for state in ('visible', 'enabled'):
+            with self.subTest(unavailable_header_state=state):
+                self.setUp()
+                setattr(self.employer, state, False)
+                with self.assertRaises(UnityEmployerFieldsError) as caught:
+                    self.helper()
+                self.assertEqual(caught.exception.stage, 'locating the employer field group')
+                self.assertNotIn(('employer', 'click'), self.events)
+                self.assertNotIn(('facility', 'select'), self.events)
+
+    def test_actual_helper_unique_matching_and_instructions_precede_city(self):
+        for instructions, city, expected in (
+                ('', 'lawton', 'PL0153 Lawton'),
+                ('Use PL0133 Topeka', 'Lawton', 'PL0133 Topeka'),
+                ('Unrecognized synthetic instruction', 'Lawton', 'PL0153 Lawton'),
+                ('Use PL0153 Lawton', '', 'PL0153 Lawton')):
+            with self.subTest(instructions=instructions, city=city):
+                self.setUp()
+                self.assertEqual(self.helper(instructions, city), expected)
+                self.assertEqual(self.events.count(('facility', 'select')), 1)
+
+    def test_actual_helper_blank_and_angular_placeholders_are_not_populated_facilities(self):
+        for text, value in (('', ''), ('Select...', ''), ('Select...', 'null'),
+                            ('Select...', 'undefined'), ('Select...', '0: null')):
+            with self.subTest(text=text, value=value):
+                self.setUp()
+                self.options[0].text, self.options[0].value = text, value
+                self.assertEqual(self.helper(), 'PL0153 Lawton')
+                self.assertEqual(self.events.count(('facility', 'select')), 1)
+        self.setUp()
+        self.options[0].value = None
+        with self.assertRaises(UnityEmployerFieldsError) as caught:
+            self.helper()
+        self.assertEqual(caught.exception.stage, 'reading Facility')
+        self.assertIsInstance(caught.exception.__cause__, RuntimeError)
+        self.assertNotIn(('facility', 'select'), self.events)
+
+    def test_actual_helper_no_or_ambiguous_matches_leave_unchanged_for_manual_gate(self):
+        cases = ('blank-city', 'whitespace-city', 'no-match', 'two-tokens',
+                 'recognized-no-option', 'ambiguous-city', 'ambiguous-token',
+                 'disabled-option', 'blank-option', 'null-option', 'angular-null-option')
+        for case in cases:
+            with self.subTest(case=case):
+                self.setUp()
+                if case == 'blank-city':
+                    self.data['providerCity'] = ''
+                elif case == 'whitespace-city':
+                    self.data['providerCity'] = ' \t '
+                elif case == 'no-match':
+                    self.data['providerCity'] = 'Invented City'
+                elif case == 'two-tokens':
+                    self.data['specialInstructions'] = 'PL0153 Lawton or PL0133 Topeka'
+                elif case == 'recognized-no-option':
+                    self.data['specialInstructions'] = 'Use PL0126 Danville'
+                elif case in ('ambiguous-city', 'ambiguous-token'):
+                    duplicate = deepcopy(self.options[1])
+                    duplicate.text += ' Annex'
+                    self.options.append(duplicate)
+                    if case == 'ambiguous-token':
+                        self.data['specialInstructions'] = 'Use PL0153 Lawton'
+                elif case == 'disabled-option':
+                    self.options[1].enabled = False
+                else:
+                    self.options[1].value = {
+                        'blank-option': '', 'null-option': 'null',
+                        'angular-null-option': '7: null'}[case]
+                self.env['validate_and_complete_task'](
+                    self.driver, 'Synthetic', 'Example', self.data)
+                self.assertEqual(self.selected_index, 0)
+                self.assertNotIn(('facility', 'select'), self.events)
+                self.assertEqual(self.env['notify'].call_args_list[0].args, (
+                    'Goodyear Employer Defined Field - Facility', 'No matching Facility from Dropdown.'))
+                self.assertEqual(self.env['notify'].call_args_list[1].args, (
+                    'Notice', 'Stopped for Manual Validation before Completing Task.'))
+                self.assertEqual(self.events.count(('complete', 'click')), 1)
+
+    def test_actual_helper_polling_is_read_only_and_requires_exact_value_and_text(self):
+        self.failure = ('facility', 'delayed')
+        self.assertEqual(self.helper(), 'PL0153 Lawton')
+        self.assertEqual(self.selection_reads, 3)
+        self.assertEqual(self.events.count(('facility', 'select')), 1)
+        for failure in ('mismatch', 'wrong-value', 'wrong-text'):
+            with self.subTest(failure=failure):
+                self.setUp()
+                self.failure = ('facility', failure)
+                with self.assertRaises(UnityEmployerFieldsError) as caught:
+                    self.helper()
+                self.assertEqual(caught.exception.stage, 'verifying Facility')
+                self.assertIs(caught.exception.__cause__, self.original_error)
+                self.assertEqual(self.events.count(('facility', 'select')), 1)
+
+    def test_actual_helper_failures_are_typed_chained_safe_and_stop_later_work(self):
+        cases = [
+            (('employer', 'locate'), 'locating the employer field group'),
+            (('employer', 'visibility'), 'locating the employer field group'),
+            (('employer', 'enabled'), 'locating the employer field group'),
+            (('facility', 'locate'), 'locating Facility'),
+            (('facility', 'ambiguous'), 'locating Facility'),
+            (('facility', 'visibility'), 'inspecting employer field visibility'),
+            (('employer', 'click'), 'opening the employer field group'),
+            (('employer', 'still-hidden'), 'waiting for Facility to become visible'),
+            (('facility', 'read'), 'reading Facility'),
+            (('placeholder', 'read'), 'reading Facility'),
+            (('facility', 'options'), 'matching Facility'),
+            (('lawton', 'read'), 'matching Facility'),
+            (('lawton', 'enabled'), 'matching Facility'),
+            (('facility', 'enabled'), 'selecting Facility'),
+            (('facility', 'select'), 'selecting Facility'),
+            (('facility', 'readback'), 'verifying Facility'),
+        ]
+        for failure, stage in cases:
+            with self.subTest(failure=failure):
+                self.setUp()
+                self.failure = failure
+                unity = SimpleNamespace(validate_and_complete_task=self.env['validate_and_complete_task'])
+                with self.assertRaises(UnityEmployerFieldsError) as caught:
+                    backend.checked_validate(unity, self.driver, 'Synthetic', 'Example', self.data)
+                self.assertEqual(caught.exception.stage, stage)
+                if self.original_error is None:
+                    self.assertIsInstance(caught.exception.__cause__, RuntimeError)
+                else:
+                    self.assertIs(caught.exception.__cause__, self.original_error)
+                self.assertNotIn('SYNTHETIC-PRIVATE', str(caught.exception))
+                self.env['notify'].assert_not_called()
+                self.assertNotIn(('complete', 'click'), self.events)
+
+    def test_actual_employer_failure_desktop_recovery_stops_approval_and_rrs(self):
+        for release_failure in (None, 'service', 'connection', 'both'):
+            with self.subTest(release_failure=release_failure):
+                self.setUp()
+                self.failure = ('facility', 'readback')
+                if release_failure in ('service', 'both'):
+                    self.driver.service.stop.side_effect = RuntimeError('SYNTHETIC-PRIVATE service')
+                if release_failure in ('connection', 'both'):
+                    self.driver.command_executor.close.side_effect = RuntimeError('SYNTHETIC-PRIVATE connection')
+                raised = []
+
+                def validate(*args):
+                    try:
+                        self.env['validate_and_complete_task'](*args)
+                    except UnityEmployerFieldsError as error:
+                        raised.append(error)
+                        raise
+
+                unity = SimpleNamespace(create_driver=Mock(return_value=self.driver), login=Mock(),
+                                        validate_and_complete_task=validate)
+                config = SimpleNamespace(ATTACHMENT_FOLDER='synthetic', UNITY_SCRIPT='synthetic.py')
+                with patch.dict(sys.modules, {
+                        'fcm_intake.config': config,
+                        'fcm_intake.legacy_loader': SimpleNamespace(load_module_from_path=lambda *args: unity)}):
+                    calls = backend.live_callbacks()
+                record, confirm, complete = Mock(), Mock(return_value=True), Mock()
+                result = backend._runner().load_core().run_flow(
+                    self.data, list_attachments=lambda: [Path('synthetic.pdf')],
+                    run_unity=calls['run_unity'], record_assignment=record,
+                    confirm=confirm, complete_assignment=complete, notify=Mock())
+                self.assertEqual((result['status'], result['reason']), ('failed', 'run_unity_failed'))
+                self.assertEqual(result['error']['type'], 'UnityEmployerFieldsError')
+                self.assertIn('verifying Facility', result['error']['message'])
+                self.assertIn('Browser left open for manual recovery', result['error']['message'])
+                self.assertNotIn('SYNTHETIC-PRIVATE', result['error']['message'])
+                self.assertEqual(len(raised), 1)
+                self.assertIs(raised[0].__cause__, self.original_error)
+                self.assertTrue(raised[0].browser_left_open)
+                self.assertIs(raised[0].service_release_failed, release_failure is not None)
+                self.assertEqual('release could not be confirmed' in result['error']['message'],
+                                 release_failure is not None)
+                unity.create_driver.assert_called_once_with(detach=True)
+                self.driver.service.stop.assert_called_once()
+                self.driver.command_executor.close.assert_called_once()
+                self.driver.quit.assert_not_called()
+                self.env['notify'].assert_not_called()
+                self.assertNotIn(('complete', 'click'), self.events)
+                record.assert_called_once()
+                confirm.assert_not_called()
+                complete.assert_not_called()
 
 
 class LegacyProviderAddressTests(unittest.TestCase):
