@@ -16,6 +16,7 @@ sys.path.insert(0, str(HERE))
 from unity_model import defaults, schema, validate, warnings, to_controller, adapter
 from unity_excel import create_template, read_workbook
 from AI.referral_attachments import referral_document
+from AI.unity_errors import UnityFlagError
 
 
 def _runner():
@@ -46,15 +47,30 @@ def live_callbacks(attachment_path=None):
         if attachment_path is not None:
             referral_document(attachment_path)
         unity = load_module_from_path('_desktop_legacy_unity', UNITY_SCRIPT)
-        driver = unity.create_driver()
+        driver = unity.create_driver(detach=True)
+        preserve_browser = False
         try:
             unity.login(driver)
             if attachment_path is None:
                 checked_validate(unity, driver, customer, claimant, data)
             else:
                 checked_validate(unity, driver, customer, claimant, data, attachment_path=attachment_path)
+        except UnityFlagError as error:
+            preserve_browser = True
+            error.browser_left_open = True
+            # Detach keeps Edge alive even when the worker/service is collected.
+            try:
+                driver.service.stop()
+            except Exception:
+                error.service_release_failed = True
+            try:
+                driver.command_executor.close()
+            except Exception:
+                error.service_release_failed = True
+            raise
         finally:
-            driver.quit()
+            if not preserve_browser:
+                driver.quit()
     return {'list_attachments': (lambda: [referral_document(attachment_path)]) if attachment_path is not None
             else lambda: sorted(p for p in Path(ATTACHMENT_FOLDER).glob('*') if p.is_file()),
             'run_unity': portal,

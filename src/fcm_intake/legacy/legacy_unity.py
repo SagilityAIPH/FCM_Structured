@@ -17,6 +17,7 @@ import re
 from datetime import datetime
 from edge_auto import build_edge_service, find_msedge_path
 from fcm_intake.config import ATTACHMENT_FOLDER as CONFIG_ATTACHMENT_FOLDER, EDGE_DRIVER_PATH as CONFIG_EDGE_DRIVER_PATH
+from AI.unity_errors import UnityFlagError
  
 # ---------- Config ----------
 EDGE_DRIVER_PATH = CONFIG_EDGE_DRIVER_PATH
@@ -80,7 +81,7 @@ def normalize_state_for_dropdown(state: str) -> str:
 
 
 # ---------- WebDriver lifecycle ----------
-def create_driver():
+def create_driver(*, detach=False):
     opts = EdgeOptions()
 
     opts.add_argument("--ignore-certificate-errors")
@@ -92,6 +93,7 @@ def create_driver():
     opts.add_argument("--disable-dev-shm-usage")
     opts.add_argument("--log-level=3")
     opts.add_experimental_option("excludeSwitches", ["enable-logging"])
+    opts.add_experimental_option("detach", detach)
     opts.add_argument("--disable-features=OnDeviceModel,OptimizationHints,OptimizationGuideModelDownloading")
     opts.binary_location = find_msedge_path()
 
@@ -158,28 +160,40 @@ def LMContinentalTire(allData:dict):
  
 def flag_missing_appointment_time(driver):
     """Submit the legacy missing-time flag and require the modal to close."""
-    wait = WebDriverWait(driver, 15)
-    wait.until(EC.element_to_be_clickable((
-        By.XPATH, "/html/body/my-app/div/div/div/ng-component/div[1]/div/div[1]/span"
-    ))).click()
-    modal = wait.until(EC.visibility_of_element_located((By.TAG_NAME, "flag-for-intervention-modal")))
-    modal_wait = WebDriverWait(modal, 15)
-    modal_wait.until(EC.element_to_be_clickable((
-        By.XPATH,
-        "./modal-template/div/div/div/div[3]/div/form/div/div[1]/radio-group-input/form-control/div/label/div[1]/div/i[1]"
-    ))).click()
-    note = modal_wait.until(EC.element_to_be_clickable((
-        By.XPATH,
-        "./modal-template/div/div/div/div[3]/div/form/div/div[3]/text-area/form-control/div/textarea"
-    )))
-    note.clear()
-    note.send_keys("Missing Provider Appointment Time")
-    if note.get_attribute("value") != "Missing Provider Appointment Time":
-        raise RuntimeError("Unity flag note readback failed")
-    modal_wait.until(EC.element_to_be_clickable((
-        By.XPATH, "./modal-template/div/div/div/div[4]/div/div/div/button"
-    ))).click()
-    wait.until(EC.invisibility_of_element(modal))
+    stage = "opening the flag dialog"
+    try:
+        wait = WebDriverWait(driver, 15)
+        wait.until(EC.element_to_be_clickable((
+            By.XPATH, "/html/body/my-app/div/div/div/ng-component/div[1]/div/div[1]/span"
+        ))).click()
+        stage = "waiting for the visible flag dialog"
+        modal = wait.until(EC.visibility_of_element_located((By.TAG_NAME, "flag-for-intervention-modal")))
+        modal_wait = WebDriverWait(modal, 15)
+        stage = "selecting the missing-information reason"
+        modal_wait.until(EC.element_to_be_clickable((
+            By.XPATH,
+            "./modal-template/div/div/div/div[3]/div/form/div/div[1]/radio-group-input/form-control/div/label/div[1]/div/i[1]"
+        ))).click()
+        stage = "locating the flag note"
+        note = modal_wait.until(EC.element_to_be_clickable((
+            By.XPATH,
+            "./modal-template/div/div/div/div[3]/div/form/div/div[3]/text-area/form-control/div/textarea"
+        )))
+        stage = "clearing the flag note"
+        note.clear()
+        stage = "entering the flag note"
+        note.send_keys("Missing Provider Appointment Time")
+        stage = "verifying the flag note"
+        if note.get_attribute("value") != "Missing Provider Appointment Time":
+            raise RuntimeError("Unity flag note readback failed")
+        stage = "submitting the flag"
+        modal_wait.until(EC.element_to_be_clickable((
+            By.XPATH, "./modal-template/div/div/div/div[4]/div/div/div/button"
+        ))).click()
+        stage = "waiting for the flag dialog to close"
+        wait.until(EC.invisibility_of_element(modal))
+    except Exception as error:
+        raise UnityFlagError(stage) from error
 
 
 def validate_and_complete_task(driver, customer_name: str, claimant_name: str,dataRef: dict, *, attachment_path=None):
@@ -1441,6 +1455,8 @@ def validate_and_complete_task(driver, customer_name: str, claimant_name: str,da
             pass
 
         time.sleep(15)
+    except UnityFlagError:
+        raise
     except Exception as ex:
         exc_type, exc_obj, tb = sys.exc_info()
         print(f"error occurred: {ex} (line {tb.tb_lineno})")

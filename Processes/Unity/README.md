@@ -82,13 +82,23 @@ The owner-approved missing appointment-time flag is restored in the shared
 legacy path only when provider/name details or an appointment date exist and
 time is blank. It keeps the legacy reason selector and exact note
 `Missing Provider Appointment Time`, verifies the textarea value and submits
-once. After the modal closes, the existing Unity process continues; failures
-reach the outer legacy error handler rather than silently continuing. The
-desktop checked adapter reports `run_unity_failed` without approval/completion,
-retaining default attempted-assignment tracking. No new input or broader flag
+once. After the modal closes, the existing Unity process continues. Flag-only
+failures now raise stage-specific `UnityFlagError` through the legacy boundary,
+retaining their original exception chain/type without exposing Selenium messages
+or page/referral content in operator text. The desktop reports `run_unity_failed`
+and, under the owner's explicit recovery policy, leaves detached Edge open for
+manual recovery while releasing its driver service/connection. It does not
+continue provider work, approval or RRS completion; default attempted-assignment
+tracking is unchanged. Normal success and unrelated errors retain browser cleanup;
+other driver callers default to no detach. No new input or broader flag
 policy is added. See [standalone policy](Stand-Alone/README.md#owner-approved-missing-appointment-time-flag).
-Modal closure is not server-side readback; live flag UI and persistence were
-not exercised.
+The root of the reported flag failure remains unconfirmed. Bounded,
+owner-authorized non-submitting inspection resolved all three existing relative
+selectors, observed reason Missing information and verified exact note readback
+with an enabled submit button; it did not submit a flag, Complete Task or
+assignment. A zero-sized Angular host alone does not prove Selenium invisibility
+or a selector defect. No source replay or server persistence was verified.
+FCM-1.1-58 is source-only, with no EXE rebuild/release.
 
 `completed` means injected callables returned normally, not that live records
 were verified. In particular, `legacy_unity.main` catches exceptions and returns

@@ -92,6 +92,10 @@ Baseline checks (last verified 10/15/2026; these are not live RRS/CMS/Unity test
 
 - [ ] **FCM-1.1-48 -- Verify Unity portal outcomes and attachment identity before relying on completion.** Reconfirmed during FCM-1.1-47 smoke review: the desktop recognizes the legacy outer failure marker, but inner upload/Complete Task handlers can swallow failures, and the CLI delegates to legacy `main`, which also catches errors. The controller's one-file preflight does not bind the selected file to the later legacy glob or verify its claim identity; tracking records an attempt even after a raised portal failure by default. The configured portal is UAT. Acceptance: with owner-approved environment and test scope, establish explicit upload/task readback and stable attachment binding using synthetic data, preserve the approval gate and owner-approved tracking policy, and record authorized live verification separately. Do not auto-run live assignments or integrate Unity into Final Code to resolve this item.
 
+## Live verification follow-up
+
+- [~] **FCM-1.1-59 -- Complete the owner-authorized bounded Unity flagging live test.** Follow-up to FCM-1.1-58 using owner-approved synthetic UAT workbook input. Final scope is one actual missing-time flag attempt only, with appointment time cleared in memory; no provider changes, attachment upload, task completion, tracking or RRS Complete Assignment. Blocked before helper invocation: the task matches the selected row's claim number and claimant names, but both the populated task-summary customer and customer-section inputs fail the workbook customer check, including after the operator requested rechecking. No flag was submitted, and no workbook contents or identifiers were recorded in reports. Automated browser cleanup released services without Quit, leaving the windows for manual recovery. Acceptance: owner reconciles the workbook/customer identity, all four checks pass, the actual source helper is invoked once with safe stage/type diagnostics, and submission/closure and any separately authorized server readback are reported without claiming task completion.
+
 ## Next up
 
 Deliberately empty. The owner-approved post-builder triage/export source fix is archived as FCM-1.1-39; its release-preparation runtime-source packaging correction is archived as FCM-1.1-40 with static, rebuilt EXE, packaged self-test and archive evidence. Live end-to-end completion remains unverified. Final Code stops before Unity assignment; ask instead of inferring further integration.
@@ -133,6 +137,23 @@ Both the missing-time flag and provider address Use-modal fix are included.
 Actual publication is recorded in GitHub releases; packaging does not verify
 live flag persistence, server-side address acceptance or task completion.
 
+FCM-1.1-58 adds stage-specific, value-free Unity flag diagnostics and the owner's
+explicit desktop recovery policy: leave Edge open on flagging failure for manual
+recovery, releasing the detached driver service/connection without Quit. Normal
+success and unrelated failures retain cleanup; provider work, approval and RRS
+completion stop on a flag failure while default attempted tracking is unchanged.
+The reported root failure is still unconfirmed: bounded non-submitting inspection
+resolved all three existing modal-relative selectors and verified reason/note
+entry, but neither source replay nor a flag submission/server persistence.
+Synthetic checks only; source-only, no build or release. Published v1.0.4 remains
+unchanged. FCM-1.1-48 remains open and Unity remains standalone.
+
+FCM-1.1-60 supplements FCM-1.1-58's dated source-only evidence with a rebuilt
+Unity v1.0.5 EXE, recovery-module packaging checks and offline self-test.
+Actual publication is recorded in GitHub releases. FCM-1.1-59 remains blocked
+before flag submission by the live-test customer mismatch; neither packaging
+nor release establishes the root flagging failure or server persistence.
+
 ## Completed
 
-Finished items `FCM-1.1-01` through `FCM-1.1-18`, plus `FCM-1.1-27`, `FCM-1.1-28`, `FCM-1.1-30` through `FCM-1.1-40`, `FCM-1.1-43`, `FCM-1.1-47`, and `FCM-1.1-49` through `FCM-1.1-57`, are archived in `docs/completed.md`. FCM-1.1-50 and FCM-1.1-52 record the earlier Unity v1.0.1/v1.0.2 build/release preparation. FCM-1.1-53 retains its dated source-only Outlook attachment evidence; FCM-1.1-54 adds the rebuilt v1.0.3 artifact and packaged synthetic checks. FCM-1.1-57 records v1.0.4 packaging of flagging and provider address acceptance fixes. These checks do not establish live or native-window end-to-end behavior. Move future finished items out of their active section and append there in ID history with both date markers and test/build evidence; do not renumber.
+Finished items `FCM-1.1-01` through `FCM-1.1-18`, plus `FCM-1.1-27`, `FCM-1.1-28`, `FCM-1.1-30` through `FCM-1.1-40`, `FCM-1.1-43`, `FCM-1.1-47`, `FCM-1.1-49` through `FCM-1.1-58`, and `FCM-1.1-60`, are archived in `docs/completed.md`. FCM-1.1-59 remains active and blocked. FCM-1.1-50 and FCM-1.1-52 record the earlier Unity v1.0.1/v1.0.2 build/release preparation. FCM-1.1-53 retains its dated source-only Outlook attachment evidence; FCM-1.1-54 adds the rebuilt v1.0.3 artifact and packaged synthetic checks. FCM-1.1-57 records v1.0.4 packaging of flagging and provider address acceptance fixes; FCM-1.1-58 retains its source-only diagnostics/manual browser recovery evidence, supplemented by v1.0.5 packaging in FCM-1.1-60. These checks do not establish live or native-window end-to-end behavior. Move future finished items out of their active section and append there in ID history with both date markers and test/build evidence; do not renumber.

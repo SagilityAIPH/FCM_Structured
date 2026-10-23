@@ -151,21 +151,45 @@ DOM automation.
 When provider facility/name details or an appointment date exist and
 `nextApptTime` is blank, the shared legacy portal path submits the restored
 legacy flag. No provider/name/date means no flag; supplied time means no flag.
-It retains the original first-reason selector (its visible business label is
-not live-verified) and the exact note **Missing Provider Appointment Time**.
+It retains the original first-reason selector (observed as **Missing information**
+in the bounded inspection described below) and the exact note
+**Missing Provider Appointment Time**.
 The helper waits for actionable controls, scopes reason/note/submit to the
 visible flag modal, clears the note and verifies its exact textarea value,
 clicks Submit once, then waits for that modal to hide or disappear.
 
 Only after that UI confirmation does the existing Unity process continue;
-flagging is not an early stop. A write/readback, click or timeout failure
-reaches the legacy outer error marker, which the desktop checked adapter turns
-into `run_unity_failed` before approval or RRS completion. Default attempted-
-assignment tracking on failure is unchanged. The CLI shares the same helper,
-but retains its existing legacy error-reporting limitations.
+flagging is not an early stop. Opening, visible-dialog wait, reason selection,
+note lookup/clear/type/readback, submission and closure failures raise a typed
+`UnityFlagError` with the failed stage and original exception chain/type retained
+in memory. Operator text excludes Selenium messages and page/referral content.
+The legacy validation boundary re-raises only this flag error; unrelated errors
+retain the existing marker behavior. The desktop reports `run_unity_failed`,
+stops provider work and never proceeds to approval or RRS completion.
+
+**Owner-selected recovery policy (FCM-1.1-58): leave the browser open on flagging
+failure for manual recovery.** Desktop Edge uses `detach=True`; on this typed
+failure it stops the driver service and releases the HTTP connection without
+issuing browser Quit. No retained-driver collection is needed. The failure
+message explicitly says the browser was left open, asks the operator to inspect
+flag status before acting (do not blindly retry an uncertain submission), and
+to close the browser manually afterward. Service-release errors do not replace
+the flag failure and are reported without their underlying details. Normal
+success and unrelated failures still Quit. Other `create_driver()` callers
+default to `detach=False`; the CLI keeps its existing cleanup and reporting.
+Default attempted-assignment tracking on failure is unchanged.
+
 Textarea readback and modal closure are **not server-side flag/task readback**.
-No live portal execution was authorized or performed for this source change;
-current modal structure, reason meaning and server persistence remain unverified.
+The original failure root remains **unconfirmed**. Before this source change,
+owner-authorized, non-submitting inspection found the modal visible and all
+three existing relative reason/note/submit XPaths resolving. The Angular host
+had a zero-sized rectangle, which does not establish Selenium invisibility or
+prove a selector defect. A bounded UI probe selected Missing information and
+entered the exact note, confirmed exact readback and an enabled Flag Referral
+button before/after blur, then closed the modal. No actual flag, Complete Task
+or assignment was submitted. No source replay or server persistence was
+verified. FCM-1.1-58 is source-only with synthetic regression/self-test evidence;
+no frontend, EXE build or release was made. Published v1.0.4 is unchanged.
 
 ## Outcomes, prompts and live limitations
 

@@ -15,6 +15,7 @@ from unittest.mock import Mock, patch
 from types import SimpleNamespace
 
 from openpyxl import load_workbook
+from AI.unity_errors import UnityFlagError
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
@@ -92,6 +93,7 @@ class StartupTests(unittest.TestCase):
                     if isinstance(node, ast.ImportFrom) and node.module
                     and node.module.startswith('AI.')}
         required.add('AI.referral_attachments')
+        required.add('AI.unity_errors')
         spec_tree = ast.parse((HERE / 'unity_assignment.spec').read_text(encoding='utf-8'))
         hiddenimports = next(ast.literal_eval(node.value) for node in spec_tree.body
                              if isinstance(node, ast.Assign)
@@ -99,6 +101,27 @@ class StartupTests(unittest.TestCase):
                                      for target in node.targets))
         self.assertFalse(required - set(hiddenimports),
                          f'Raw field adapter imports missing from hiddenimports: {required - set(hiddenimports)}')
+
+    def test_actual_edge_driver_detach_is_opt_in(self):
+        from selenium.webdriver.edge.options import Options
+
+        factory = legacy_function('create_driver')
+        for keywords, detached in (({}, False), ({'detach': True}, True), ({'detach': False}, False)):
+            with self.subTest(keywords=keywords):
+                webdriver = Mock()
+                service = Mock()
+                env = {'EdgeOptions': Options, 'webdriver': webdriver,
+                       'find_msedge_path': lambda: 'synthetic-edge.exe',
+                       'build_edge_service': Mock(return_value=service),
+                       'EDGE_DRIVER_PATH': 'synthetic-driver.exe'}
+                exec(compile(ast.Module(body=[factory], type_ignores=[]), '<actual driver>', 'exec'), env)
+                driver = env['create_driver'](**keywords)
+                options = webdriver.Edge.call_args.kwargs['options']
+                self.assertIs(options.experimental_options['detach'], detached)
+                self.assertEqual(options.experimental_options['excludeSwitches'], ['enable-logging'])
+                webdriver.Edge.assert_called_once_with(service=service, options=options)
+                driver.set_page_load_timeout.assert_called_once_with(60)
+                driver.set_script_timeout.assert_called_once_with(60)
 
 
 class ModelTests(unittest.TestCase):
@@ -204,6 +227,7 @@ class LegacyFlagTests(unittest.TestCase):
 
         self.events = []
         self.failure = None
+        self.original_error = None
         self.open = False
         owner = self
 
@@ -215,7 +239,10 @@ class LegacyFlagTests(unittest.TestCase):
 
             def find_element(self, by, selector):
                 owner.events.append(('find', self.name, by, selector))
-                return self.children[(by, selector)]
+                child = self.children[(by, selector)]
+                if owner.failure == child.name + '-locate':
+                    owner.fail()
+                return child
 
             def is_displayed(self):
                 if self.name == 'modal':
@@ -229,7 +256,7 @@ class LegacyFlagTests(unittest.TestCase):
             def click(self):
                 owner.events.append(('click', self.name))
                 if owner.failure == self.name:
-                    raise RuntimeError('synthetic click failure')
+                    owner.fail()
                 if self.name == 'flag':
                     owner.open = True
                 elif self.name == 'submit' and owner.failure != 'still-open':
@@ -237,14 +264,20 @@ class LegacyFlagTests(unittest.TestCase):
 
             def clear(self):
                 owner.events.append(('clear', self.name))
+                if owner.failure == 'note-clear':
+                    owner.fail()
                 self.value = ''
 
             def send_keys(self, value):
                 owner.events.append(('type', self.name, value))
+                if owner.failure == 'note-type':
+                    owner.fail()
                 self.value += value
 
             def get_attribute(self, name):
                 owner.events.append(('read', self.name, name))
+                if owner.failure == 'note-read':
+                    owner.fail()
                 return 'mismatched' if owner.failure == 'note' else self.value
 
         class Wait:
@@ -256,7 +289,7 @@ class LegacyFlagTests(unittest.TestCase):
                     value = condition(self.target)
                     if value:
                         return value
-                raise TimeoutError('synthetic modal timeout')
+                owner.fail(TimeoutError)
 
         self.driver, self.modal = Element('driver'), Element('modal')
         self.driver.children = {
@@ -268,7 +301,8 @@ class LegacyFlagTests(unittest.TestCase):
             (By.XPATH, './modal-template/div/div/div/div[3]/div/form/div/div[3]/text-area/form-control/div/textarea'): Element('note'),
             (By.XPATH, './modal-template/div/div/div/div[4]/div/div/div/button'): Element('submit'),
         }
-        self.env = {'WebDriverWait': Wait, 'By': By, 'EC': EC, 'sys': sys}
+        self.env = {'WebDriverWait': Wait, 'By': By, 'EC': EC, 'sys': sys,
+                    'UnityFlagError': UnityFlagError}
         helper = legacy_function('flag_missing_appointment_time')
         exec(compile(ast.Module(body=[helper], type_ignores=[]), '<actual flag helper>', 'exec'), self.env)
         validation = legacy_function('validate_and_complete_task')
@@ -292,6 +326,10 @@ class LegacyFlagTests(unittest.TestCase):
             body=[branch], type_ignores=[])), '<actual flag guard>', 'exec')
         exec(compile(ast.fix_missing_locations(ast.Module(body=[validation], type_ignores=[])),
                      '<actual flag error boundary>', 'exec'), self.env)
+
+    def fail(self, error_type=RuntimeError):
+        self.original_error = error_type('SYNTHETIC-PRIVATE page content and Selenium message')
+        raise self.original_error
 
     def prepare(self, **fields):
         data = model.to_controller(synthetic() | fields)
@@ -327,17 +365,34 @@ class LegacyFlagTests(unittest.TestCase):
                     self.env['following_provider_work'].assert_not_called()
 
     def test_flag_failures_stop_following_work_and_fail_checked_controller(self):
-        for failure in ('flag', 'modal-timeout', 'reason', 'note', 'submit', 'still-open'):
+        stages = {
+            'flag-locate': 'opening the flag dialog', 'flag': 'opening the flag dialog',
+            'modal-timeout': 'waiting for the visible flag dialog',
+            'reason-locate': 'selecting the missing-information reason',
+            'reason': 'selecting the missing-information reason',
+            'note-locate': 'locating the flag note', 'note-clear': 'clearing the flag note',
+            'note-type': 'entering the flag note', 'note-read': 'verifying the flag note',
+            'note': 'verifying the flag note', 'submit-locate': 'submitting the flag',
+            'submit': 'submitting the flag', 'still-open': 'waiting for the flag dialog to close',
+        }
+        for failure, stage in stages.items():
             with self.subTest(failure=failure):
                 self.setUp()
                 data = self.prepare(providerName='Synthetic Facility')
                 self.failure = failure
-                with self.assertRaises((RuntimeError, TimeoutError)):
+                with self.assertRaises(UnityFlagError) as caught:
                     exec(self.guard_code, self.env)
+                self.assertEqual(caught.exception.stage, stage)
+                self.assertIn(stage, str(caught.exception))
+                self.assertNotIn('SYNTHETIC-PRIVATE', str(caught.exception))
+                if failure == 'note':
+                    self.assertIsInstance(caught.exception.__cause__, RuntimeError)
+                else:
+                    self.assertIs(caught.exception.__cause__, self.original_error)
                 self.env['following_provider_work'].assert_not_called()
                 clicks = self.events.count(('click', 'submit'))
                 self.assertEqual(clicks, int(failure in ('submit', 'still-open')))
-                if failure != 'flag':
+                if failure not in ('flag', 'flag-locate'):
                     self.assertTrue(self.open)
                 unity = SimpleNamespace(validate_and_complete_task=self.env['validate_and_complete_task'])
                 complete, confirm, record = Mock(), Mock(return_value=True), Mock()
@@ -348,13 +403,56 @@ class LegacyFlagTests(unittest.TestCase):
                         backend.checked_validate(unity, self.driver, customer, claimant, payload),
                     record_assignment=record, complete_assignment=complete, confirm=confirm, notify=Mock())
                 self.assertEqual((result['status'], result['reason']), ('failed', 'run_unity_failed'))
-                self.assertIn('Legacy Unity reported failure:', result['error']['message'])
+                self.assertEqual(result['error']['type'], 'UnityFlagError')
+                self.assertIn(stage, result['error']['message'])
+                self.assertNotIn('SYNTHETIC-PRIVATE', result['error']['message'])
                 record.assert_called_once()
                 confirm.assert_not_called()
                 complete.assert_not_called()
                 self.env['later_completion'].assert_not_called()
                 self.env['following_provider_work'].assert_not_called()
                 self.assertEqual(self.events.count(('click', 'submit')), clicks)
+
+    def test_actual_outer_boundary_still_marks_unrelated_errors(self):
+        self.prepare(providerName='Synthetic Facility')
+        self.env['flag_missing_appointment_time'] = Mock(side_effect=ValueError('synthetic unrelated'))
+        unity = SimpleNamespace(validate_and_complete_task=self.env['validate_and_complete_task'])
+        with self.assertRaisesRegex(RuntimeError, 'Legacy Unity reported failure:.*synthetic unrelated'):
+            backend.checked_validate(unity, self.driver, 'Synthetic', 'Example', self.env['dataRef'])
+        self.env['following_provider_work'].assert_not_called()
+        self.env['later_completion'].assert_not_called()
+
+    def test_actual_flag_failure_through_desktop_preserves_browser_and_stops_flow(self):
+        data = self.prepare(providerName='Synthetic Facility')
+        self.failure = 'still-open'
+        self.driver.service = Mock()
+        self.driver.command_executor = Mock()
+        self.driver.quit = Mock()
+        unity = SimpleNamespace(create_driver=Mock(return_value=self.driver), login=Mock(),
+                                validate_and_complete_task=self.env['validate_and_complete_task'])
+        config = SimpleNamespace(ATTACHMENT_FOLDER='synthetic', UNITY_SCRIPT='synthetic.py')
+        with patch.dict(sys.modules, {
+                'fcm_intake.config': config,
+                'fcm_intake.legacy_loader': SimpleNamespace(load_module_from_path=lambda *args: unity)}):
+            calls = backend.live_callbacks()
+        record, confirm, complete = Mock(), Mock(return_value=True), Mock()
+        result = backend._runner().load_core().run_flow(
+            data, list_attachments=lambda: [Path('synthetic.pdf')], run_unity=calls['run_unity'],
+            record_assignment=record, confirm=confirm, complete_assignment=complete, notify=Mock())
+        self.assertEqual((result['status'], result['reason']), ('failed', 'run_unity_failed'))
+        self.assertEqual(result['error']['type'], 'UnityFlagError')
+        self.assertIn('waiting for the flag dialog to close', result['error']['message'])
+        self.assertIn('Browser left open for manual recovery', result['error']['message'])
+        self.assertNotIn('SYNTHETIC-PRIVATE', result['error']['message'])
+        self.assertEqual(self.events.count(('click', 'submit')), 1)
+        self.driver.service.stop.assert_called_once()
+        self.driver.command_executor.close.assert_called_once()
+        self.driver.quit.assert_not_called()
+        self.env['following_provider_work'].assert_not_called()
+        self.env['later_completion'].assert_not_called()
+        record.assert_called_once()
+        confirm.assert_not_called()
+        complete.assert_not_called()
 
 
 class LegacyProviderAddressTests(unittest.TestCase):
@@ -783,7 +881,24 @@ class BridgeTests(unittest.TestCase):
         unity.validate_and_complete_task = lambda *args: print('Synthetic successful operation')
         backend.checked_validate(unity, Mock(), 'Synthetic Customer', 'Invented Example', {})
 
-    def test_live_portal_is_lazy_and_always_closes_driver(self):
+    def test_checked_flag_failure_keeps_exception_identity_and_original_type(self):
+        from selenium.common.exceptions import TimeoutException
+
+        original = TimeoutException('SYNTHETIC-PRIVATE page details')
+        error = UnityFlagError('waiting for the visible flag dialog')
+
+        def fail(*args):
+            raise error from original
+
+        unity = SimpleNamespace(validate_and_complete_task=fail)
+        with self.assertRaises(UnityFlagError) as caught:
+            backend.checked_validate(unity, Mock(), 'Synthetic', 'Example', {})
+        self.assertIs(caught.exception, error)
+        self.assertIs(caught.exception.__cause__, original)
+        self.assertIs(type(caught.exception.__cause__), TimeoutException)
+        self.assertNotIn('SYNTHETIC-PRIVATE', str(caught.exception))
+
+    def test_live_portal_is_lazy_and_closes_driver_on_unrelated_failure(self):
         unity = Mock()
         loader = Mock(return_value=unity)
         config = SimpleNamespace(ATTACHMENT_FOLDER=str(HERE / 'nonexistent-synthetic-folder'), UNITY_SCRIPT='synthetic-script.py')
@@ -798,6 +913,61 @@ class BridgeTests(unittest.TestCase):
             unity.validate_and_complete_task.assert_called_once_with(
                 unity.create_driver.return_value, 'Synthetic Customer', 'Invented Example', synthetic())
             unity.create_driver.return_value.quit.assert_called_once()
+            unity.create_driver.assert_called_once_with(detach=True)
+
+    def test_live_flag_failure_releases_service_but_preserves_browser_and_chain(self):
+        for release_failure in (None, 'service', 'connection'):
+            with self.subTest(release_failure=release_failure):
+                unity = Mock()
+                driver = unity.create_driver.return_value
+                original = ValueError('SYNTHETIC-PRIVATE Selenium details')
+                flag_error = UnityFlagError('submitting the flag')
+
+                def fail(*args):
+                    raise flag_error from original
+
+                unity.validate_and_complete_task.side_effect = fail
+                if release_failure == 'service':
+                    driver.service.stop.side_effect = RuntimeError('SYNTHETIC-PRIVATE service')
+                if release_failure == 'connection':
+                    driver.command_executor.close.side_effect = RuntimeError('SYNTHETIC-PRIVATE connection')
+                config = SimpleNamespace(ATTACHMENT_FOLDER='synthetic', UNITY_SCRIPT='synthetic.py')
+                with patch.dict(sys.modules, {
+                        'fcm_intake.config': config,
+                        'fcm_intake.legacy_loader': SimpleNamespace(load_module_from_path=lambda *args: unity)}):
+                    calls = backend.live_callbacks()
+                    with self.assertRaises(UnityFlagError) as caught:
+                        calls['run_unity']('Synthetic', 'Example', synthetic())
+                self.assertIs(caught.exception, flag_error)
+                self.assertIs(caught.exception.__cause__, original)
+                self.assertIn('Browser left open for manual recovery', str(caught.exception))
+                self.assertIn('do not blindly retry submission', str(caught.exception))
+                self.assertNotIn('SYNTHETIC-PRIVATE', str(caught.exception))
+                self.assertIs(caught.exception.service_release_failed, release_failure is not None)
+                unity.create_driver.assert_called_once_with(detach=True)
+                unity.validate_and_complete_task.assert_called_once()
+                driver.service.stop.assert_called_once()
+                driver.command_executor.close.assert_called_once()
+                driver.quit.assert_not_called()
+
+    def test_live_success_and_nonflag_failures_still_quit(self):
+        for failure in (None, ValueError('synthetic unrelated'), SystemExit(7)):
+            with self.subTest(failure=failure):
+                unity = Mock()
+                unity.validate_and_complete_task.side_effect = failure
+                config = SimpleNamespace(ATTACHMENT_FOLDER='synthetic', UNITY_SCRIPT='synthetic.py')
+                with patch.dict(sys.modules, {
+                        'fcm_intake.config': config,
+                        'fcm_intake.legacy_loader': SimpleNamespace(load_module_from_path=lambda *args: unity)}):
+                    calls = backend.live_callbacks()
+                    if failure is None:
+                        calls['run_unity']('Synthetic', 'Example', synthetic())
+                    else:
+                        with self.assertRaises(type(failure)):
+                            calls['run_unity']('Synthetic', 'Example', synthetic())
+                driver = unity.create_driver.return_value
+                driver.quit.assert_called_once()
+                driver.service.stop.assert_not_called()
 
     def test_excel_bridge_and_busy_guard(self):
         with tempfile.TemporaryDirectory(dir=HERE) as directory:
