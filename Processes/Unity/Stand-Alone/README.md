@@ -93,6 +93,32 @@ browser is closed on success and failure. The operator must still verify the
 intended RRS record; field/prompt checks do not verify server persistence or
 add automatic approval.
 
+### Manual Unity lookup sign-in (FCM-1.1-88, source only)
+
+All and Assign retain the separate iCaseManager approval gate and initial RRS
+steps above. When their new lookup browser opens Unity UAT, automation now waits
+indefinitely for manual sign-in. Sign in in that browser and answer **Yes** in
+the desktop's existing prompt, or at the existing live CLI `[y/n]` prompt, only
+when ready. Already-authenticated sessions still require this explicit answer.
+Direct legacy callers use a native attended Tk Yes/No dialog by default, not
+the legacy print-only notification fallback. No login credentials are requested,
+stored or entered automatically.
+
+While the prompt is pending, automation does not interact with the authentication
+chooser, navigate/reload or search. After Yes, the existing claim input must be
+visible, enabled and not readonly. The existing search URL is loaded only if
+needed after confirmation, followed by a bounded 15-second readiness wait.
+No, prompt errors and failed readiness stop before searching, entering Case Id
+or final RRS confirmations. Failures keep value-free RRS stage text and their
+original causes; the lookup browser quits on every exit as before.
+
+There is no login timeout, fixed sign-in sleep, retry or unattended consent.
+Unity-only, injected callbacks and offline scenarios gain no real login prompt.
+The first assignment browser, modes, tracking and business selectors/results
+remain unchanged. Synthetic tests validate source behavior only: no live Unity,
+RRS, CMS, database or Bedrock workflow was exercised, and no EXE was rebuilt
+or released for this change.
+
 The Unity spec includes the shared AI module and package-scoped CMS runtime
 dependency; frozen smoke checks cover resource/import prerequisites. Focused
 synthetic controller/delegate tests cover order, the approval gate, current-claim

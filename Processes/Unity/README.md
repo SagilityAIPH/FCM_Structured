@@ -82,6 +82,29 @@ customer mismatch; its identity gate is session-only, not a shipped safeguard.
 Live upload, task completion, tracking and RRS completion remain unverified.
 Unity remains standalone, outside Final Code.
 
+### Manual lookup sign-in (FCM-1.1-88, source only)
+
+After iCaseManager approval and the existing initial RRS steps, the new lookup
+browser opens Unity UAT and pauses indefinitely for manual sign-in. The desktop
+uses its existing Yes/No prompt; live CLI uses its existing input confirmation.
+Direct legacy callers default to an attended native Tk Yes/No dialog, never a
+print-only notification. Sign in in that browser, then explicitly select Yes.
+The prompt is required even if already signed in. No credentials are collected
+or automated, and no authentication chooser, search, reload or navigation runs
+while the answer is pending.
+
+Only after Yes does the lookup check the existing claim input for visibility,
+enabled state and absence of readonly. If necessary it navigates to the existing
+case-search URL, then waits up to 15 seconds for that actionable input before
+searching. No, a prompt error or readiness failure prevents search, Case Id entry
+and final RRS confirmations; errors retain the original cause behind value-free
+RRS stage text. The lookup browser still quits on success, cancellation or failure.
+This adds no timeout-based consent, automatic login detection, retries or fixed
+login delay. Unity-only and injected/offline flows gain no real sign-in prompt;
+the first assignment browser, tracking policy, modes and business results are
+unchanged. Synthetic source tests do not establish live portal/RRS/CMS/Bedrock
+or database behavior. No EXE was rebuilt or published for this change.
+
 ## External tracking connection (FCM-1.1-85)
 
 Live All / Unity runs now require the existing `FCM_RRS_DB_CONNECTION`.

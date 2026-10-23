@@ -36,7 +36,7 @@ def response(function):
     return call
 
 
-def live_callbacks(attachment_path=None):
+def live_callbacks(attachment_path=None, *, confirm_unity_login=None):
     """Lazy defaults: bypass legacy.main, which swallows automation failures."""
     runner = _runner()
     sys.path.insert(0, str(runner.ROOT))
@@ -75,7 +75,9 @@ def live_callbacks(attachment_path=None):
             else lambda: sorted(p for p in Path(ATTACHMENT_FOLDER).glob('*') if p.is_file()),
             'run_unity': portal,
             'record_assignment': lambda name, claim: runner._record_live(runner.ROOT, name, claim),
-            'complete_assignment': lambda claim: runner._complete_live(runner.ROOT, claim)}
+            'complete_assignment': (lambda claim: runner._complete_live(runner.ROOT, claim))
+            if confirm_unity_login is None else
+            (lambda claim: runner._complete_live(runner.ROOT, claim, confirm_unity_login=confirm_unity_login))}
 
 
 def checked_validate(unity, driver, customer, claimant, data, *, attachment_path=None):
@@ -271,7 +273,7 @@ class UnityAPI:
                 com = pythoncom
                 com.CoInitialize()
             calls = (self._factory() if self._factory else
-                     live_callbacks(attachment_path) if attachment_path is not None else live_callbacks())
+                     live_callbacks(attachment_path, confirm_unity_login=self.confirm))
             if attachment_path is not None:
                 calls = {**calls, 'list_attachments': lambda: [referral_document(attachment_path)]}
             result = _runner().load_core().run_flow(data, stage=stage, notify=self.notify,

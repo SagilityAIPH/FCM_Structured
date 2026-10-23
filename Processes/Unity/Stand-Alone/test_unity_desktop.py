@@ -484,6 +484,178 @@ class RRSCompletionTests(unittest.TestCase):
                         search.assert_called_once_with('SYNTHETIC-CURRENT', driver)
                     driver.quit.assert_called_once()
 
+    def actual_lookup(self, *, ready=True):
+        """Keep the real login and cleanup, replacing only external boundaries."""
+        function = legacy_function('CheckCaseUnity', 'CMS.py')
+        function.body = [node for node in function.body
+                         if not isinstance(node, ast.FunctionDef)
+                         or node.name == 'loginUnity']
+        driver = Mock()
+        driver.current_window_handle = 'synthetic-unity'
+        driver.get.side_effect = lambda url: self.events.append('open Unity')
+        field = Mock()
+        field.is_displayed.return_value = ready
+        field.is_enabled.return_value = True
+        field.get_attribute.return_value = None
+        driver.find_elements.return_value = [field]
+        driver.find_elements.side_effect = lambda *args: self.events.append('check ready') or [field]
+        search = Mock(side_effect=lambda *args: self.events.append('search') or 'SYNTHETIC-CASE')
+        def until(predicate, message):
+            self.events.append('wait ready')
+            if not predicate(driver):
+                raise self.original_error
+        wait = Mock(return_value=SimpleNamespace(until=until))
+        env = {'create_driver': lambda: self.events.append('create browser') or driver,
+               'NavigateSearch': search, 'sys': sys, 'By': SimpleNamespace(ID='id'),
+               'WebDriverWait': wait}
+        exec(compile(ast.Module(body=[function], type_ignores=[]), '<actual lookup login>', 'exec'), env)
+        self.lookup.side_effect = env['CheckCaseUnity']
+        return driver, field, search, wait
+
+    def test_desktop_manual_login_blocks_browser_and_rrs_until_explicit_yes(self):
+        driver, field, search, wait = self.actual_lookup()
+        api = backend.UnityAPI()
+        api._started = time.monotonic()
+        original_confirm = api.confirm
+        pending = threading.Event()
+        def confirm(title, message):
+            if title == 'Unity manual sign-in':
+                pending.set()
+                return original_confirm(title, message)
+            self.events.append('approval')
+            return True
+        api.confirm = confirm
+        api.notify = Mock()
+        with patch.dict(sys.modules, {'pythoncom': Mock()}):
+            worker = threading.Thread(target=api._run, args=(synthetic(), 'assign', True, None))
+            worker.start()
+            try:
+                self.assertTrue(pending.wait(2))
+                # The bridge has no timeout; allow it to publish the existing prompt.
+                deadline = time.monotonic() + 2
+                while api.get_state()['prompt'] is None and time.monotonic() < deadline:
+                    time.sleep(.001)
+                prompt = api.get_state()['prompt']
+                self.assertEqual(prompt['kind'], 'confirm')
+                self.assertEqual(prompt['title'], 'Unity manual sign-in')
+                self.assertTrue(worker.is_alive())
+                self.assertEqual(self.events[-2:], ['create browser', 'open Unity'])
+                driver.get.assert_called_once()
+                driver.switch_to.window.assert_not_called()
+                driver.find_elements.assert_not_called()
+                wait.assert_not_called()
+                search.assert_not_called()
+                self.case.Edit.set_edit_text.assert_not_called()
+                self.assertTrue(api.answer_prompt(prompt['id'], True)['ok'])
+            finally:
+                prompt = api.get_state()['prompt']
+                if prompt:
+                    api.answer_prompt(prompt['id'], False)
+                worker.join(2)
+            self.assertFalse(worker.is_alive())
+        self.assertEqual(api.get_state()['result']['status'], 'completed')
+        self.assertLess(self.events.index('wait ready'), self.events.index('search'))
+        self.assertLess(self.events.index('search'), self.events.index(('Case Id', 'SYNTHETIC-CASE')))
+        # Already-authenticated sessions still needed the same manual confirmation.
+        driver.get.assert_called_once()
+        driver.quit.assert_called_once()
+
+    def test_cli_manual_login_wiring_reaches_actual_lookup_after_approval(self):
+        driver, field, search, wait = self.actual_lookup(ready=False)
+        def answer(prompt):
+            if prompt.startswith('Unity manual sign-in:'):
+                self.events.append('login confirmation')
+                field.is_displayed.return_value = True
+            return 'yes'
+        with patch('builtins.input', side_effect=answer) as confirm, \
+                patch.object(self.legacy, 'main', Mock(), create=True), \
+                backend.redirect_stdout(backend.StringIO()):
+            code = self.runner.main(['--live', '--stage', 'assign',
+                                     '--claim-number', 'SYNTHETIC-001'])
+        self.assertEqual(code, 0)
+        self.assertEqual(confirm.call_count, 2)
+        self.assertLess(self.events.index('open Unity'), self.events.index('login confirmation'))
+        self.assertLess(self.events.index('login confirmation'), self.events.index('search'))
+        driver.quit.assert_called_once()
+
+    def test_login_decline_prompt_error_and_unready_page_stop_all_continuation(self):
+        for failure in ('decline', 'nonboolean', 'prompt error', 'logged out',
+                        'disabled', 'readonly'):
+            with self.subTest(failure=failure):
+                self.doCleanups()
+                self.setUp()
+                driver, field, search, wait = self.actual_lookup(ready=failure != 'logged out')
+                if failure == 'disabled':
+                    field.is_enabled.return_value = False
+                if failure == 'readonly':
+                    field.get_attribute.return_value = 'true'
+                confirm = Mock(return_value=False if failure == 'decline' else
+                               'yes' if failure == 'nonboolean' else True)
+                if failure == 'prompt error':
+                    confirm.side_effect = self.original_error
+                with self.assertRaises(RRSCompletionError) as raised:
+                    self.runner._complete_live(model.ROOT, 'SYNTHETIC-001',
+                                               confirm_unity_login=confirm)
+                self.assertEqual(raised.exception.stage, 'Unity case lookup')
+                self.assertNotIn('SYNTHETIC', str(raised.exception))
+                if failure in ('prompt error', 'logged out', 'disabled', 'readonly'):
+                    self.assertIs(raised.exception.__cause__, self.original_error)
+                if failure in ('decline', 'nonboolean', 'prompt error'):
+                    driver.get.assert_called_once()
+                    driver.find_elements.assert_not_called()
+                    wait.assert_not_called()
+                else:
+                    self.assertEqual(driver.get.call_count, 2)
+                    wait.assert_called_once_with(driver, 15)
+                search.assert_not_called()
+                self.case.Edit.set_edit_text.assert_not_called()
+                self.case.OK.click_input.assert_not_called()
+                self.yes_second.click_input.assert_not_called()
+                self.final_ok.click_input.assert_not_called()
+                driver.quit.assert_called_once()
+
+    def test_post_confirmation_navigation_can_reach_search_before_bounded_readiness(self):
+        driver, field, search, wait = self.actual_lookup(ready=False)
+        def navigate(url):
+            self.events.append('open Unity')
+            if driver.get.call_count == 2:
+                field.is_displayed.return_value = True
+        driver.get.side_effect = navigate
+        confirm = Mock(side_effect=lambda *args: self.events.append('login confirmation') or True)
+        self.runner._complete_live(model.ROOT, 'SYNTHETIC-001', confirm_unity_login=confirm)
+        self.assertEqual(driver.get.call_count, 2)
+        self.assertEqual(self.events.count('search'), 1)
+        self.assertLess(self.events.index('login confirmation'), self.events.index('check ready'))
+        wait.assert_called_once_with(driver, 15)
+        driver.quit.assert_called_once()
+
+    def test_direct_legacy_default_is_attended_without_notify_fallback(self):
+        for approved in (False, True, self.original_error):
+            with self.subTest(approved=approved):
+                self.doCleanups()
+                self.setUp()
+                driver, field, search, wait = self.actual_lookup()
+                root = Mock()
+                messagebox = SimpleNamespace(askyesno=Mock(return_value=approved))
+                if isinstance(approved, Exception):
+                    messagebox.askyesno.side_effect = self.original_error
+                tk = SimpleNamespace(Tk=Mock(return_value=root), messagebox=messagebox)
+                with patch.dict(sys.modules, {'tkinter': tk, 'tkinter.messagebox': messagebox}):
+                    if approved is True:
+                        self.legacy.CompleteAssignment('SYNTHETIC-001')
+                        search.assert_called_once()
+                    else:
+                        with self.assertRaises(RRSCompletionError) as raised:
+                            self.legacy.CompleteAssignment('SYNTHETIC-001')
+                        if isinstance(approved, Exception):
+                            self.assertIs(raised.exception.__cause__, self.original_error)
+                        search.assert_not_called()
+                        self.case.Edit.set_edit_text.assert_not_called()
+                messagebox.askyesno.assert_called_once()
+                self.assertIs(messagebox.askyesno.call_args.kwargs['parent'], root)
+                root.destroy.assert_called_once()
+                driver.quit.assert_called_once()
+
 
 class ModelTests(unittest.TestCase):
     def test_contract_and_ast(self):

@@ -1966,51 +1966,27 @@ def claim_exists(ClaimantName, ClaimID):
     finally:
         wb.close()
 
-def CheckCaseUnity(claim_number):
+def CheckCaseUnity(claim_number, *, confirm_unity_login=None):
     UNITY_URL = "https://uat-cm-portal-eus-wa.azurewebsites.net/Ng/search/caseSearch"
     def loginUnity(driver):
         driver.maximize_window()
         driver.get(UNITY_URL)
-        WebDriverWait(driver, 15).until(EC.title_contains("Unity"))
-    
         unity_handle = driver.current_window_handle
-    
-        # Find the account chooser window (sometimes same handle)
-        WebDriverWait(driver, 15).until(lambda d: len(d.window_handles) >= 1)
-        target_handle = None
-        for h in driver.window_handles:
-            driver.switch_to.window(h)
-            try:
-                WebDriverWait(driver, 5).until(EC.title_contains("Choose your account"))
-                target_handle = h
-                break
-            except Exception:
-                continue
-    
-        if not target_handle:
-            # Sometimes the AAD picker is embedded; try clicking by id directly
-            try:
-                driver.switch_to.window(unity_handle)
-                WebDriverWait(driver, 5).until(EC.presence_of_element_located((By.ID, "AzureADCommonExchange")))
-                btn = driver.find_element(By.ID, "AzureADCommonExchange")
-                driver.execute_script("arguments[0].click();", btn)
-            except Exception:
-                raise RuntimeError('No window with title containing "Choose your account" found.')
-    
-        else:
-            # In chooser window
-            WebDriverWait(driver, 10).until(lambda d: d.execute_script("return document.readyState") == "complete")
-            btn = WebDriverWait(driver, 15).until(EC.element_to_be_clickable((By.ID, "AzureADCommonExchange")))
-            try:
-                driver.execute_script("arguments[0].scrollIntoView({block:'center'});", btn)
-                btn.click()
-            except Exception:
-                driver.execute_script("arguments[0].click();", btn)
-    
-        # Return to Unity and ensure dashboard is loaded
+        from AI.rrs_assignment import confirm_unity_login as attend_login
+        attend_login(confirm_unity_login)
+
         driver.switch_to.window(unity_handle)
-        driver.get(UNITY_URL)
-        WebDriverWait(driver, 15).until(EC.title_contains("Unity"))
+
+        def search_ready(browser):
+            fields = browser.find_elements(By.ID, "tasks-claim-number-general-input")
+            return (len(fields) == 1 and fields[0].is_displayed()
+                    and fields[0].is_enabled()
+                    and fields[0].get_attribute("readonly") is None)
+
+        if not search_ready(driver):
+            driver.get(UNITY_URL)
+        WebDriverWait(driver, 15).until(
+            search_ready, "Unity case search is not ready after manual sign-in.")
         
     def create_driver():
         EDGE_DRIVER_PATH = CONFIG_EDGE_DRIVER_PATH

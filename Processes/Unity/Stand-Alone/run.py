@@ -105,7 +105,7 @@ def main(argv=None):
                 record_assignment=lambda claimant, claim: _record_live(ROOT, claimant, claim),
                 notify=lambda title, message: print(f"[{title}]\n{message}"),
                 confirm=ask_yes_no,
-                complete_assignment=lambda claim: _complete_live(ROOT, claim),
+                complete_assignment=lambda claim: _complete_live(ROOT, claim, confirm_unity_login=ask_yes_no),
                 record_attempt_on_failure=args.record_attempt_on_failure == "yes",
             )
         print(json.dumps(result, indent=2, default=str))
@@ -152,11 +152,14 @@ def _record_live(root, claimant_full, claim_number):
     legacy.InsertIntoTable(claimant_full, claim_number)
 
 
-def _complete_live(root, claim_number):
+def _complete_live(root, claim_number, *, confirm_unity_login=None):
     from fcm_intake.config import FCM_SCRIPT
     from fcm_intake.legacy_loader import load_module_from_path
     legacy = load_module_from_path("standalone_legacy_fcm", FCM_SCRIPT)
-    legacy.CompleteAssignment(claim_number)
+    if confirm_unity_login is None:
+        legacy.CompleteAssignment(claim_number)
+    else:
+        legacy.CompleteAssignment(claim_number, confirm_unity_login=confirm_unity_login)
 
 
 if __name__ == "__main__":

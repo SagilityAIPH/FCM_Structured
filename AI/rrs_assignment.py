@@ -2,6 +2,28 @@
 import time
 
 
+def confirm_unity_login(confirm=None):
+    """Wait for attended sign-in; never infer consent from browser state."""
+    title = "Unity manual sign-in"
+    message = ("Sign in to the newly opened Unity lookup browser manually. "
+               "Select Yes only when sign-in is complete and you are ready to continue. "
+               "Select No to stop assignment completion.")
+    if confirm is None:
+        import tkinter as tk
+        from tkinter import messagebox
+        root = tk.Tk()
+        try:
+            root.withdraw()
+            root.attributes("-topmost", True)
+            accepted = messagebox.askyesno(title, message, parent=root)
+        finally:
+            root.destroy()
+    else:
+        accepted = confirm(title, message)
+    if accepted is not True:
+        raise RuntimeError("Unity manual sign-in was cancelled.")
+
+
 class RRSCompletionError(RuntimeError):
     """Value-free operator error; the original exception remains its cause."""
 
