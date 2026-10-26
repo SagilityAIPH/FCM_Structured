@@ -17,7 +17,7 @@ npm --prefix Processes/Unity/Stand-Alone/frontend run build
 openpyxl and the configured legacy automation dependencies are required. `run.py` with no
 arguments retains the existing offline happy-path scenario; desktop is explicit.
 
-## Chrome automation (FCM-1.1-90, v1.0.11 prepared)
+## Chrome automation (FCM-1.1-90, v1.0.11)
 
 Both initial Unity assignment and the post-approval Unity case lookup use
 Chrome via the same `AI/unity_browser.py` factory. Chrome must be installed.
@@ -40,7 +40,7 @@ assignment adds no persistent log.
 
 Historical dated Edge mock/inspection/release notes below remain evidence for
 those versions, not the current browser policy. FCM-1.1-94 includes this change
-in the rebuilt v1.0.11 artifact, prepared but not yet published. The published
+in the rebuilt and published v1.0.11 artifact. The earlier
 v1.0.10 EXE is unchanged; packaging does not establish live Unity, RRS, CMS,
 database or Bedrock behavior.
 
@@ -453,7 +453,7 @@ workers in this process. No real portal/database workflow was exercised during
 implementation.
 
 FCM-1.1-91 replaces the Complete Task positional selector with the
-shared exact visible-label helper; see [targeting contract](../README.md#complete-task-targeting-fcm-11-91-v1011-prepared).
+shared exact visible-label helper; see [targeting contract](../README.md#complete-task-targeting-fcm-11-91-v1011).
 After the same manual-validation gate, it permits only one unique visible,
 enabled, non-`aria-disabled` `Complete Task` button, revalidated after scroll.
 FCM-1.1-93 updates the original FCM-1.1-91 case-sensitive policy: current matching
@@ -464,8 +464,8 @@ It never falls back to Delete Task, retries a click or uses JavaScript click.
 `UnityTaskCompletionError` propagates through validation and legacy `main`;
 desktop/CLI report `run_unity_failed` before approval/RRS. Ordinary quit and the
 tracking-on-failure setting are unchanged; completion errors do not preserve the
-browser. FCM-1.1-94 includes FCM-1.1-90/91/93 in the rebuilt v1.0.11 artifact,
-prepared but not yet published; the v1.0.10 EXE is unchanged.
+browser. FCM-1.1-94 includes FCM-1.1-90/91/93 in the rebuilt and published
+v1.0.11 artifact; the earlier v1.0.10 EXE is unchanged.
 A returned click does not verify server
 completion; FCM-1.1-48's broader upload/task-outcome readback remains open.
 No live portal/server, RRS, CMS, database or Bedrock outcome was verified.
@@ -780,14 +780,15 @@ and restart requirements still apply; credentials are not included. No live
 Unity, RRS, CMS, database or Bedrock operation or previously submitted task replay
 was performed; FCM-1.1-86 remains separate.
 
-### v1.0.11 Chrome and role-safe completion build preparation (10/26/2026, FCM-1.1-94)
+### v1.0.11 Chrome and role-safe completion release (10/26/2026, FCM-1.1-94)
 
 Rebuilt Unity's own production frontend and the existing Unity PyInstaller spec,
 including FCM-1.1-90's shared Chrome factory, FCM-1.1-91's role-safe Complete Task
 helper and FCM-1.1-93's exact case-insensitive label comparison. The artifact is
-prepared for `unityassignment-v1.0.11`, **not yet published**. The dated
+published as [Unity Assignment v1.0.11](https://github.com/SagilityAIPH/FCM_Structured/releases/tag/unityassignment-v1.0.11).
+The dated
 FCM-1.1-90/91/93 source-only evidence and v1.0.10 release record remain historical;
-they do not describe the newly prepared artifact.
+they do not describe this release.
 
 The documented virtual environment was absent, so the build used installed
 **Python 3.13.15 / PyInstaller 6.22.3** with existing dependencies; no dependency
@@ -801,7 +802,7 @@ $process = Start-Process -FilePath "$build\dist\UnityAssignment.exe" -ArgumentLi
 $process.ExitCode
 ```
 
-| Prepared artifact | Verified value |
+| Released artifact | Verified value |
 | --- | --- |
 | Size | 48,486,397 bytes |
 | SHA-256 | `4d8f3e1131507c16acabb52d6287a74d04d1b2b8d517fbf81e80178a66749a56` |
@@ -827,7 +828,11 @@ frozen tracking configuration cases passed. The targeted source suite passed
 148 primary JUnit cases with no failures/errors/skips. Selenium Manager/Chrome
 dependencies and exclusion of credential/operator/sample/session assets were
 verified. Session evidence: `unity111-tests.xml`, `unity111-verification.json`.
-Publication remains a separate gate; no publication success is claimed here.
+The source commit `85f0d6eb41f5d43d3b1d1a3798681f42f970c073` and annotated
+`unityassignment-v1.0.11` tag were pushed atomically. GitHub release `424574430`
+was published as Latest at `2026-10-26T17:47:24Z`. Both uploaded asset sizes and
+GitHub SHA-256 digests matched local files before and after publication; the
+checksum sidecar is 86 bytes. Publication evidence: `unity111-publication.json`.
 
 Chrome must be installed; automatic ChromeDriver resolution may need network
 access. Windows/WebView2, external credentials/settings, ODBC and authorized live

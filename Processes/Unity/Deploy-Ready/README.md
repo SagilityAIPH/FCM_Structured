@@ -45,7 +45,7 @@ UI notification errors propagate. KeyboardInterrupt is not swallowed.
 
 ## Safety and deployment requirements
 
-- **Unity uses Chrome (FCM-1.1-90, v1.0.11 prepared).** Initial assignment and
+- **Unity uses Chrome (FCM-1.1-90, v1.0.11).** Initial assignment and
   post-approval lookup share `AI/unity_browser.py`. Install Chrome; the blank
   `browser.chrome_driver_path` default enables Selenium Manager's runtime
   version-matched driver discovery (initial resolution may need network access).
@@ -60,7 +60,7 @@ UI notification errors propagate. KeyboardInterrupt is not swallowed.
   page/script timeouts are preserved. Lookup retains its driver log as
   `chromedriver.log`; assignment adds no persistent driver log.
   Dated Edge observations refer to earlier versions. FCM-1.1-94 includes this
-  change in the rebuilt v1.0.11 artifact, prepared but not yet published.
+  change in the rebuilt and published v1.0.11 artifact.
   Published v1.0.10 is unchanged; packaging does not imply live
   portal/RRS/CMS/database/Bedrock verification.
 - **Use the same stable, exclusive attachment folder as legacy.** Zero/multiple
@@ -95,9 +95,9 @@ UI notification errors propagate. KeyboardInterrupt is not swallowed.
   uniqueness/actionability and revalidates after scroll before one normal click.
   It does not confirm server completion or solve FCM-1.1-48's broader readback
   limitation. FCM-1.1-94 includes the helper and comparison correction in the
-  rebuilt v1.0.11 artifact, prepared but not yet published; v1.0.10 EXE is
+  rebuilt and published v1.0.11 artifact; the earlier v1.0.10 EXE is
   unchanged and live outcomes remain unverified.
-  See [targeting contract](../README.md#complete-task-targeting-fcm-11-91-v1011-prepared).
+  See [targeting contract](../README.md#complete-task-targeting-fcm-11-91-v1011).
   CompleteAssignment now delegates
   to the shared `AI/rrs_assignment.py` sequence: Assign -> literal `19` -> input OK
   -> optional Unity Yes -> current-claim Unity case lookup -> required RRS Case Id

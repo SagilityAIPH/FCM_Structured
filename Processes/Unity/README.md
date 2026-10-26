@@ -21,7 +21,7 @@ Deploy-Ready is integration source, not an independently packaged EXE. No Unity
 EXE is built. The large Selenium body remains in
 `src/fcm_intake/legacy/legacy_unity.py`; it is not copied or rewritten here.
 
-## Unity browser (FCM-1.1-90, v1.0.11 prepared)
+## Unity browser (FCM-1.1-90, v1.0.11)
 
 Initial assignment and post-approval Unity case lookup now use Chrome through
 the shared `AI/unity_browser.py` factory. Install Chrome on the operator machine.
@@ -44,11 +44,11 @@ now `chromedriver.log`; assignment adds no persistent driver log.
 
 Dated Edge inspection/mock/release evidence below describes earlier versions,
 not the current browser policy. FCM-1.1-94 includes this change in the rebuilt
-v1.0.11 artifact, prepared but not yet published. Published v1.0.10 remains
+v1.0.11 release. The earlier v1.0.10 release remains
 unchanged. Packaging does not establish live portal, RRS, CMS, database or
 Bedrock behavior.
 
-## Complete Task targeting (FCM-1.1-91, v1.0.11 prepared)
+## Complete Task targeting (FCM-1.1-91, v1.0.11)
 
 After the unchanged attended manual-validation notice, the actual legacy flow
 uses `AI.unity_completion.complete_task`, not a role-dependent button index.
@@ -71,7 +71,7 @@ A returned click is not server completion confirmation. The existing post-click
 sleep/sequence is unchanged. FCM-1.1-48's broader upload/task-outcome readback
 limitation remains; this does not resolve other legacy swallowed errors.
 FCM-1.1-94 includes this helper and FCM-1.1-93's comparison correction in the
-rebuilt v1.0.11 artifact, prepared but not yet published. Published v1.0.10 EXE
+rebuilt and published v1.0.11 artifact. The earlier v1.0.10 EXE
 is unchanged. Portal/server, RRS, CMS, database and Bedrock outcomes were not
 exercised or verified.
 
