@@ -65,6 +65,7 @@ _DEFAULTS = {
         else str(PROJECT_ROOT / 'dist' / 'browser-drivers' / 'IEDriverServer.exe'),
     # A blank Edge service path activates Selenium Manager for the installed Edge version.
     ("browser", "edge_driver_path"): "",
+    ("browser", "chrome_driver_path"): "",
     ("folders", "attachment_folder"): r"C:\\path\\to\\RRS_Referral_Export",
     ("cms", "login_url"): "https://test.genexcms.com/CMS/Login.aspx",
     ("cms", "case_search_url"): "https://test.genexcms.com/CMS/CaseSearch.aspx",
@@ -99,4 +100,5 @@ CMS_CASESEARCH_URL = get_local_setting("cms", "case_search_url", "FCM_CMS_CASESE
 EDGE_PATH = get_local_setting("browser", "edge_path", "FCM_EDGE_PATH", "EDGE_PATH")
 IE_DRIVER_PATH = get_local_setting("browser", "ie_driver_path", "FCM_IE_DRIVER_PATH", "IE_DRIVER_PATH")
 EDGE_DRIVER_PATH = get_local_setting("browser", "edge_driver_path", "FCM_EDGE_DRIVER_PATH", "EDGE_DRIVER_PATH")
+CHROME_DRIVER_PATH = get_local_setting("browser", "chrome_driver_path", "FCM_CHROME_DRIVER_PATH", "CHROME_DRIVER_PATH")
 ATTACHMENT_FOLDER = get_local_setting("folders", "attachment_folder", "FCM_ATTACHMENT_FOLDER")

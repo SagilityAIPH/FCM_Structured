@@ -44,7 +44,7 @@ hiddenimports = ["run", "smoke", "fcm_intake.config", "fcm_intake.legacy_loader"
     "pyodbc", "pythoncom", "dateutil.relativedelta", "edge_auto", "dotenv",
     "webview.platforms.edgechromium", "office_matrix", "rrs_ui", "provider_match",
     "body_part", "injury_match", "AI.injury_classification", "AI.appointment_rules", "AI.referral_attachments",
-    "AI.unity_errors", "AI.rrs_assignment", "legacy.CMS"]
+    "AI.unity_errors", "AI.unity_completion", "AI.unity_browser", "AI.rrs_assignment", "legacy.CMS"]
 hiddenimports += collect_submodules("selenium.webdriver")
 hiddenimports += collect_submodules("pywinauto")
 hiddenimports += collect_submodules("webview")

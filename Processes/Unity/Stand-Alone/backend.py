@@ -58,7 +58,7 @@ def live_callbacks(attachment_path=None, *, confirm_unity_login=None):
         except (UnityFlagError, UnityCustomerFieldsError, UnityEmployerFieldsError) as error:
             preserve_browser = True
             error.browser_left_open = True
-            # Detach keeps Edge alive even when the worker/service is collected.
+            # Detach keeps the browser alive even when the worker/service is collected.
             try:
                 driver.service.stop()
             except Exception:

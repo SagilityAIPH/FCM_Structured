@@ -17,6 +17,39 @@ npm --prefix Processes/Unity/Stand-Alone/frontend run build
 openpyxl and the configured legacy automation dependencies are required. `run.py` with no
 arguments retains the existing offline happy-path scenario; desktop is explicit.
 
+## Chrome automation (FCM-1.1-90, v1.0.11 prepared)
+
+Both initial Unity assignment and the post-approval Unity case lookup use
+Chrome via the same `AI/unity_browser.py` factory. Chrome must be installed.
+The blank default for `[browser] chrome_driver_path` lets Selenium Manager
+discover Chrome and resolve a version-matched ChromeDriver at runtime (initial
+resolution may need network access). Optional static-driver overrides resolve
+from `FCM_CHROME_DRIVER_PATH`, then `CHROME_DRIVER_PATH`, then
+`config\local_settings.ini`, then the blank default. Blank values defer to the
+next source; explicit invalid/incompatible paths fail without a browser fallback.
+Source config is under the repository root; packaged external config is beside
+the EXE. No credentials, Chrome binary or developer ChromeDriver is bundled.
+
+The desktop UI still uses pywebview `edgechromium` / WebView2, and unrelated CMS
+registration/IE-mode and other Edge automation are unchanged. Existing manual
+lookup sign-in, modes, business gates/selectors, tracking, typed-error recovery
+and 60-second page/script timeouts are preserved. Recovery now leaves detached
+Chrome open; normal/CLI cleanup and lookup's unconditional Quit are unchanged.
+Lookup retains its existing driver-log behavior under `chromedriver.log`;
+assignment adds no persistent log.
+
+Historical dated Edge mock/inspection/release notes below remain evidence for
+those versions, not the current browser policy. FCM-1.1-94 includes this change
+in the rebuilt v1.0.11 artifact, prepared but not yet published. The published
+v1.0.10 EXE is unchanged; packaging does not establish live Unity, RRS, CMS,
+database or Bedrock behavior.
+
+Historical FCM-1.1-90 source verification passed 140 focused JUnit test cases, source
+smoke and unchanged non-factory legacy-function comparisons. An isolated
+`about:blank` startup used the installed Chrome with a compatible ChromeDriver,
+verified both 60-second timeouts, and closed the browser and driver successfully.
+No Unity page, referral, approval, upload or database operation was exercised.
+
 ## External tracking configuration (FCM-1.1-85)
 
 Live **All** and **Unity** (desktop or `--live` CLI) require the existing
@@ -260,7 +293,7 @@ The desktop reports `run_unity_failed`,
 stops provider work and never proceeds to approval or RRS completion.
 
 **Owner-selected recovery policy (FCM-1.1-58): leave the browser open on flagging
-failure for manual recovery.** Desktop Edge uses `detach=True`; on this typed
+failure for manual recovery.** Desktop Chrome uses `detach=True`; on this typed
 failure it stops the driver service and releases the HTTP connection without
 issuing browser Quit. No retained-driver collection is needed. The failure
 message explicitly says the browser was left open, asks the operator to inspect
@@ -281,7 +314,7 @@ values remain allowed. Stage-only operator text excludes referral/DOM/Selenium
 details; the original exception remains chained. Under the owner's selected
 customer-fields recovery policy, desktop automation stops before employer fields,
 the existing manual-validation gate, Complete Task, approval and RRS, leaving
-detached Edge open while releasing its service/connection. Cleanup failures are
+detached Chrome open while releasing its service/connection. Cleanup failures are
 reported without replacing the customer-fields error. Flag recovery text and
 semantics, normal-success cleanup and unrelated-failure cleanup are unchanged.
 CLI cleanup remains unchanged.
@@ -320,7 +353,7 @@ Each selection is a single write with exact selected text/value verification
 using bounded read-only polling. Locate, visibility, read, selection and readback
 failures raise stage-only `UnityEmployerFieldsError`, retaining the original
 exception cause without exposing referral/DOM/Selenium details. Desktop recovery
-leaves detached Edge open for inspection and releases the service/connection
+leaves detached Chrome open for inspection and releases the service/connection
 without Quit, reporting release failures without replacing the employer error.
 Later portal work, Complete Task, approval and RRS do not run on that error.
 Existing attempted-assignment tracking, other recovery messages, normal/unrelated
@@ -409,7 +442,7 @@ configured legacy FCM functions as the scenario runner's live path. Fakes can be
 injected through `UnityAPI(callbacks_factory=...)`; no live dependency is needed
 for regression tests or smoke.
 
-Both legacy `main` and the validation stage swallow exceptions. The desktop
+Both legacy `main` and the validation stage still swallow some unrelated exceptions. The desktop
 bypasses `main` and captures the validation call's stdout only in memory to
 recognize its `error occurred:` failure marker. Marker failures become controller
 failures. Inner legacy handlers that silently continue remain unverifiable;
@@ -418,6 +451,24 @@ not that every portal field has been independently audited. The stdout capture
 is process-wide during the single portal call, so do not run concurrent automation
 workers in this process. No real portal/database workflow was exercised during
 implementation.
+
+FCM-1.1-91 replaces the Complete Task positional selector with the
+shared exact visible-label helper; see [targeting contract](../README.md#complete-task-targeting-fcm-11-91-v1011-prepared).
+After the same manual-validation gate, it permits only one unique visible,
+enabled, non-`aria-disabled` `Complete Task` button, revalidated after scroll.
+FCM-1.1-93 updates the original FCM-1.1-91 case-sensitive policy: current matching
+normalizes whitespace and ignores letter case, but still requires the exact
+`Complete Task` label. Delete Task and prefix/suffix/plural labels never qualify;
+all other targeting, actionability and failure safeguards are unchanged.
+It never falls back to Delete Task, retries a click or uses JavaScript click.
+`UnityTaskCompletionError` propagates through validation and legacy `main`;
+desktop/CLI report `run_unity_failed` before approval/RRS. Ordinary quit and the
+tracking-on-failure setting are unchanged; completion errors do not preserve the
+browser. FCM-1.1-94 includes FCM-1.1-90/91/93 in the rebuilt v1.0.11 artifact,
+prepared but not yet published; the v1.0.10 EXE is unchanged.
+A returned click does not verify server
+completion; FCM-1.1-48's broader upload/task-outcome readback remains open.
+No live portal/server, RRS, CMS, database or Bedrock outcome was verified.
 
 The tracking-on-Unity-failure checkbox defaults to **on**, preserving the existing
 controller's legacy attempt-record behavior. Turning it off skips tracking only
@@ -728,3 +779,59 @@ The manual pause has no login timeout. Existing external tracking configuration
 and restart requirements still apply; credentials are not included. No live
 Unity, RRS, CMS, database or Bedrock operation or previously submitted task replay
 was performed; FCM-1.1-86 remains separate.
+
+### v1.0.11 Chrome and role-safe completion build preparation (10/26/2026, FCM-1.1-94)
+
+Rebuilt Unity's own production frontend and the existing Unity PyInstaller spec,
+including FCM-1.1-90's shared Chrome factory, FCM-1.1-91's role-safe Complete Task
+helper and FCM-1.1-93's exact case-insensitive label comparison. The artifact is
+prepared for `unityassignment-v1.0.11`, **not yet published**. The dated
+FCM-1.1-90/91/93 source-only evidence and v1.0.10 release record remain historical;
+they do not describe the newly prepared artifact.
+
+The documented virtual environment was absent, so the build used installed
+**Python 3.13.15 / PyInstaller 6.22.3** with existing dependencies; no dependency
+restore or installation was needed. Commands ran from the repository root
+(`$build` is the session's `files\unity111-build` directory):
+
+```powershell
+npm.cmd --prefix Processes\Unity\Stand-Alone\frontend run build
+python -m PyInstaller --noconfirm --clean --distpath "$build\dist" --workpath "$build\work" Processes\Unity\Stand-Alone\unity_assignment.spec
+$process = Start-Process -FilePath "$build\dist\UnityAssignment.exe" -ArgumentList @("--self-test", "--report", "$build\self-test.txt") -Wait -PassThru
+$process.ExitCode
+```
+
+| Prepared artifact | Verified value |
+| --- | --- |
+| Size | 48,486,397 bytes |
+| SHA-256 | `4d8f3e1131507c16acabb52d6287a74d04d1b2b8d517fbf81e80178a66749a56` |
+
+The packaged synthetic self-test exited **0**, reporting
+`Frozen resource layout and live import prerequisites: OK`, **39** consumed keys,
+no context-only keys, a completed **five-step** main flow and completed selected
+PDF/MSG/EML three-step flows. It preserved **32,767-character** instructions and
+reported `oversized_rejected: true`. These checks used synthetic callbacks,
+not live automation. Only after this check, the EXE and canonical ASCII checksum
+sidecar (`<lowercase SHA-256>  UnityAssignment.exe`) were copied to ignored
+`dist`; the copied EXE hash was rechecked. Frontend/PyInstaller logs and the
+self-test report remain in the session build directory, not Git.
+
+Build warnings included missing optional `pycparser.lextab` / `pycparser.yacctab`,
+legacy invalid-escape syntax warnings and pywinauto's STA COM warning; packaging
+and the frozen prerequisite/self-test checks succeeded. Independent verification
+then matched six raw sources, thirteen compiled modules (including the actual
+`legacy.CMS` lookup and both shared helpers), and three frontend files. Eleven
+test methods ran against the actual frozen Chrome/completion helpers using
+synthetic fakes; six frozen Chrome configuration precedence cases and four
+frozen tracking configuration cases passed. The targeted source suite passed
+148 primary JUnit cases with no failures/errors/skips. Selenium Manager/Chrome
+dependencies and exclusion of credential/operator/sample/session assets were
+verified. Session evidence: `unity111-tests.xml`, `unity111-verification.json`.
+Publication remains a separate gate; no publication success is claimed here.
+
+Chrome must be installed; automatic ChromeDriver resolution may need network
+access. Windows/WebView2, external credentials/settings, ODBC and authorized live
+services remain prerequisites. The spec's existing allowlist was unchanged;
+no credentials were added. No native desktop workflow, browser startup, UI input,
+live portal, RRS, CMS, database or Bedrock operation was exercised during this
+build. Unity remains standalone and outside Final Code.

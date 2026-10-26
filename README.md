@@ -228,7 +228,7 @@ Supported settings:
 - `browser.edge_path`
 - `browser.ie_driver_path`
 - `browser.edge_driver_path`
+- `browser.chrome_driver_path` (Unity only; blank uses Selenium Manager, with `FCM_CHROME_DRIVER_PATH` or `CHROME_DRIVER_PATH` as environment overrides)
 - `folders.attachment_folder`
 - `cms.login_url`
 - `cms.case_search_url`
-

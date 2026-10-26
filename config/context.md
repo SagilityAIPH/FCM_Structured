@@ -20,6 +20,11 @@ It currently supports:
 - `browser.edge_path`
 - `browser.ie_driver_path`
 - `browser.edge_driver_path`
+- `browser.chrome_driver_path` (Unity assignment and post-approval lookup only;
+  blank uses Selenium Manager with installed Chrome). `FCM_CHROME_DRIVER_PATH`,
+  then `CHROME_DRIVER_PATH`, override the INI value; blank values use the next
+  source, ending in the blank default. An explicit driver path must be valid;
+  Chrome failures do not fall back to Edge.
 - `folders.attachment_folder`
 - `cms.login_url`
 - `cms.case_search_url`

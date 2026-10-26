@@ -21,6 +21,73 @@ Deploy-Ready is integration source, not an independently packaged EXE. No Unity
 EXE is built. The large Selenium body remains in
 `src/fcm_intake/legacy/legacy_unity.py`; it is not copied or rewritten here.
 
+## Unity browser (FCM-1.1-90, v1.0.11 prepared)
+
+Initial assignment and post-approval Unity case lookup now use Chrome through
+the shared `AI/unity_browser.py` factory. Install Chrome on the operator machine.
+With a blank `browser.chrome_driver_path`, Selenium Manager discovers Chrome
+and resolves its version-matched ChromeDriver at runtime; initial resolution
+may require network access. To use a managed static driver, set
+`FCM_CHROME_DRIVER_PATH`, then `CHROME_DRIVER_PATH`, or
+`config\local_settings.ini` / `[browser] chrome_driver_path` in that precedence
+order. Blank values defer to the next source; the default is blank. Explicit
+paths must be valid and compatible: Chrome errors never fall back to Edge.
+No developer driver, credentials or browser binary is bundled.
+
+The desktop UI remains pywebview `edgechromium` / WebView2. Unrelated CMS
+registration, IE-mode and other Edge automation are unchanged. Assignment keeps
+opt-in detach and existing typed-error manual recovery (now in Chrome);
+CLI/non-recovery cleanup and lookup's unconditional Quit remain unchanged.
+The manual post-approval sign-in pause, modes, gates, selectors, tracking and
+60-second page/script timeouts are preserved. Lookup's existing driver log is
+now `chromedriver.log`; assignment adds no persistent driver log.
+
+Dated Edge inspection/mock/release evidence below describes earlier versions,
+not the current browser policy. FCM-1.1-94 includes this change in the rebuilt
+v1.0.11 artifact, prepared but not yet published. Published v1.0.10 remains
+unchanged. Packaging does not establish live portal, RRS, CMS, database or
+Bedrock behavior.
+
+## Complete Task targeting (FCM-1.1-91, v1.0.11 prepared)
+
+After the unchanged attended manual-validation notice, the actual legacy flow
+uses `AI.unity_completion.complete_task`, not a role-dependent button index.
+Only native buttons whose visible, whitespace-normalized text is exactly
+`Complete Task` ignoring letter case (FCM-1.1-93) qualify. Hidden matches are
+ignored; multiple visible matches fail even when one is disabled. The helper
+waits read-only for up to 15 seconds for a unique enabled, non-`aria-disabled`
+target, scrolls, then
+rechecks the same target and its eligibility before one normal click. There is
+no positional/substring fallback, JavaScript click, or click retry.
+
+Missing, ambiguous, changed or non-actionable targets and interaction failures
+raise value-free `UnityTaskCompletionError`, chained to the original cause.
+It propagates through legacy validation and CLI entrypoint. Desktop/controller
+report `run_unity_failed`, stop before approval/RRS and preserve the existing
+attempted-assignment tracking policy. Completion errors use normal browser quit;
+they do not join the existing typed manual-recovery/browser-preservation list.
+
+A returned click is not server completion confirmation. The existing post-click
+sleep/sequence is unchanged. FCM-1.1-48's broader upload/task-outcome readback
+limitation remains; this does not resolve other legacy swallowed errors.
+FCM-1.1-94 includes this helper and FCM-1.1-93's comparison correction in the
+rebuilt v1.0.11 artifact, prepared but not yet published. Published v1.0.10 EXE
+is unchanged. Portal/server, RRS, CMS, database and Bedrock outcomes were not
+exercised or verified.
+
+Historical FCM-1.1-91 verification used case-sensitive matching; FCM-1.1-93
+adds case normalization to existing whitespace normalization, preserving exact
+action identity and the other safeguards above. FCM-1.1-92's read-only accessibility inspection exposed
+`Complete task` and `Delete task`; DOM-rendered text was not read, so that
+inspection did not establish a DOM selector failure. The owner approved the
+case-insensitive source policy; that source-only work performed no live click,
+build or release. FCM-1.1-94 separately authorizes the v1.0.11 rebuild/release.
+
+Historical FCM-1.1-91 verification passed 148 focused JUnit test cases and source smoke.
+Twelve local synthetic Chrome DOM cases covered agent/supervisor/reordered
+layouts, exact/nested/whitespace labels, hidden/duplicate/disabled controls and
+post-scroll relabeling. Delete Task received zero clicks in every case.
+
 ## Three operational traps
 
 1. **Attachment identity is a safety gate.** Legacy takes the first result of
@@ -164,7 +231,7 @@ once. After the modal closes, the existing Unity process continues. Flag-only
 failures now raise stage-specific `UnityFlagError` through the legacy boundary,
 retaining their original exception chain/type without exposing Selenium messages
 or page/referral content in operator text. The desktop reports `run_unity_failed`
-and, under the owner's explicit recovery policy, leaves detached Edge open for
+and, under the owner's explicit recovery policy, leaves detached Chrome open for
 manual recovery while releasing its driver service/connection. It does not
 continue provider work, approval or RRS completion; default attempted-assignment
 tracking is unchanged. Normal success and unrelated errors retain browser cleanup;
@@ -199,7 +266,7 @@ Missing/blank source values add no new input requirement or fallback. The
 existing manual-validation gate is unchanged.
 Failures raise stage-specific `UnityCustomerFieldsError` with the original cause
 retained and value-free operator text. Desktop automation stops before employer
-fields, Complete Task, approval or RRS, leaves detached Edge open for manual
+fields, Complete Task, approval or RRS, leaves detached Chrome open for manual
 recovery under the owner's selected policy, and releases its service/connection;
 cleanup failures are recorded without replacing the original error.
 
@@ -237,7 +304,7 @@ or new employer mappings are added.
 
 Employer interaction/readback failures raise value-free `UnityEmployerFieldsError`
 with the original cause retained. Desktop recovery stops subsequent portal work,
-approval and RRS, leaves detached Edge open, and releases the driver service and
+approval and RRS, leaves detached Chrome open, and releases the driver service and
 connection without Quit. Cleanup failures are reported without replacing the
 employer error. Attempted-assignment tracking, flag/customer recovery, success
 and unrelated-failure cleanup, and CLI cleanup remain unchanged. Actual-source
@@ -282,9 +349,10 @@ searched through parent folders. No live authentication, database write or
 already-submitted-task replay was performed. FCM-1.1-86 remains open.
 
 `completed` means injected callables returned normally, not that live records
-were verified. In particular, `legacy_unity.main` catches exceptions and returns
-None on success and failure; its upload handler also swallows failures. The live
-runner preserves that behavior and can report completion after a hidden portal
+were verified. In particular, `legacy_unity.main` catches unrelated exceptions and
+returns None on success and those failures; its upload handler also swallows
+failures. Complete Task's `UnityTaskCompletionError` now propagates instead, as
+described above. Other hidden legacy failures can still result in reported completion after a portal
 failure. The controller cannot recover an error the dependency did not raise.
 Use a future outcome-reporting adapter and independent live verification before
 relying on results for unattended operation. See [integration](Deploy-Ready/README.md)

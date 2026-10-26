@@ -1,5 +1,6 @@
 from fcm_intake.config import CUSTOMERCHECKER_SCRIPT, FCM_SCRIPT, REOPENCHECK_SCRIPT
 import ast
+import configparser
 import os
 from pathlib import Path
 from types import SimpleNamespace
@@ -12,6 +13,32 @@ def test_configured_legacy_scripts_exist():
     assert FCM_SCRIPT.exists()
     assert CUSTOMERCHECKER_SCRIPT.exists()
     assert REOPENCHECK_SCRIPT.exists()
+
+
+@pytest.mark.parametrize("environment,ini_value,expected", [
+    ({}, "", ""),
+    ({}, r"C:\synthetic\ini.exe", r"C:\synthetic\ini.exe"),
+    ({"CHROME_DRIVER_PATH": r"C:\synthetic\alias.exe"}, r"C:\synthetic\ini.exe", r"C:\synthetic\alias.exe"),
+    ({"FCM_CHROME_DRIVER_PATH": r"C:\synthetic\primary.exe",
+      "CHROME_DRIVER_PATH": r"C:\synthetic\alias.exe"}, r"C:\synthetic\ini.exe", r"C:\synthetic\primary.exe"),
+    ({"FCM_CHROME_DRIVER_PATH": " \t ", "CHROME_DRIVER_PATH": " synthetic-alias.exe "},
+     "synthetic-ini.exe", "synthetic-alias.exe"),
+    ({"FCM_CHROME_DRIVER_PATH": "", "CHROME_DRIVER_PATH": " "}, " synthetic-ini.exe ", "synthetic-ini.exe"),
+])
+def test_chrome_driver_setting_precedence_without_machine_files(environment, ini_value, expected):
+    path = Path(__file__).resolve().parents[2] / "src" / "fcm_intake" / "config.py"
+    tree = ast.parse(path.read_text(encoding="utf-8"))
+    selected = [node for node in tree.body
+                if isinstance(node, ast.FunctionDef) and node.name == "get_local_setting"
+                or isinstance(node, ast.Assign) and any(isinstance(target, ast.Name)
+                   and target.id in {"_DEFAULTS", "CHROME_DRIVER_PATH"} for target in node.targets)]
+    settings = configparser.ConfigParser()
+    settings.read_dict({"browser": {"chrome_driver_path": ini_value}})
+    namespace = {"os": os, "sys": SimpleNamespace(frozen=False),
+                 "PROJECT_ROOT": path.parents[2], "_LOCAL_SETTINGS": settings}
+    with patch.dict(os.environ, environment, clear=True):
+        exec(compile(ast.Module(body=selected, type_ignores=[]), "<isolated browser config>", "exec"), namespace)
+    assert namespace["CHROME_DRIVER_PATH"] == expected
 
 
 def isolated_config_namespace(*, frozen=False):

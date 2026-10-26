@@ -1,4 +1,13 @@
-"""Value-free failure boundaries for Unity's recoverable UI stages."""
+"""Value-free failure boundaries for Unity UI stages."""
+
+
+class UnityTaskCompletionError(RuntimeError):
+    def __init__(self, stage):
+        self.stage = stage
+        super().__init__(
+            f"Unity Complete Task failed while {stage}. Automated work stopped. "
+            "Task completion is unconfirmed; do not blindly retry."
+        )
 
 
 class UnityFlagError(RuntimeError):

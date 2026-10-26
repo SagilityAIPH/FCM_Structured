@@ -45,6 +45,24 @@ UI notification errors propagate. KeyboardInterrupt is not swallowed.
 
 ## Safety and deployment requirements
 
+- **Unity uses Chrome (FCM-1.1-90, v1.0.11 prepared).** Initial assignment and
+  post-approval lookup share `AI/unity_browser.py`. Install Chrome; the blank
+  `browser.chrome_driver_path` default enables Selenium Manager's runtime
+  version-matched driver discovery (initial resolution may need network access).
+  Static overrides resolve from `FCM_CHROME_DRIVER_PATH`, then
+  `CHROME_DRIVER_PATH`, then `config\local_settings.ini`, then blank.
+  Blank values defer to the next source; explicit invalid paths fail without
+  fallback. Do not bundle developer drivers or credentials. The desktop UI stays
+  pywebview `edgechromium` / WebView2; unrelated CMS registration, IE-mode and
+  other Edge automation are unchanged. Typed-error manual recovery now leaves
+  detached Chrome open; CLI/non-recovery and lookup cleanup remain unchanged.
+  Manual lookup sign-in, gates, modes, selectors, tracking and 60-second
+  page/script timeouts are preserved. Lookup retains its driver log as
+  `chromedriver.log`; assignment adds no persistent driver log.
+  Dated Edge observations refer to earlier versions. FCM-1.1-94 includes this
+  change in the rebuilt v1.0.11 artifact, prepared but not yet published.
+  Published v1.0.10 is unchanged; packaging does not imply live
+  portal/RRS/CMS/database/Bedrock verification.
 - **Use the same stable, exclusive attachment folder as legacy.** Zero/multiple
   files stop before the legacy first-glob-result uploader can choose a stale
   document. The reported attachment path does not bind legacy's subsequent glob;
@@ -66,7 +84,21 @@ UI notification errors propagate. KeyboardInterrupt is not swallowed.
 - legacy_unity.py currently targets a UAT Azure Web Apps host via UNITY_URL.
   Confirm the intended environment before any live run; do not assume production.
 - The runner delegates to legacy_unity.main, InsertIntoTable and CompleteAssignment.
-  Legacy portal exceptions can still be swallowed. CompleteAssignment now delegates
+  Unrelated legacy portal exceptions can still be swallowed. FCM-1.1-91's shared
+  Complete Task helper instead raises `UnityTaskCompletionError` through both
+  legacy boundaries: controller failure is `run_unity_failed`, approval/RRS stop,
+  attempted-assignment tracking and normal browser quit remain unchanged.
+  FCM-1.1-93 changes the original FCM-1.1-91 case-sensitive policy to exact
+  whitespace-normalized, case-insensitive `Complete Task` matching; Delete Task
+  and prefix/suffix/plural labels never qualify. The helper selects only a
+  matching visible native button, requires
+  uniqueness/actionability and revalidates after scroll before one normal click.
+  It does not confirm server completion or solve FCM-1.1-48's broader readback
+  limitation. FCM-1.1-94 includes the helper and comparison correction in the
+  rebuilt v1.0.11 artifact, prepared but not yet published; v1.0.10 EXE is
+  unchanged and live outcomes remain unverified.
+  See [targeting contract](../README.md#complete-task-targeting-fcm-11-91-v1011-prepared).
+  CompleteAssignment now delegates
   to the shared `AI/rrs_assignment.py` sequence: Assign -> literal `19` -> input OK
   -> optional Unity Yes -> current-claim Unity case lookup -> required RRS Case Id
   and OK -> optional Unity Yes -> optional RRS OK. `legacy.CMS.CheckCaseUnity`

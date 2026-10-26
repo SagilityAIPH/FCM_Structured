@@ -1,5 +1,5 @@
 import pyodbc
-from fcm_intake.config import CMS_CASESEARCH_URL as CONFIG_CMS_CASESEARCH_URL, CMS_LOGIN_URL as CONFIG_CMS_LOGIN_URL, EDGE_DRIVER_PATH as CONFIG_EDGE_DRIVER_PATH, EDGE_PATH as CONFIG_EDGE_PATH, IE_DRIVER_PATH as CONFIG_IE_DRIVER_PATH
+from fcm_intake.config import CMS_CASESEARCH_URL as CONFIG_CMS_CASESEARCH_URL, CMS_LOGIN_URL as CONFIG_CMS_LOGIN_URL, CHROME_DRIVER_PATH as CONFIG_CHROME_DRIVER_PATH, EDGE_PATH as CONFIG_EDGE_PATH, IE_DRIVER_PATH as CONFIG_IE_DRIVER_PATH
 import openpyxl
 from openpyxl import load_workbook
 import difflib
@@ -7,8 +7,6 @@ import difflib
 from selenium import webdriver
 from selenium.webdriver.ie.service import Service as IeService
 from selenium.webdriver.ie.options import Options as IeOptions
-from selenium.webdriver.edge.options import Options as EdgeOptions
-from selenium.webdriver.edge.service import Service as EdgeService
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait, Select
 from selenium.webdriver.support import expected_conditions as EC
@@ -1989,35 +1987,8 @@ def CheckCaseUnity(claim_number, *, confirm_unity_login=None):
             search_ready, "Unity case search is not ready after manual sign-in.")
         
     def create_driver():
-        EDGE_DRIVER_PATH = CONFIG_EDGE_DRIVER_PATH
-        opts = EdgeOptions()
-    
-        # your existing args
-        opts.add_argument("--ignore-certificate-errors")
-        opts.add_argument("--allow-insecure-localhost")
-        opts.add_argument("--disable-popup-blocking")
-    
-        # ✅ stability / crash prevention
-        opts.add_argument("--disable-gpu")
-        opts.add_argument("--disable-software-rasterizer")
-        opts.add_argument("--no-sandbox")  # harmless on Windows; helps in some environments
-        opts.add_argument("--disable-dev-shm-usage")  # mostly Linux, harmless on Windows
-    
-        # ✅ reduce Chromium noise in console
-        opts.add_argument("--log-level=3")
-        opts.add_experimental_option("excludeSwitches", ["enable-logging"])
-    
-        # ✅ optional: stop Edge “on-device model / LLM” feature from initializing
-        opts.add_argument("--disable-features=OnDeviceModel,OptimizationHints,OptimizationGuideModelDownloading")
-    
-        # ✅ write webdriver logs so we can see if it crashed vs hung
-        service = EdgeService(executable_path=EDGE_DRIVER_PATH, log_output="edgedriver.log")
-        driver = webdriver.Edge(service=service, options=opts)
-
-        # ✅ prevent “hangs forever”
-        driver.set_page_load_timeout(60)
-        driver.set_script_timeout(60)
-        return driver  
+        from AI.unity_browser import create_driver as create_unity_driver
+        return create_unity_driver(CONFIG_CHROME_DRIVER_PATH, log_output="chromedriver.log")
     
     def NavigateSearch(ClaimNumber,driver):
         # SearchBtn = driver.find_element(By.XPATH,"/html/body/my-app/div/header/nav/div/ul/li[3]/a")
@@ -2208,6 +2179,5 @@ if __name__ == "__main__":
         interactive=True  # set False when used by another bot
     )
     # CheckCaseUnity()
-
 
 

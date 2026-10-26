@@ -30,8 +30,14 @@ def main():
         import titlecase
         import pyodbc
         import edge_auto
+        from AI.unity_browser import create_driver, ChromeOptions, ChromeService
+        from selenium.webdriver import Chrome
+        assert all(callable(item) for item in (create_driver, ChromeOptions, ChromeService, Chrome))
         from AI.rrs_assignment import complete_assignment, RRSCompletionError
         assert callable(complete_assignment) and issubclass(RRSCompletionError, RuntimeError)
+        from AI.unity_completion import complete_task
+        from AI.unity_errors import UnityTaskCompletionError
+        assert callable(complete_task) and issubclass(UnityTaskCompletionError, RuntimeError)
         import dotenv
         from fcm_intake.config import UNITY_SCRIPT, FCM_SCRIPT, get_rrs_db_connection
         assert UNITY_SCRIPT.is_file() and FCM_SCRIPT.is_file()

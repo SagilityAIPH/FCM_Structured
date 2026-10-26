@@ -1,7 +1,5 @@
 
 from selenium import webdriver
-from selenium.webdriver.edge.service import Service as EdgeService
-from selenium.webdriver.edge.options import Options as EdgeOptions
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support.ui import WebDriverWait
@@ -15,12 +13,13 @@ import os
 import sys
 import re
 from datetime import datetime
-from edge_auto import build_edge_service, find_msedge_path
-from fcm_intake.config import ATTACHMENT_FOLDER as CONFIG_ATTACHMENT_FOLDER, EDGE_DRIVER_PATH as CONFIG_EDGE_DRIVER_PATH
-from AI.unity_errors import UnityCustomerFieldsError, UnityEmployerFieldsError, UnityFlagError
+from fcm_intake.config import ATTACHMENT_FOLDER as CONFIG_ATTACHMENT_FOLDER, CHROME_DRIVER_PATH as CONFIG_CHROME_DRIVER_PATH
+from AI.unity_browser import create_driver as create_unity_driver
+from AI.unity_errors import UnityCustomerFieldsError, UnityEmployerFieldsError, UnityFlagError, UnityTaskCompletionError
+from AI.unity_completion import complete_task
  
 # ---------- Config ----------
-EDGE_DRIVER_PATH = CONFIG_EDGE_DRIVER_PATH
+CHROME_DRIVER_PATH = CONFIG_CHROME_DRIVER_PATH
 UNITY_URL = 'https://uat-cm-portal-eus-wa.azurewebsites.net/Ng/intervention/dashboard'
 ATTACHMENT_FOLDER = CONFIG_ATTACHMENT_FOLDER
  
@@ -82,27 +81,7 @@ def normalize_state_for_dropdown(state: str) -> str:
 
 # ---------- WebDriver lifecycle ----------
 def create_driver(*, detach=False):
-    opts = EdgeOptions()
-
-    opts.add_argument("--ignore-certificate-errors")
-    opts.add_argument("--allow-insecure-localhost")
-    opts.add_argument("--disable-popup-blocking")
-    opts.add_argument("--disable-gpu")
-    opts.add_argument("--disable-software-rasterizer")
-    opts.add_argument("--no-sandbox")
-    opts.add_argument("--disable-dev-shm-usage")
-    opts.add_argument("--log-level=3")
-    opts.add_experimental_option("excludeSwitches", ["enable-logging"])
-    opts.add_experimental_option("detach", detach)
-    opts.add_argument("--disable-features=OnDeviceModel,OptimizationHints,OptimizationGuideModelDownloading")
-    opts.binary_location = find_msedge_path()
-
-    service = build_edge_service(EDGE_DRIVER_PATH)
-
-    driver = webdriver.Edge(service=service, options=opts)
-    driver.set_page_load_timeout(60)
-    driver.set_script_timeout(60)
-    return driver
+    return create_unity_driver(CHROME_DRIVER_PATH, detach=detach)
 
 
  
@@ -1477,19 +1456,10 @@ def validate_and_complete_task(driver, customer_name: str, claimant_name: str,da
         time.sleep(2)
         notify("Notice", "Stopped for Manual Validation before Completing Task.")
     
-        # Complete Task (only auto-click for specific claimant guard)
-        try:
-            complete_btn = WebDriverWait(driver, 15).until(EC.element_to_be_clickable((
-                By.XPATH,
-                "/html/body/my-app/div/div/div/ng-component/div[1]/div/div[3]/span/button[3]"
-            )))
-            driver.execute_script("arguments[0].scrollIntoView({block:'center', inline:'nearest'});", complete_btn)
-            complete_btn.click()
-        except Exception:
-            pass
+        complete_task(driver)
 
         time.sleep(15)
-    except (UnityFlagError, UnityCustomerFieldsError, UnityEmployerFieldsError):
+    except (UnityFlagError, UnityCustomerFieldsError, UnityEmployerFieldsError, UnityTaskCompletionError):
         raise
     except Exception as ex:
         exc_type, exc_obj, tb = sys.exc_info()
@@ -1503,6 +1473,8 @@ def main(customer_name: str, claimant_name: str,dataRef: dict):
         driver = create_driver()
         login(driver)
         validate_and_complete_task(driver, customer_name, claimant_name,dataRef)
+    except UnityTaskCompletionError:
+        raise
     except Exception as ex:
         exc_type, exc_obj, tb = sys.exc_info()
         print(f"error occurred: {ex} (line {tb.tb_lineno})")

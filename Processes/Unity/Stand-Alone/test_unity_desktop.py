@@ -16,7 +16,8 @@ from unittest.mock import MagicMock, Mock, patch
 from types import SimpleNamespace
 
 from openpyxl import load_workbook
-from AI.unity_errors import UnityCustomerFieldsError, UnityEmployerFieldsError, UnityFlagError
+from AI.unity_errors import UnityCustomerFieldsError, UnityEmployerFieldsError, UnityFlagError, UnityTaskCompletionError
+from AI.unity_completion import complete_task
 from AI.rrs_assignment import RRSCompletionError
 
 HERE = Path(__file__).resolve().parent
@@ -96,6 +97,8 @@ class StartupTests(unittest.TestCase):
                     and node.module.startswith('AI.')}
         required.add('AI.referral_attachments')
         required.add('AI.unity_errors')
+        required.add('AI.unity_completion')
+        required.add('AI.unity_browser')
         required.add('AI.rrs_assignment')
         required.add('legacy.CMS')
         required.add('fcm_intake.config')
@@ -133,27 +136,107 @@ class StartupTests(unittest.TestCase):
         self.assertIn('src/fcm_intake/legacy/CMS.py', required)
         self.assertTrue(any(isinstance(node, ast.ImportFrom) and node.module == 'AI.rrs_assignment'
                             for node in ast.walk(smoke_tree)))
+        self.assertTrue(any(isinstance(node, ast.ImportFrom) and node.module == 'AI.unity_browser'
+                            for node in ast.walk(smoke_tree)))
+        self.assertTrue(any(isinstance(node, ast.ImportFrom) and node.module == 'AI.unity_completion'
+                            for node in ast.walk(smoke_tree)))
+        self.assertTrue(any(isinstance(node, ast.ImportFrom)
+                            and node.module == 'selenium.webdriver' and
+                            any(alias.name == 'Chrome' for alias in node.names)
+                            for node in ast.walk(smoke_tree)))
+        self.assertFalse(any(isinstance(node, ast.Call) and isinstance(node.func, ast.Name)
+                             and node.func.id in {'Chrome', 'ChromeService', 'create_driver', 'complete_task'}
+                             for node in ast.walk(smoke_tree)))
 
-    def test_actual_edge_driver_detach_is_opt_in(self):
-        from selenium.webdriver.edge.options import Options
 
-        factory = legacy_function('create_driver')
-        for keywords, detached in (({}, False), ({'detach': True}, True), ({'detach': False}, False)):
-            with self.subTest(keywords=keywords):
-                webdriver = Mock()
-                service = Mock()
-                env = {'EdgeOptions': Options, 'webdriver': webdriver,
-                       'find_msedge_path': lambda: 'synthetic-edge.exe',
-                       'build_edge_service': Mock(return_value=service),
-                       'EDGE_DRIVER_PATH': 'synthetic-driver.exe'}
-                exec(compile(ast.Module(body=[factory], type_ignores=[]), '<actual driver>', 'exec'), env)
-                driver = env['create_driver'](**keywords)
-                options = webdriver.Edge.call_args.kwargs['options']
-                self.assertIs(options.experimental_options['detach'], detached)
-                self.assertEqual(options.experimental_options['excludeSwitches'], ['enable-logging'])
-                webdriver.Edge.assert_called_once_with(service=service, options=options)
-                driver.set_page_load_timeout.assert_called_once_with(60)
-                driver.set_script_timeout.assert_called_once_with(60)
+class ChromeDriverTests(unittest.TestCase):
+    def test_shared_chrome_factory_manager_static_path_and_opt_in_detach(self):
+        from AI import unity_browser
+        from selenium.webdriver.chrome.options import Options
+
+        for path in ('', r'C:\synthetic\chromedriver.exe'):
+            for keywords, detached in (({}, False), ({'detach': True}, True), ({'detach': False}, False)):
+                with self.subTest(path=path, keywords=keywords), \
+                        patch.object(unity_browser, 'webdriver') as webdriver, \
+                        patch.object(unity_browser, 'ChromeService') as service:
+                    driver = unity_browser.create_driver(path, **keywords)
+                    service.assert_called_once_with(executable_path=path or None, log_output=None)
+                    options = webdriver.Chrome.call_args.kwargs['options']
+                    self.assertIsInstance(options, Options)
+                    self.assertEqual(options.binary_location, '')
+                    self.assertIs(options.experimental_options['detach'], detached)
+                    self.assertEqual(options.experimental_options['excludeSwitches'], ['enable-logging'])
+                    self.assertEqual(set(options.arguments), {
+                        '--ignore-certificate-errors', '--allow-insecure-localhost',
+                        '--disable-popup-blocking', '--disable-gpu', '--disable-software-rasterizer',
+                        '--no-sandbox', '--disable-dev-shm-usage', '--log-level=3',
+                        '--disable-features=OnDeviceModel,OptimizationHints,OptimizationGuideModelDownloading'})
+                    webdriver.Chrome.assert_called_once_with(service=service.return_value, options=options)
+                    webdriver.Edge.assert_not_called()
+                    driver.set_page_load_timeout.assert_called_once_with(60)
+                    driver.set_script_timeout.assert_called_once_with(60)
+
+    def test_chrome_errors_propagate_without_service_or_browser_fallback(self):
+        from AI import unity_browser
+
+        for failure_stage in ('service', 'browser'):
+            error = RuntimeError('synthetic Chrome failure')
+            with self.subTest(stage=failure_stage), \
+                    patch.object(unity_browser, 'webdriver') as webdriver, \
+                    patch.object(unity_browser, 'ChromeService') as service:
+                if failure_stage == 'service':
+                    service.side_effect = error
+                else:
+                    webdriver.Chrome.side_effect = error
+                with self.assertRaises(RuntimeError) as raised:
+                    unity_browser.create_driver(r'C:\synthetic\missing.exe', log_output='chromedriver.log')
+                self.assertIs(raised.exception, error)
+                service.assert_called_once_with(
+                    executable_path=r'C:\synthetic\missing.exe', log_output='chromedriver.log')
+                self.assertEqual(webdriver.Chrome.call_count, failure_stage == 'browser')
+                webdriver.Edge.assert_not_called()
+
+    def test_actual_legacy_factories_delegate_and_propagate_failures(self):
+        for filename in ('legacy_unity.py', 'CMS.py'):
+            path = model.ROOT / 'src' / 'fcm_intake' / 'legacy' / filename
+            imports = []
+            with path.open(encoding='utf-8-sig') as source:
+                for line in source:
+                    if line.startswith('def '):
+                        break
+                    imports.append(line)
+            import_tree = ast.parse(''.join(imports))
+            if filename == 'CMS.py':
+                import_tree = legacy_function('CheckCaseUnity', filename)
+            self.assertTrue(any(isinstance(node, ast.ImportFrom)
+                                and node.module == 'AI.unity_browser'
+                                and any(alias.name == 'create_driver'
+                                        and alias.asname == 'create_unity_driver' for alias in node.names)
+                                for node in ast.walk(import_tree)), filename)
+        assignment = legacy_function('create_driver')
+        lookup = next(node for node in legacy_function('CheckCaseUnity', 'CMS.py').body
+                      if isinstance(node, ast.FunctionDef) and node.name == 'create_driver')
+        cases = [(assignment, keywords, {'detach': detached})
+                 for keywords, detached in (({}, False), ({'detach': True}, True), ({'detach': False}, False))]
+        cases.append((lookup, {}, {'log_output': 'chromedriver.log'}))
+        for factory, keywords, forwarded in cases:
+            for failing in (False, True):
+                with self.subTest(factory=factory.lineno, keywords=keywords, failing=failing):
+                    shared = Mock()
+                    error = RuntimeError('synthetic Chrome failure')
+                    if failing:
+                        shared.side_effect = error
+                    env = {'create_unity_driver': shared, 'CHROME_DRIVER_PATH': 'synthetic-driver.exe',
+                           'CONFIG_CHROME_DRIVER_PATH': 'synthetic-driver.exe'}
+                    with patch.dict(sys.modules, {'AI.unity_browser': SimpleNamespace(create_driver=shared)}):
+                        exec(compile(ast.Module(body=[factory], type_ignores=[]), '<actual driver>', 'exec'), env)
+                        if failing:
+                            with self.assertRaises(RuntimeError) as raised:
+                                env['create_driver'](**keywords)
+                            self.assertIs(raised.exception, error)
+                        else:
+                            self.assertIs(env['create_driver'](**keywords), shared.return_value)
+                    shared.assert_called_once_with('synthetic-driver.exe', **forwarded)
 
 
 class TrackingConfigurationTests(unittest.TestCase):
@@ -845,7 +928,9 @@ class LegacyFlagTests(unittest.TestCase):
         self.env = {'WebDriverWait': Wait, 'By': By, 'EC': EC, 'sys': sys,
                     'UnityFlagError': UnityFlagError,
                     'UnityCustomerFieldsError': UnityCustomerFieldsError,
-                    'UnityEmployerFieldsError': UnityEmployerFieldsError}
+                    'UnityEmployerFieldsError': UnityEmployerFieldsError,
+                    'UnityTaskCompletionError': UnityTaskCompletionError,
+                    'complete_task': complete_task}
         helper = legacy_function('flag_missing_appointment_time')
         exec(compile(ast.Module(body=[helper], type_ignores=[]), '<actual flag helper>', 'exec'), self.env)
         validation = legacy_function('validate_and_complete_task')
@@ -1015,6 +1100,271 @@ class LegacyFlagTests(unittest.TestCase):
         complete.assert_not_called()
 
 
+class CompleteTaskTests(unittest.TestCase):
+    class Button:
+        def __init__(self, text, *, visible=True, enabled=True, aria=None):
+            self.text, self.visible, self.enabled, self.aria = text, visible, enabled, aria
+            self.click = Mock()
+
+        def is_displayed(self):
+            return self.visible
+
+        def is_enabled(self):
+            return self.enabled
+
+        def get_attribute(self, name):
+            assert name == 'aria-disabled'
+            return self.aria
+
+    class Wait:
+        def __init__(self, driver, timeout):
+            assert timeout == 15
+            self.driver = driver
+
+        def until(self, condition):
+            for _ in range(3):
+                result = condition(self.driver)
+                if result:
+                    return result
+            raise TimeoutError('SYNTHETIC-PRIVATE timeout details')
+
+    def driver(self, buttons):
+        from selenium.webdriver.common.by import By
+
+        def find(by, selector):
+            self.assertEqual((by, selector), (By.TAG_NAME, 'button'))
+            self.assertTrue(all(button.click.call_count == 0 for button in buttons))
+            return buttons
+
+        return SimpleNamespace(find_elements=Mock(side_effect=find), execute_script=Mock())
+
+    def test_role_and_order_independent_exact_rendered_label_only(self):
+        for labels in (
+                ['Save', 'Complete Task'],
+                ['Delete Task', 'Save', 'Complete Task'],
+                ['Complete Task', 'Delete Task', 'Do not Complete Task', 'Complete Tasks'],
+                ['complete task', 'Complete Task now', 'Delete task'],
+                ['Delete task', 'COMPLETE TASK'],
+                ['Complete Task now', ' \n cOmPlEtE \t TaSk \n ', 'Delete Task']):
+            with self.subTest(labels=labels):
+                buttons = [self.Button(label) for label in labels]
+                target, = [button for button in buttons
+                           if ' '.join(button.text.split()).casefold() == 'complete task']
+                driver = self.driver(buttons)
+                with patch('AI.unity_completion.WebDriverWait', self.Wait):
+                    complete_task(driver)
+                target.click.assert_called_once_with()
+                for button in buttons:
+                    if button is not target:
+                        button.click.assert_not_called()
+                driver.execute_script.assert_called_once()
+                self.assertNotIn('click', driver.execute_script.call_args.args[0].lower())
+
+    def test_hidden_duplicates_ignored_and_wait_does_not_click(self):
+        hidden = self.Button('COMPLETE TASK', visible=False)
+        target = self.Button('Complete task', enabled=False)
+        driver = self.driver([hidden, target, self.Button('Delete Task')])
+        polls = []
+
+        def poll(by, selector):
+            polls.append(True)
+            target.click.assert_not_called()
+            if len(polls) == 2:
+                target.enabled = True
+            return [hidden, target]
+
+        driver.find_elements.side_effect = poll
+        with patch('AI.unity_completion.WebDriverWait', self.Wait):
+            complete_task(driver)
+        self.assertEqual(len(polls), 3)
+        target.click.assert_called_once_with()
+        hidden.click.assert_not_called()
+
+    def test_missing_hidden_disabled_aria_disabled_and_duplicate_fail_closed(self):
+        cases = [
+            [], [self.Button('Delete task')], [self.Button('Do not complete task')],
+            [self.Button('COMPLETE TASKS')], [self.Button('complete task now')],
+            [self.Button('Complete Task', visible=False)],
+            [self.Button('Complete Task', enabled=False)],
+            [self.Button('Complete Task', aria=' TRUE ')],
+            [self.Button('Complete Task'), self.Button('Complete Task')],
+            [self.Button('Complete Task'), self.Button('Complete Task', enabled=False)],
+            [self.Button('Complete task'), self.Button('COMPLETE TASK')],
+            [self.Button('Complete task'), self.Button('COMPLETE TASK', enabled=False)],
+        ]
+        for buttons in cases:
+            with self.subTest(buttons=[b.text for b in buttons]):
+                driver = self.driver(buttons)
+                with patch('AI.unity_completion.WebDriverWait', self.Wait):
+                    with self.assertRaises(UnityTaskCompletionError) as caught:
+                        complete_task(driver)
+                self.assertEqual(caught.exception.stage,
+                                 'waiting for a unique actionable Complete Task button')
+                self.assertNotIn('SYNTHETIC-PRIVATE', str(caught.exception))
+                self.assertIsInstance(caught.exception.__cause__, (RuntimeError, TimeoutError))
+                driver.execute_script.assert_not_called()
+                for button in buttons:
+                    button.click.assert_not_called()
+
+    def test_scroll_mutations_fail_before_click_and_never_choose_replacement(self):
+        for mutation in ('relabel', 'replace', 'hide', 'disable', 'aria', 'duplicate', 'remove'):
+            with self.subTest(mutation=mutation):
+                target = self.Button('cOmPlEtE tAsK')
+                buttons = [target, self.Button('Delete Task')]
+                driver = self.driver(buttons)
+
+                def scroll(*args):
+                    if mutation == 'relabel':
+                        target.text = 'Delete Task'
+                    elif mutation == 'replace':
+                        buttons[0] = self.Button('Complete Task')
+                    elif mutation == 'hide':
+                        target.visible = False
+                    elif mutation == 'disable':
+                        target.enabled = False
+                    elif mutation == 'aria':
+                        target.aria = 'true'
+                    elif mutation == 'duplicate':
+                        buttons.append(self.Button('COMPLETE TASK'))
+                    elif mutation == 'remove':
+                        buttons.remove(target)
+
+                driver.execute_script.side_effect = scroll
+                with patch('AI.unity_completion.WebDriverWait', self.Wait):
+                    with self.assertRaises(UnityTaskCompletionError) as caught:
+                        complete_task(driver)
+                self.assertEqual(caught.exception.stage, 'revalidating the Complete Task button')
+                target.click.assert_not_called()
+                for button in buttons:
+                    button.click.assert_not_called()
+
+    def test_interaction_errors_keep_original_cause_and_click_is_never_retried(self):
+        for failure in ('lookup', 'scroll', 'click'):
+            with self.subTest(failure=failure):
+                target = self.Button('Complete Task')
+                driver = self.driver([target])
+                error = RuntimeError('SYNTHETIC-PRIVATE driver response')
+                operation = {'lookup': driver.find_elements, 'scroll': driver.execute_script,
+                             'click': target.click}[failure]
+                operation.side_effect = error
+                with patch('AI.unity_completion.WebDriverWait', self.Wait):
+                    with self.assertRaises(UnityTaskCompletionError) as caught:
+                        complete_task(driver)
+                self.assertIs(caught.exception.__cause__, error)
+                self.assertNotIn('SYNTHETIC-PRIVATE', str(caught.exception))
+                self.assertEqual(target.click.call_count, int(failure == 'click'))
+                self.assertEqual(operation.call_count, 1)
+
+    def test_actual_validation_desktop_controller_and_cli_stop_with_normal_cleanup(self):
+        from contextlib import redirect_stdout
+        from io import StringIO
+
+        for record_on_failure in (True, False):
+            with self.subTest(record_on_failure=record_on_failure):
+                fixture = LegacyCustomerFieldsTests()
+                fixture.setUp()
+                fixture.complete.text = 'Delete Task'
+                env = fixture.env
+                env.update(create_driver=Mock(return_value=fixture.driver), login=Mock())
+                exec(compile(ast.Module(body=[legacy_function('main')], type_ignores=[]),
+                             '<actual Unity main>', 'exec'), env)
+                unity = SimpleNamespace(**{name: env[name] for name in (
+                    'main', 'create_driver', 'login', 'validate_and_complete_task')})
+                config = SimpleNamespace(ATTACHMENT_FOLDER='synthetic', UNITY_SCRIPT='synthetic.py')
+                with patch.dict(sys.modules, {
+                        'fcm_intake.config': config,
+                        'fcm_intake.legacy_loader': SimpleNamespace(load_module_from_path=lambda *args: unity)}):
+                    callbacks = backend.live_callbacks()
+                record, confirm, finish = Mock(), Mock(return_value=True), Mock()
+                with patch('AI.unity_completion.WebDriverWait', self.Wait):
+                    result = backend._runner().load_core().run_flow(
+                        fixture.data, list_attachments=lambda: ['synthetic.pdf'],
+                        run_unity=callbacks['run_unity'], record_assignment=record,
+                        confirm=confirm, complete_assignment=finish, notify=Mock(),
+                        record_attempt_on_failure=record_on_failure)
+                self.assertEqual((result['status'], result['reason']), ('failed', 'run_unity_failed'))
+                self.assertEqual(result['error']['type'], 'UnityTaskCompletionError')
+                self.assertNotIn('SYNTHETIC-PRIVATE', result['error']['message'])
+                self.assertEqual(record.call_count, int(record_on_failure))
+                confirm.assert_not_called()
+                finish.assert_not_called()
+                fixture.driver.quit.assert_called_once()
+                fixture.driver.service.stop.assert_not_called()
+                fixture.driver.command_executor.close.assert_not_called()
+                fixture.env['notify'].assert_called_once_with(
+                    'Notice', 'Stopped for Manual Validation before Completing Task.')
+                fixture.env['time'].sleep.assert_any_call(2)
+                self.assertNotIn(((15,), {}), fixture.env['time'].sleep.call_args_list)
+                fixture.driver.quit.reset_mock()
+                with patch('AI.unity_completion.WebDriverWait', self.Wait):
+                    with self.assertRaises(UnityTaskCompletionError):
+                        unity.main('Synthetic', 'Example', fixture.data)
+                fixture.driver.quit.assert_called_once()
+
+                # Exercise run.py's actual --live wiring with AST-extracted
+                # legacy code and local synthetic inputs, never live bindings.
+                runner = backend._runner()
+                unity.main = lambda customer, claimant, data: env['main'](
+                    customer, claimant, fixture.data | data)
+                with tempfile.TemporaryDirectory(dir=HERE) as directory:
+                    (Path(directory) / 'synthetic.pdf').touch()
+                    config.ATTACHMENT_FOLDER = directory
+                    fixture.driver.quit.reset_mock()
+                    output = StringIO()
+                    with patch.dict(sys.modules, {
+                            'fcm_intake.config': config,
+                            'fcm_intake.legacy_loader': SimpleNamespace(
+                                load_module_from_path=lambda *args: unity)}), \
+                            patch.object(runner, '_preflight_tracking'), \
+                            patch.object(runner, '_record_live') as tracking, \
+                            patch.object(runner, '_complete_live') as rrs, \
+                            patch.object(runner, 'ask_yes_no') as approval, \
+                            patch('AI.unity_completion.WebDriverWait', self.Wait), redirect_stdout(output):
+                        code = runner.main(['--live', '--customer', 'Synthetic',
+                            '--claim-number', 'SYNTHETIC-001', '--claimant-first', 'Synthetic',
+                            '--claimant-last', 'Example', '--record-attempt-on-failure',
+                            'yes' if record_on_failure else 'no'])
+                    self.assertEqual(code, 2, output.getvalue())
+                    self.assertIn('"reason": "run_unity_failed"', output.getvalue())
+                    self.assertIn('"type": "UnityTaskCompletionError"', output.getvalue())
+                    self.assertEqual(tracking.call_count, int(record_on_failure))
+                    approval.assert_not_called()
+                    rrs.assert_not_called()
+                    fixture.driver.quit.assert_called_once()
+                self.assertNotIn(('complete', 'click'), fixture.events)
+
+    def test_actual_validation_click_failure_propagates_once_without_post_click_sleep(self):
+        fixture = LegacyCustomerFieldsTests()
+        fixture.setUp()
+        error = RuntimeError('SYNTHETIC-PRIVATE uncertain click result')
+        fixture.complete.click = Mock(side_effect=error)
+        unity = SimpleNamespace(validate_and_complete_task=fixture.env['validate_and_complete_task'])
+        with patch('AI.unity_completion.WebDriverWait', self.Wait):
+            with self.assertRaises(UnityTaskCompletionError) as caught:
+                backend.checked_validate(unity, fixture.driver, 'Synthetic', 'Example', fixture.data)
+        self.assertIs(caught.exception.__cause__, error)
+        self.assertEqual(caught.exception.stage, 'clicking the Complete Task button')
+        self.assertNotIn('SYNTHETIC-PRIVATE', str(caught.exception))
+        fixture.complete.click.assert_called_once_with()
+        self.assertNotIn(((15,), {}), fixture.env['time'].sleep.call_args_list)
+
+    def test_actual_main_still_swallows_unrelated_legacy_errors_and_quits(self):
+        from contextlib import redirect_stdout
+        from io import StringIO
+
+        driver = SimpleNamespace(quit=Mock())
+        env = {'create_driver': Mock(return_value=driver), 'login': Mock(),
+               'validate_and_complete_task': Mock(side_effect=ValueError('synthetic failure')),
+               'UnityTaskCompletionError': UnityTaskCompletionError, 'sys': sys}
+        exec(compile(ast.Module(body=[legacy_function('main')], type_ignores=[]),
+                     '<actual Unity main>', 'exec'), env)
+        output = StringIO()
+        with redirect_stdout(output):
+            self.assertIsNone(env['main']('Synthetic', 'Example', {}))
+        self.assertIn('error occurred:', output.getvalue())
+        driver.quit.assert_called_once_with()
+
+
 class LegacyCustomerFieldsTests(unittest.TestCase):
     def setUp(self):
         from selenium.webdriver.common.by import By
@@ -1029,6 +1379,7 @@ class LegacyCustomerFieldsTests(unittest.TestCase):
             def __init__(self, name, value=''):
                 self.name, self.value, self.reads = name, value, 0
                 self.visible = name not in ('date', 'claim')
+                self.text = 'Complete Task' if name == 'complete' else ''
 
             def is_displayed(self):
                 self.action('visibility')
@@ -1058,6 +1409,8 @@ class LegacyCustomerFieldsTests(unittest.TestCase):
                 self.value += value
 
             def get_attribute(self, name):
+                if name == 'aria-disabled':
+                    return None
                 self.reads += 1
                 self.action('read' if self.reads == 1 else 'readback')
                 if owner.failure == (self.name, 'mismatch') and self.reads > 1:
@@ -1087,7 +1440,6 @@ class LegacyCustomerFieldsTests(unittest.TestCase):
             (By.XPATH, "//field-label[normalize-space()='Date of First Appointment']"
              "/following::input[@type='text'][1]"): self.date,
             (By.ID, 'intake-customer-specific-field-fields--Claim Identifier-text-general-input'): self.claim,
-            (By.XPATH, '/html/body/my-app/div/div/div/ng-component/div[1]/div/div[3]/span/button[3]'): self.complete,
         }
 
         def find(by, selector):
@@ -1099,6 +1451,8 @@ class LegacyCustomerFieldsTests(unittest.TestCase):
             return field
 
         def find_all(by, selector):
+            if (by, selector) == (By.TAG_NAME, 'button'):
+                return [self.complete]
             field = find(by, selector)
             return [field, field] if self.failure == (field.name, 'ambiguous') else [field]
 
@@ -1107,7 +1461,9 @@ class LegacyCustomerFieldsTests(unittest.TestCase):
         self.env = {'WebDriverWait': Wait, 'By': By, 'EC': EC, 'sys': sys,
                     'time': Mock(), 'notify': Mock(), 'UnityFlagError': UnityFlagError,
                     'UnityCustomerFieldsError': UnityCustomerFieldsError,
-                    'UnityEmployerFieldsError': UnityEmployerFieldsError}
+                    'UnityEmployerFieldsError': UnityEmployerFieldsError,
+                    'UnityTaskCompletionError': UnityTaskCompletionError,
+                    'complete_task': complete_task}
         helper = legacy_function('fill_customer_defined_fields')
         validation = legacy_function('validate_and_complete_task')
         statements = validation.body[0].body
@@ -1138,6 +1494,7 @@ class LegacyCustomerFieldsTests(unittest.TestCase):
                 self.env['notify'].assert_called_once_with(
                     'Notice', 'Stopped for Manual Validation before Completing Task.')
                 self.assertEqual(self.events.count(('complete', 'click')), 1)
+                self.env['time'].sleep.assert_any_call(15)
         for source in ({}, {'nextApptDate': '', 'claimID': None},
                        {'nextApptDate': ' \t ', 'claimID': ' \t '}):
             with self.subTest(source=source):
@@ -1365,6 +1722,8 @@ class LegacyEmployerFieldsTests(unittest.TestCase):
             return original_find(by, selector)
 
         def find_all(by, selector):
+            if (by, selector) == (By.TAG_NAME, 'button'):
+                return [self.complete]
             field = find(by, selector)
             if field is self.facility and self.failure == ('facility', 'ambiguous'):
                 return [field, field]
