@@ -8,6 +8,7 @@ This vault is the FCM_Structured documentation set.
 - [[brd/INDEX]] — converted BRD for the end-to-end Liberty Mutual intake flow.
 - [[process-wizard/INVESTIGATION]] — parked Process Wizard findings and design blockers; recall with "JARVIS".
 - [[cms-registration/INVESTIGATION]] — post-Unity CMS Registration findings, boundary, and backlog.
+- [[code/CODE-MAP]] — source-code map: architecture, each process and app, shared AI modules, legacy code, configuration, data contracts, build/release, testing and glossary.
 
 ## Conventions
 

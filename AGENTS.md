@@ -16,6 +16,7 @@ This repository is a structured, behavior-preserving migration of a legacy Windo
 | Reference | What it provides |
 | --- | --- |
 | `docs/INSTRUCTIONS.md` | **Live task list**, permanent ID/status rules, scope and follow-up procedure. Read before selecting work; do not reconstruct the backlog here. |
+| `docs/code/CODE-MAP.md` | Source-code map in the Obsidian vault: architecture, per-process notes, shared `AI/` modules, legacy code, settings names, data contracts, build/release and testing, with file:line references verified at the commit in each note's frontmatter. |
 | `docs/completed.md` | Archive of finished items, evidence and ID history. |
 | `Final Code/PROCESS-MAP.md` | Architecture map, process boundaries and data contract; recheck historical line numbers and counts against code. |
 | `Final Code/MAPPING.md` | AI-to-legacy field mapping and adapter contract. |
