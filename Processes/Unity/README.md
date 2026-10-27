@@ -17,8 +17,10 @@ Unity/
     README.md           Commands and debugging instructions
 ```
 
-Deploy-Ready is integration source, not an independently packaged EXE. No Unity
-EXE is built. The large Selenium body remains in
+Deploy-Ready is integration source, not an independently packaged EXE. The Unity
+EXE is built from `Stand-Alone/unity_assignment.spec`; the current v1.0.13
+[verified build](Stand-Alone/README.md#v1013-verified-build-10272026-fcm-11-113)
+is not yet published or live validated. The large Selenium body remains in
 `src/fcm_intake/legacy/legacy_unity.py`; it is not copied or rewritten here.
 
 ## One browser per All run (FCM-1.1-95; v1.0.12)
@@ -27,13 +29,17 @@ Desktop and live CLI **All** now retain one Unity WebDriver/session through
 assignment, tracking, iCaseManager approval, case lookup and RRS completion.
 The live boundary owns that session and closes it after RRS finishes or the run
 stops/fails; there is no reuse across operations or referrals. **Unity** and
-**Assign** remain independent operations with their existing owned-browser
-lifecycles. The controller remains browser/database independent.
+**Assign** remain independent operations. Scenario-2 Assign now owns one lazy
+per-run browser through NCM assignment and later lookup; other Assign modes keep
+their existing lifecycle. The controller remains browser/database independent.
 
-Both approval and the explicit manual Yes/No continue/sign-in pause remain,
-even for an already-authenticated session. Sign in manually if needed. Borrowed
-lookup waits for Yes before any search navigation or readiness probing, then
-uses the same browser/tab without rerunning assignment login. It clears the old
+Current source (FCM-1.1-109) keeps initial assignment login but removes the second
+manual sign-in/continue prompt for reused All lookup. Default iCaseManager
+approval remains; the NCM scenario below skips only that approval. Fresh owned
+lookups (Assign/direct calls) still require manual Yes/No sign-in confirmation,
+even when already authenticated. Borrowed lookup navigates in the same browser/tab
+without rerunning login and requires a unique visible, enabled, non-readonly
+claim input within 15 seconds before searching. It clears the old
 claim before entering the current claim. Existing case-detail tabs/row selection
 are unchanged. A lost session stops completion; it never creates a replacement,
 replays assignment or opens a second authentication session.
@@ -51,7 +57,9 @@ including `single_all_session_cleanup: true`; see the
 [release record](Stand-Alone/README.md#v1012-single-browser-all-release-10272026-fcm-11-96).
 The published **v1.0.11** EXE and historical FCM-1.1-88/90/94 release evidence
 remain unchanged. No live portal, RRS, CMS, database or Bedrock validation
-occurred during this build.
+occurred during this build. The FCM-1.1-109 prompt change is not included
+in that historical release; it is packaged in the unpublished v1.0.13
+[verified build](Stand-Alone/README.md#v1013-verified-build-10272026-fcm-11-113).
 
 Historical FCM-1.1-95 source evidence (**10/27/2026, before the FCM-1.1-96
 rebuild**): independent offline verification passed 156 primary JUnit cases with no
@@ -61,6 +69,75 @@ quit/relogin/replacement, and cleanup after RRS or ordinary stop/failure.
 Source smoke passed the one-session cleanup check, 39-key contract, main and
 PDF/MSG/EML flows, and instruction limits. Non-target legacy functions and
 unrelated owner files were unchanged.
+
+## Desktop assignment scenarios (FCM-1.1-108/110; v1.0.13 build verified)
+
+The desktop starts with neither scenario selected: the existing attended flow.
+Explicitly selecting **Scenario 1 - Nurse Case Manager present** skips ONLY the
+controller's iCaseManager approval confirmation in All/Assign, then calls normal
+completion. Results record `skip_icasemanager_approval_ncm_present`, not an
+approval. Initial login and fresh-lookup sign-in prompts remain; reused All lookup
+has no second login prompt under FCM-1.1-109, independently of scenario selection.
+Pre-Complete-Task validation, tracking, errors and browser ownership are unchanged.
+Unity-only has no approval branch either way.
+**Scenario 2 - Assign NCM after approval** retains the attended workflow and
+iCaseManager approval. Only after literal Yes, All/Assign searches the existing
+Unity task queue by claimant, opens its **first row in the existing newest-first
+order** (no client-side date sorting), verifies claimant and claim number, clicks
+exact **Assign Task**, selects the exact NCM name from the new workbook column
+(using claimant address state only to resolve identical names),
+sets **Assigned date** to today's local date, and clicks role-safe **Complete
+Task** before continuing RRS. No, confirmation failure or NCM failure prevents
+all downstream task/RRS actions. Unity-only has no postapproval action.
+All uses its original browser/login. Fresh scenario-2 Assign asks for manual
+sign-in once and reuses that per-run driver for later case lookup; no replacement
+driver, second sign-in or intake/upload replay is attempted.
+**Use attended flow** clears either selection. Controls lock while an
+operation or bridge reply is pending. The selection is UI-only, not a workbook
+field or persisted preference.
+
+The optional strict booleans `nurse_case_manager_present=False` and appended
+`assign_ncm_after_approval=False` are mutually exclusive and passed explicitly
+from the desktop worker to the same controller. Scenario 2 requires `ncm`,
+claimant first/last and an injected `assign_ncm` callback before side effects.
+Existing callers and CLI defaults
+remain attended; no CLI scenario option is added. These scenarios and
+FCM-1.1-112's NCM correction are included in the unpublished v1.0.13
+[verified build](Stand-Alone/README.md#v1013-verified-build-10272026-fcm-11-113).
+Historical v1.0.12 release evidence above does not cover these scenarios.
+FCM-1.1-111's corrected-helper live verification and server/RRS acceptance
+remain blocked; build verification is not live validation.
+
+The shared implementation is `AI/unity_ncm.py`; it borrows its driver and uses
+`AI/unity_completion.py` for both exact task actions. NCM suggestions are scoped
+only by the input's single `aria-controls` / `aria-owns` association (including
+body-mounted popups) or its known custom `typeahead` ancestor /
+`typeahead-container` structure. Conflicting associations and duplicate visible
+associated popups fail safely; unrelated listboxes are ignored. Role options
+take precedence over legacy `li` wrappers.
+One bounded first-name prefix query (at most four characters) retrieves candidates;
+selection always uses the entire person name, normalized only for case/whitespace,
+ignoring the ` - city, state` suffix. A unique name needs no state. Identical names
+require exactly one match to claimant **address** `state`, not claim jurisdiction
+or provider state; full state names and abbreviations compare equally. Missing,
+invalid or unmatched state and same-state duplicates (even disabled) fail.
+Existing exact full-caption callers remain supported. No location column is needed.
+After selection, the disabled readonly selected-manager field must contain the
+exact chosen full caption; legacy same-input binding requires that same caption
+and dismissed suggestions. Binding is rechecked after Assigned date blur.
+Unsupported structure, ambiguous exact matches
+(including disabled duplicates), readonly/disabled controls, selection or date
+readback failure stop with value-free `UnityNCMAssignmentError` retaining its cause.
+No first-suggestion, fuzzy, global-option, JavaScript-write/click/enable or mutation
+retry fallback exists. A previous isolated guarded live field probe succeeded
+with the owned popup, readonly selection and editable date. This corrected
+production source has **not** been live verified; server Complete Task/persistence
+and the RRS handoff remain untested. A returned click does not prove a portal save.
+
+The generated empty template/schema now has 36 operator columns, appending
+**NCM - NCM full name** after the original 35 without reordering. Old workbooks
+load blank NCM and still support attended/scenario-1 flows. NCM is new operator
+data consumed by the new helper, not a legacy intake-read key or execution flag.
 
 ## Unity browser (FCM-1.1-90, v1.0.11)
 
@@ -80,7 +157,7 @@ registration, IE-mode and other Edge automation are unchanged. Assignment keeps
 opt-in detach and existing typed-error manual recovery (now in Chrome);
 CLI/non-recovery cleanup and owned lookup's Quit remain; FCM-1.1-95 above
 governs All ownership in source and the published v1.0.12 artifact.
-The manual post-approval sign-in pause, modes, gates, selectors, tracking and
+The fresh owned-lookup sign-in pause, modes, gates, selectors, tracking and
 60-second page/script timeouts are preserved. Lookup's existing driver log is
 now `chromedriver.log`; assignment adds no persistent driver log.
 
@@ -150,13 +227,16 @@ post-scroll relabeling. Delete Task received zero clicks in every case.
    verification is implemented here. `confirm` waits for an operator's attestation
    that approval happened in that separate system. No/false stops before RRS;
    Yes/true permits completion. Never auto-approve just to unblock automation.
+   The explicit source-only NCM scenario skips this gate without claiming approval.
 
 ## Preserved sequence and rules
 
 `all`: resolve attachment -> run Unity -> record assignment -> await
  iCaseManager approval -> complete assignment. `unity` runs the first three
 steps only; `assign` runs only the last two and relies on previously completed
-Unity work. Required values are customer, claimantFirst, claimantLast and
+Unity work. With explicit NCM selection, the approval step is recorded as skipped;
+completion still runs normally. Required values are customer, claimantFirst,
+claimantLast and
 claimNumber for all/unity; assign requires claimNumber only. Blank keys raise
 ValueError before side effects. claimantFull joins trimmed first and last names.
 
@@ -192,6 +272,10 @@ Live upload, task completion, tracking and RRS completion remain unverified.
 Unity remains standalone, outside Final Code.
 
 ### Manual lookup sign-in (FCM-1.1-88)
+
+Current scope: this attended prompt applies to fresh owned lookups; FCM-1.1-109
+removes it for borrowed All lookup as described above. Historical release evidence
+below is unchanged.
 
 After iCaseManager approval and the existing initial RRS steps, the new lookup
 browser opens Unity UAT and pauses indefinitely for manual sign-in. The desktop

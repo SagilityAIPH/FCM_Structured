@@ -473,6 +473,19 @@
           "maxLength": 1000
         }
       ]
+    },
+    {
+      "title": "NCM",
+      "fields": [
+        {
+          "key": "ncm",
+          "label": "NCM full name",
+          "required": false,
+          "choices": null,
+          "date": false,
+          "maxLength": 1000
+        }
+      ]
     }
   ],
   "defaults": {
@@ -510,7 +523,8 @@
     "claimantAttyAddr2": "",
     "claimantAttyState": "",
     "claimantAttyZip": "",
-    "claimantAttyPhone": ""
+    "claimantAttyPhone": "",
+    "ncm": ""
   },
   "jurisdictions": [
     "",

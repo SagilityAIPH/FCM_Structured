@@ -51,6 +51,97 @@ class FlowTests(unittest.TestCase):
         self.calls["confirm"].assert_not_called()
         self.calls["complete_assignment"].assert_not_called()
 
+    def test_explicit_ncm_skips_only_approval_and_records_skip_not_approval(self):
+        for stage in core.STAGES:
+            with self.subTest(stage=stage):
+                self.setUp()
+                steps = [] if stage == "assign" else STEPS[:3]
+                if stage != "unity":
+                    steps += ["skip_icasemanager_approval_ncm_present", "complete_assignment"]
+                self.outcome(self.run_flow(stage=stage, nurse_case_manager_present=True),
+                             "completed", "", steps)
+                self.calls["confirm"].assert_not_called()
+                self.assertEqual(self.calls["complete_assignment"].call_count, int(stage != "unity"))
+                for key in ("list_attachments", "run_unity", "record_assignment"):
+                    self.assertEqual(self.calls[key].call_count, int(stage != "assign"))
+
+    def test_invalid_ncm_flag_rejected_before_callbacks(self):
+        for value in ("true", "false", "", 0, 1, None):
+            with self.subTest(value=value), self.assertRaisesRegex(ValueError, "must be boolean"):
+                self.run_flow(nurse_case_manager_present=value)
+        for callback in self.calls.values():
+            callback.assert_not_called()
+
+    def test_postapproval_ncm_contract_and_order(self):
+        self.data['ncm'] = ' Synthetic Nurse '
+        events = []
+        self.calls['confirm'].side_effect = lambda *args: events.append('approval') or True
+        self.calls['complete_assignment'].side_effect = lambda *args: events.append('rrs')
+        assign = Mock(side_effect=lambda *args: events.append('ncm'))
+        result = self.run_flow(assign_ncm_after_approval=True, assign_ncm=assign)
+        self.outcome(result, 'completed', '', STEPS[:4] + ['assign_ncm', 'complete_assignment'])
+        self.assertEqual(events, ['approval', 'ncm', 'rrs'])
+        assign.assert_called_once_with('Invented Starling', 'FAKE-UNITY-001', 'Synthetic Nurse')
+
+    def test_postapproval_validation_before_effects(self):
+        for value in (None, '', 'true', 0, 1):
+            with self.subTest(value=value), self.assertRaises(ValueError):
+                self.run_flow(assign_ncm_after_approval=value)
+        self.data['ncm'] = 'Synthetic Nurse'
+        for options in ({'nurse_case_manager_present': True}, {'assign_ncm': None}):
+            with self.subTest(options=options), self.assertRaises(ValueError):
+                self.run_flow(assign_ncm_after_approval=True, **options)
+        for key in ('ncm', 'claimantFirst', 'claimantLast'):
+            data = self.data
+            self.data = {**data, key: ' '}
+            with self.subTest(key=key), self.assertRaisesRegex(ValueError, key):
+                self.run_flow(stage='assign', assign_ncm_after_approval=True, assign_ncm=Mock())
+            self.data = data
+        for callback in self.calls.values():
+            callback.assert_not_called()
+
+    def test_postapproval_decline_confirmation_failure_and_assignment_failure_stop_rrs(self):
+        from AI.unity_errors import UnityNCMAssignmentError
+        for failure in ('decline', 'not literal yes', 'confirmation', 'ncm'):
+            with self.subTest(failure=failure):
+                self.setUp()
+                self.data['ncm'] = 'Synthetic Nurse'
+                assign = Mock()
+                if failure == 'decline':
+                    self.calls['confirm'].return_value = False
+                elif failure == 'not literal yes':
+                    self.calls['confirm'].return_value = 'Yes'
+                elif failure == 'confirmation':
+                    self.calls['confirm'].side_effect = RuntimeError('Synthetic failure')
+                else:
+                    assign.side_effect = UnityNCMAssignmentError('synthetic stage')
+                result = self.run_flow(stage='assign', assign_ncm_after_approval=True, assign_ncm=assign)
+                self.assertEqual(result['reason'], 'assign_ncm_failed' if failure == 'ncm' else
+                                 'await_icasemanager_approval_failed' if failure == 'confirmation' else
+                                 'icasemanager_declined')
+                self.assertEqual(assign.call_count, int(failure == 'ncm'))
+                self.calls['complete_assignment'].assert_not_called()
+
+    def test_unity_only_ignores_postapproval_ncm_requirements_and_action(self):
+        assign = Mock()
+        self.outcome(self.run_flow(stage='unity', assign_ncm_after_approval=True, assign_ncm=assign),
+                     'completed', '', STEPS[:3])
+        assign.assert_not_called()
+
+    def test_ncm_preserves_failure_and_tracking_semantics(self):
+        skipped_steps = STEPS[:3] + ["skip_icasemanager_approval_ncm_present", "complete_assignment"]
+        for key, step, steps in (
+                ("run_unity", "run_unity", STEPS[:3]),
+                ("record_assignment", "record_assignment", STEPS[:3]),
+                ("complete_assignment", "complete_assignment", skipped_steps)):
+            with self.subTest(key=key):
+                self.setUp()
+                self.calls[key].side_effect = RuntimeError("Synthetic failure")
+                self.outcome(self.run_flow(nurse_case_manager_present=True),
+                             "failed", step + "_failed", steps)
+                self.calls["confirm"].assert_not_called()
+                self.calls["record_assignment"].assert_called_once()
+
     def test_assign_only_requires_claim_number(self):
         self.data = {"claimNumber": "FAKE-UNITY-001"}
         result = self.run_flow(stage="assign")

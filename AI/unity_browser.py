@@ -6,7 +6,7 @@ from selenium.webdriver.chrome.service import Service as ChromeService
 
 
 class UnityBrowserSession:
-    """Own one lazily created driver for one attended All operation."""
+    """Own one lazy driver for All or postapproval-NCM Assign, never across runs."""
 
     def __init__(self):
         self.driver = None

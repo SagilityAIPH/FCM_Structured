@@ -12,7 +12,7 @@ import tempfile
 import threading
 import time
 import unittest
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import MagicMock, Mock, PropertyMock, patch
 from types import SimpleNamespace
 
 from openpyxl import load_workbook
@@ -98,6 +98,7 @@ class StartupTests(unittest.TestCase):
         required.add('AI.referral_attachments')
         required.add('AI.unity_errors')
         required.add('AI.unity_completion')
+        required.add('AI.unity_ncm')
         required.add('AI.unity_browser')
         required.add('AI.rrs_assignment')
         required.add('legacy.CMS')
@@ -139,6 +140,8 @@ class StartupTests(unittest.TestCase):
         self.assertTrue(any(isinstance(node, ast.ImportFrom) and node.module == 'AI.unity_browser'
                             for node in ast.walk(smoke_tree)))
         self.assertTrue(any(isinstance(node, ast.ImportFrom) and node.module == 'AI.unity_completion'
+                            for node in ast.walk(smoke_tree)))
+        self.assertTrue(any(isinstance(node, ast.ImportFrom) and node.module == 'AI.unity_ncm'
                             for node in ast.walk(smoke_tree)))
         self.assertTrue(any(isinstance(node, ast.ImportFrom)
                             and node.module == 'selenium.webdriver' and
@@ -587,7 +590,7 @@ class RRSCompletionTests(unittest.TestCase):
             self.events.append('wait ready')
             if not predicate(driver):
                 raise self.original_error
-        wait = Mock(return_value=SimpleNamespace(until=until))
+        wait = Mock(return_value=SimpleNamespace(until=Mock(side_effect=until)))
         env = {'create_driver': lambda: self.events.append('create browser') or driver,
                'NavigateSearch': search, 'sys': sys, 'By': SimpleNamespace(ID='id'),
                'WebDriverWait': wait}
@@ -639,11 +642,62 @@ class RRSCompletionTests(unittest.TestCase):
         self.assertEqual(api.get_state()['result']['status'], 'completed')
         self.assertLess(self.events.index('wait ready'), self.events.index('search'))
         self.assertLess(self.events.index('search'), self.events.index(('Case Id', 'SYNTHETIC-CASE')))
-        # Already-authenticated sessions still needed the same manual confirmation.
+        # Fresh lookup browsers still require confirmation even when authenticated.
         driver.get.assert_called_once()
         driver.quit.assert_called_once()
 
-    def test_cli_manual_login_wiring_reaches_actual_lookup_after_approval(self):
+    def test_desktop_start_ncm_retains_real_completion_login_policy_and_rrs_steps(self):
+        for stage in ('all', 'assign'):
+            for login_answer in (True, False):
+                with self.subTest(stage=stage, login_answer=login_answer):
+                    self.doCleanups()
+                    self.setUp()
+                    if stage == 'all':
+                        unity, driver, field, search, tracking, config = self.all_fixture()
+                    else:
+                        driver, field, search, wait = self.actual_lookup()
+                        self.enterContext(patch.object(backend, '_runner', return_value=self.runner))
+                    api = backend.UnityAPI()
+                    # Only fresh Assign lookup asks; All reuses its initial login.
+                    api.confirm = Mock(return_value=login_answer)
+                    api.notify = Mock()
+                    self.final_ok.click_input.side_effect = lambda: self.events.append('RRS finished')
+                    with patch.dict(sys.modules, {'pythoncom': Mock()}), \
+                            patch.object(self.runner, '_preflight_tracking'), \
+                            patch.object(Path, 'glob', return_value=[Path('synthetic.pdf')]), \
+                            patch.object(Path, 'is_file', return_value=True):
+                        self.assertTrue(api.start(synthetic(), stage, True, '', True)['ok'])
+                        api._thread.join(3)
+                        self.assertFalse(api._thread.is_alive())
+                    state = api.get_state()
+                    result = state['result']
+                    self.assertFalse(state['busy'])
+                    if stage == 'all':
+                        api.confirm.assert_not_called()
+                    else:
+                        api.confirm.assert_called_once()
+                        self.assertEqual(api.confirm.call_args.args[0], 'Unity manual sign-in')
+                    self.assertIn('skip_icasemanager_approval_ncm_present', result['steps'])
+                    self.assertNotIn('await_icasemanager_approval', result['steps'])
+                    self.assertIn('complete_assignment', result['steps'])
+                    self.assign.click_input.assert_called_once()
+                    driver.quit.assert_called_once()
+                    if stage == 'all':
+                        unity.login.assert_called_once_with(driver)
+                        unity.validate_and_complete_task.assert_called_once()
+                        tracking.assert_called_once()
+                    if stage == 'all' or login_answer:
+                        self.assertEqual(result['status'], 'completed', result)
+                        search.assert_called_once_with('SYNTHETIC-001', driver)
+                        self.case.Edit.set_edit_text.assert_called_once_with('SYNTHETIC-CASE')
+                        self.assertIn('RRS finished', self.events)
+                    else:
+                        self.assertEqual(result['reason'], 'complete_assignment_failed', result)
+                        search.assert_not_called()
+                        self.case.Edit.set_edit_text.assert_not_called()
+                        self.assertNotIn('RRS finished', self.events)
+
+    def test_cli_assign_manual_login_wiring_reaches_actual_lookup_after_approval(self):
         driver, field, search, wait = self.actual_lookup(ready=False)
         def answer(prompt):
             if prompt.startswith('Unity manual sign-in:'):
@@ -661,7 +715,7 @@ class RRSCompletionTests(unittest.TestCase):
         self.assertLess(self.events.index('login confirmation'), self.events.index('search'))
         driver.quit.assert_called_once()
 
-    def test_login_decline_prompt_error_and_unready_page_stop_all_continuation(self):
+    def test_owned_login_decline_prompt_error_and_unready_page_stop_continuation(self):
         for failure in ('decline', 'nonboolean', 'prompt error', 'logged out',
                         'disabled', 'readonly'):
             with self.subTest(failure=failure):
@@ -768,6 +822,135 @@ class RRSCompletionTests(unittest.TestCase):
         driver.quit.side_effect = lambda: self.events.append('quit')
         return unity, driver, field, search, tracking, config
 
+    def test_scenario2_start_uses_one_driver_for_ncm_and_actual_rrs_lookup(self):
+        from AI.unity_errors import UnityNCMAssignmentError
+        for stage in ('all', 'assign'):
+            for failure in (None, 'approval', 'approval error', 'login', 'ncm'):
+                if stage == 'all' and failure == 'login':
+                    continue
+                with self.subTest(stage=stage, failure=failure):
+                    self.doCleanups()
+                    self.setUp()
+                    unity, driver, field, search, tracking, config = self.all_fixture()
+                    unity.UNITY_URL = 'https://synthetic.invalid/queue'
+                    def answer(title, message):
+                        driver.quit.assert_not_called()
+                        self.events.append(title)
+                        if title == 'Unity manual sign-in':
+                            return failure != 'login'
+                        if failure == 'approval error':
+                            raise RuntimeError('Synthetic approval failure')
+                        return failure != 'approval'
+                    api = backend.UnityAPI()
+                    api.confirm, api.notify = Mock(side_effect=answer), Mock()
+                    def assign(actual, url, claimant, claim, nurse, *, claimant_state=''):
+                        self.assertIs(actual, driver)
+                        self.assertEqual((url, claimant, claim, nurse),
+                            (unity.UNITY_URL, 'Synthetic Person', 'SYNTHETIC-001', 'Synthetic Nurse'))
+                        self.assertEqual(claimant_state, 'CA')
+                        driver.quit.assert_not_called()
+                        self.events.append('NCM task')
+                        if failure == 'ncm':
+                            raise UnityNCMAssignmentError('synthetic stage')
+                    with patch.dict(sys.modules, {'pythoncom': Mock()}), \
+                            patch.object(self.runner, '_preflight_tracking'), \
+                            patch.object(Path, 'glob', return_value=[Path('synthetic.pdf')]), \
+                            patch.object(Path, 'is_file', return_value=True), \
+                            patch('AI.unity_ncm.assign_ncm', side_effect=assign) as ncm:
+                        self.assertTrue(api.start(synthetic() | {
+                            'ncm': 'Synthetic Nurse', 'state': 'CA', 'providerState': 'NY'},
+                            stage, True, 'TX', False, True)['ok'])
+                        api._thread.join(3)
+                        self.assertFalse(api._thread.is_alive())
+                    result = api.get_state()['result']
+                    reached_browser = stage == 'all' or failure not in ('approval', 'approval error')
+                    self.assertEqual(unity.create_driver.call_count, int(reached_browser))
+                    self.assertEqual(driver.quit.call_count, int(reached_browser))
+                    self.assertEqual(unity.login.call_count, int(stage == 'all'))
+                    self.assertEqual(tracking.call_count, int(stage == 'all'))
+                    self.assertEqual([call.args[0] for call in api.confirm.call_args_list],
+                        ['Complete Assignment Stopper'] +
+                        (['Unity manual sign-in'] if stage == 'assign' and reached_browser else []))
+                    if failure is None:
+                        self.assertEqual(result['status'], 'completed', result)
+                        ncm.assert_called_once()
+                        self.assertIn('assign_ncm', result['steps'])
+                        self.assertIs(self.lookup.call_args.kwargs['unity_driver'], driver)
+                        self.assertLess(self.events.index('NCM task'), self.events.index('search'))
+                        self.assertEqual(self.events[-2:], ['RRS finished', 'quit'])
+                    else:
+                        self.assertNotEqual(result['status'], 'completed')
+                        self.lookup.assert_not_called()
+                        self.assign.click_input.assert_not_called()
+                        self.final_ok.click_input.assert_not_called()
+                        self.assertEqual(ncm.call_count, int(failure == 'ncm'))
+                    self.assertNotIn('create browser', self.events)
+                    driver.service.stop.assert_not_called()
+
+    def test_scenario2_real_helper_and_real_rrs_share_driver_end_to_end_offline(self):
+        from datetime import date
+        from test_unity_ncm import NCMAssignmentTests
+        from itertools import product
+        from AI.unity_ncm import SELECTED_NCM
+        from selenium.webdriver.common.by import By
+        for stage, failure in product(('all', 'assign'), (None, 'state', 'binding')):
+            with self.subTest(stage=stage, failure=failure):
+                self.doCleanups()
+                self.setUp()
+                unity, driver, field, search, tracking, config = self.all_fixture()
+                unity.UNITY_URL = 'https://synthetic.invalid/queue'
+                fixture = NCMAssignmentTests()
+                fixture.setUp()
+                self.addCleanup(fixture.doCleanups)
+                fixture.claimant.value = fixture.row.text = 'Synthetic Person'
+                options = fixture.owned_popup(['Synthetic Nurse - Example City, CA',
+                                              'Synthetic Nurse - Example Town, TX'])
+                if failure == 'binding':
+                    select = fixture.option.click.side_effect
+                    def wrong_caption():
+                        select()
+                        fixture.nodes[(By.ID, SELECTED_NCM)][0].value = 'Synthetic Nurse - Example Town, TX'
+                    fixture.option.click.side_effect = wrong_caption
+                find = driver.find_elements.side_effect
+                driver.find_elements.side_effect = lambda by, selector: (
+                    fixture.nodes[(by, selector)] if (by, selector) in fixture.nodes else find(by, selector))
+                driver.execute_script.side_effect = fixture.driver.execute_script.side_effect
+                fixture.complete.click.side_effect = lambda: self.events.append('NCM Complete Task')
+                api = backend.UnityAPI()
+                api.confirm, api.notify = Mock(return_value=True), Mock()
+                with patch.dict(sys.modules, {'pythoncom': Mock()}), \
+                        patch.object(self.runner, '_preflight_tracking'), \
+                        patch.object(Path, 'glob', return_value=[Path('synthetic.pdf')]), \
+                        patch.object(Path, 'is_file', return_value=True):
+                    self.assertTrue(api.start(synthetic() | {
+                        'ncm': 'Synthetic Nurse', 'state': '' if failure == 'state' else 'CA',
+                        'providerState': 'NY'}, stage, True, 'TX', False, True)['ok'])
+                    api._thread.join(3)
+                    self.assertFalse(api._thread.is_alive())
+                result = api.get_state()['result']
+                if failure:
+                    self.assertEqual(result['reason'], 'assign_ncm_failed', result)
+                    fixture.complete.click.assert_not_called()
+                    fixture.delete.click.assert_not_called()
+                    self.lookup.assert_not_called()
+                    self.assign.click_input.assert_not_called()
+                    self.final_ok.click_input.assert_not_called()
+                    driver.quit.assert_called_once()
+                    continue
+                self.assertEqual(result['status'], 'completed', result)
+                self.assertEqual(fixture.assigned.value, date.today().strftime('%m/%d/%Y'))
+                fixture.option.click.assert_called_once()
+                options[1].click.assert_not_called()
+                fixture.assign.click.assert_called_once()
+                fixture.complete.click.assert_called_once()
+                fixture.delete.click.assert_not_called()
+                self.assertLess(self.events.index('NCM Complete Task'), self.events.index('Assign'))
+                self.assertLess(self.events.index('Assign'), self.events.index('search'))
+                unity.create_driver.assert_called_once()
+                self.assertIs(self.lookup.call_args.kwargs['unity_driver'], driver)
+                driver.quit.assert_called_once()
+                self.assertEqual(api.confirm.call_count, 1 if stage == 'all' else 2)
+
     def execute_all(self, frontend, config, answer, api=None):
         if frontend == 'desktop':
             api = api or backend.UnityAPI()
@@ -800,17 +983,13 @@ class RRSCompletionTests(unittest.TestCase):
                 unity, driver, field, search, tracking, config = self.all_fixture()
                 def answer(title, message):
                     driver.quit.assert_not_called()
-                    if title == 'Unity manual sign-in':
-                        # No lookup navigation/probe even when already signed in.
-                        self.events.append('manual Yes')
-                        driver.get.assert_not_called()
-                        driver.find_elements.assert_not_called()
-                        search.assert_not_called()
-                    else:
-                        self.events.append('approval')
+                    self.assertNotEqual(title, 'Unity manual sign-in')
+                    self.events.append('approval')
                     return True
-                result = self.execute_all(frontend, config, answer)
+                confirm = Mock(side_effect=answer)
+                result = self.execute_all(frontend, config, confirm)
                 self.assertEqual(result['status'], 'completed', result)
+                confirm.assert_called_once()
                 unity.create_driver.assert_called_once()
                 unity.login.assert_called_once_with(driver)
                 self.assertIs(unity.validate_and_complete_task.call_args.args[0], driver)
@@ -821,13 +1000,13 @@ class RRSCompletionTests(unittest.TestCase):
                 driver.get.assert_called_once()
                 driver.quit.assert_called_once()
                 self.assertNotIn('create browser', self.events)
-                self.assertLess(self.events.index('approval'), self.events.index('manual Yes'))
-                self.assertLess(self.events.index('manual Yes'), self.events.index('open Unity'))
+                self.assertLess(self.events.index('approval'), self.events.index('open Unity'))
+                self.assertLess(self.events.index('wait ready'), self.events.index('search'))
                 self.assertEqual(self.events[-2:], ['RRS finished', 'quit'])
 
     def test_all_stops_clean_up_without_retry_or_replacement(self):
         for frontend in ('desktop', 'cli'):
-            for failure in ('approval', 'tracking', 'lookup', 'login No', 'stale',
+            for failure in ('approval', 'tracking', 'lookup', 'unready', 'stale',
                             'cleanup', 'lookup and cleanup', 'task'):
                 with self.subTest(frontend=frontend, failure=failure):
                     self.doCleanups()
@@ -839,15 +1018,14 @@ class RRSCompletionTests(unittest.TestCase):
                         search.side_effect = self.original_error
                     if failure == 'stale':
                         driver.get.side_effect = self.original_error
+                    if failure == 'unready':
+                        field.is_displayed.return_value = False
                     if 'cleanup' in failure:
                         driver.quit.side_effect = RuntimeError('synthetic cleanup failed')
                     if failure == 'task':
                         unity.validate_and_complete_task.side_effect = UnityTaskCompletionError('click')
                     def answer(title, message):
-                        if title == 'Unity manual sign-in':
-                            driver.get.assert_not_called()
-                            driver.find_elements.assert_not_called()
-                            return failure != 'login No'
+                        self.assertNotEqual(title, 'Unity manual sign-in')
                         return failure != 'approval'
                     result = self.execute_all(frontend, config, answer)
                     self.assertEqual(result['status'], 'stopped' if failure == 'approval' else 'failed', result)
@@ -861,8 +1039,9 @@ class RRSCompletionTests(unittest.TestCase):
                         driver.get.assert_not_called()
                     else:
                         self.lookup.assert_called_once()
-                    if failure in ('approval', 'tracking', 'task', 'login No', 'stale'):
+                    if failure in ('approval', 'tracking', 'task', 'unready', 'stale'):
                         search.assert_not_called()
+                        self.case.Edit.set_edit_text.assert_not_called()
                     if failure != 'cleanup':
                         self.final_ok.click_input.assert_not_called()
                     if failure == 'lookup and cleanup':
@@ -885,27 +1064,71 @@ class RRSCompletionTests(unittest.TestCase):
                 self.assertTrue(error.browser_left_open)
                 self.lookup.assert_not_called()
 
-    def test_borrowed_lookup_decline_and_failure_never_quit_or_create(self):
-        for failure in ('No', 'stale', 'search'):
+    def test_borrowed_lookup_never_calls_supplied_confirmation_or_creates_or_quits(self):
+        for answer in (False, self.original_error):
+            with self.subTest(answer_type=type(answer).__name__):
+                self.doCleanups()
+                self.setUp()
+                driver, field, search, wait = self.actual_lookup()
+                confirm = Mock(return_value=answer)
+                if isinstance(answer, Exception):
+                    confirm.side_effect = answer
+                self.runner._complete_live(model.ROOT, 'SYNTHETIC-001',
+                    confirm_unity_login=confirm, unity_driver=driver)
+                confirm.assert_not_called()
+                self.assertNotIn('create browser', self.events)
+                driver.maximize_window.assert_not_called()
+                driver.quit.assert_not_called()
+                driver.get.assert_called_once()
+                wait.assert_called_once_with(driver, 15)
+                search.assert_called_once_with('SYNTHETIC-001', driver)
+                self.case.Edit.set_edit_text.assert_called_once_with('SYNTHETIC-CASE')
+                self.final_ok.click_input.assert_called_once()
+
+    def test_borrowed_lookup_session_failure_never_relogs_replaces_or_completes(self):
+        for failure in ('closed', 'stale', 'logged out', 'disabled', 'readonly',
+                        'missing', 'ambiguous', 'search'):
             with self.subTest(failure=failure):
                 self.doCleanups()
                 self.setUp()
                 driver, field, search, wait = self.actual_lookup()
+                if failure == 'closed':
+                    type(driver).current_window_handle = PropertyMock(side_effect=self.original_error)
                 if failure == 'stale':
                     driver.get.side_effect = self.original_error
+                if failure == 'logged out':
+                    field.is_displayed.return_value = False
+                if failure == 'disabled':
+                    field.is_enabled.return_value = False
+                if failure == 'readonly':
+                    field.get_attribute.return_value = 'true'
+                if failure in ('missing', 'ambiguous'):
+                    driver.find_elements.side_effect = None
+                    driver.find_elements.return_value = [] if failure == 'missing' else [field, field]
                 if failure == 'search':
                     search.side_effect = self.original_error
+                confirm = Mock(side_effect=AssertionError('borrowed login must not prompt'))
                 with self.assertRaises(RRSCompletionError) as caught:
                     self.runner._complete_live(model.ROOT, 'SYNTHETIC-001',
-                        confirm_unity_login=lambda *args: failure != 'No', unity_driver=driver)
-                if failure != 'No':
-                    self.assertIs(caught.exception.__cause__, self.original_error)
+                        confirm_unity_login=confirm, unity_driver=driver)
+                self.assertIs(caught.exception.__cause__, self.original_error)
+                confirm.assert_not_called()
                 self.assertNotIn('create browser', self.events)
+                driver.maximize_window.assert_not_called()
                 driver.quit.assert_not_called()
-                if failure == 'No':
+                if failure == 'closed':
                     driver.get.assert_not_called()
                     driver.find_elements.assert_not_called()
+                if failure not in ('closed', 'stale', 'search'):
+                    wait.assert_called_once_with(driver, 15)
+                    self.assertEqual(wait.return_value.until.call_args.args[1],
+                                     'Unity case search is not ready in the reused session.')
+                if failure != 'search':
                     search.assert_not_called()
+                self.case.Edit.set_edit_text.assert_not_called()
+                self.case.OK.click_input.assert_not_called()
+                self.yes_second.click_input.assert_not_called()
+                self.final_ok.click_input.assert_not_called()
 
     def test_independent_all_runs_use_fresh_drivers_on_same_frontend(self):
         stable_runner = self.runner
@@ -1018,11 +1241,13 @@ class ModelTests(unittest.TestCase):
         self.assertEqual(audit['context_only'], [])
         self.assertEqual(audit['unexpected'], [])
         self.assertEqual(len(model.CONTEXT_KEYS), 39)
-        self.assertEqual(len(model.defaults()), 35)
+        self.assertEqual(len(model.defaults()), 36)
         consumed_derived = set(model.DERIVED_KEYS) & set(model.CONTEXT_KEYS)
         self.assertEqual(len(consumed_derived), 5)
-        self.assertEqual(set(model.defaults()), set(model.CONTEXT_KEYS) - consumed_derived | {'claimNumber'})
-        self.assertEqual([g['title'] for g in model.schema()], ['Claim', 'Claimant', 'Provider', 'Adjuster', 'Attorney'])
+        self.assertEqual(set(model.defaults()) - {'ncm'},
+                         set(model.CONTEXT_KEYS) - consumed_derived | {'claimNumber'})
+        self.assertEqual([g['title'] for g in model.schema()],
+                         ['Claim', 'Claimant', 'Provider', 'Adjuster', 'Attorney', 'NCM'])
 
     def test_defaults_and_requirements_by_stage(self):
         self.assertFalse(any(model.defaults().values()))
@@ -2429,7 +2654,7 @@ class WorkbookTests(unittest.TestCase):
         book = load_workbook(self.path)
         self.addCleanup(book.close)
         sheet = book[excel.SHEET]
-        self.assertEqual(sheet.max_column, 35)
+        self.assertEqual(sheet.max_column, 36)
         self.assertEqual(sheet.freeze_panes, 'C2')
         self.assertTrue(sheet.auto_filter.ref)
         self.assertEqual(sheet['A1'].fill.fgColor.rgb, '002563EB')
@@ -2450,6 +2675,24 @@ class WorkbookTests(unittest.TestCase):
         self.assertEqual([r['row'] for r in rows], [2, 4])
         self.assertEqual(rows[0]['data']['zip'], '00123')
         self.assertIn('customer', rows[1]['warning'])
+
+    def test_ncm_column_appended_roundtrip_and_old_workbook_compatibility(self):
+        self.fill(synthetic() | {'ncm': ' Synthetic Nurse '})
+        self.assertEqual(excel.COLUMNS[-1][:2], ('ncm', 'NCM - NCM full name'))
+        data = excel.read_workbook(self.path)[0]['data']
+        self.assertEqual(data['ncm'], 'Synthetic Nurse')
+        self.assertEqual(model.to_controller(data)['ncm'], 'Synthetic Nurse')
+        self.assertNotIn('ncm', model.verify_legacy_keys()['keys'])
+        book = load_workbook(self.path)
+        book[excel.SHEET].delete_cols(36)
+        book.save(self.path)
+        book.close()
+        old = excel.read_workbook(self.path)[0]['data']
+        self.assertEqual(old['ncm'], '')
+        self.assertEqual(model.validate(old)['claimNumber'], 'SYNTHETIC-001')
+        self.assertEqual(model.validate(old, 'assign')['claimNumber'], 'SYNTHETIC-001')
+        with self.assertRaisesRegex(ValueError, 'ncm'):
+            model.validate(old, 'all', True)
 
     def test_maximum_multiline_instructions_roundtrip_and_bridge_selection(self):
         instructions = synthetic_instructions(32767)
@@ -2558,6 +2801,89 @@ class BridgeTests(unittest.TestCase):
         self.assertEqual(self.calls['run_unity'].call_args.args[2]['serviceType'], 'Medical Task')
         self.calls['complete_assignment'].assert_not_called()
         self.assertIsNone(state['prompt'])
+
+    def test_ncm_bridge_option_is_per_call_and_unity_only_is_unchanged(self):
+        for stage in ('all', 'assign', 'unity'):
+            with self.subTest(stage=stage):
+                self.setUp()
+                self.assertTrue(self.api.start(synthetic(), stage, True, '', True)['ok'])
+                state = self.finish()
+                self.assertEqual(state['status'], 'completed')
+                self.assertIsNone(state['prompt'])
+                steps = state['result']['steps']
+                self.assertNotIn('await_icasemanager_approval', steps)
+                self.assertEqual('skip_icasemanager_approval_ncm_present' in steps, stage != 'unity')
+                self.assertEqual(self.calls['complete_assignment'].call_count, int(stage != 'unity'))
+                self.calls['complete_assignment'].reset_mock()
+                # The next call omits the option: no scenario leaks from the previous run.
+                self.assertTrue(self.api.start({'claimNumber': 'SYNTHETIC-001'}, 'assign')['ok'])
+                prompt = self.wait(lambda s: s['prompt'])['prompt']
+                self.assertEqual(prompt['title'], 'Complete Assignment Stopper')
+                self.assertTrue(self.api.answer_prompt(prompt['id'], False)['ok'])
+                self.assertEqual(self.finish()['result']['reason'], 'icasemanager_declined')
+                self.calls['complete_assignment'].assert_not_called()
+
+    def test_invalid_ncm_option_rejected_before_worker_and_external_effects(self):
+        factory = Mock(return_value=self.calls)
+        for configured_factory in (None, factory):
+            for value in ('true', 'false', '', 0, 1, None):
+                with self.subTest(factory=configured_factory is not None, value=value):
+                    api = backend.UnityAPI(configured_factory)
+                    with patch.object(backend, '_runner') as runner, \
+                            patch.object(backend.threading, 'Thread') as worker:
+                        reply = api.start(synthetic(), 'all', True, '', value)
+                        self.assertFalse(reply['ok'])
+                        self.assertIn('must be boolean', reply['error'])
+                        self.assertEqual(api.get_state()['status'], 'idle')
+                        self.assertIsNone(api._thread)
+                        runner.assert_not_called()
+                        worker.assert_not_called()
+        factory.assert_not_called()
+        for callback in self.calls.values():
+            callback.assert_not_called()
+
+    def test_postapproval_dynamic_validation_before_worker_or_preflight(self):
+        for stage in ('all', 'assign'):
+            for key in ('ncm', 'claimantFirst', 'claimantLast'):
+                data = synthetic() | {'ncm': 'Synthetic Nurse', key: ''}
+                with self.subTest(stage=stage, key=key), \
+                        patch.object(backend, '_runner') as runner, \
+                        patch.object(backend.threading, 'Thread') as worker:
+                    reply = self.api.validate_fields(data, stage, '', True)
+                    self.assertFalse(reply['ok'])
+                    self.assertIn(key, reply['error'])
+                    self.assertFalse(self.api.start(data, stage, True, '', False, True)['ok'])
+                    runner.assert_not_called()
+                    worker.assert_not_called()
+        for flags in ((True, True), (False, 'true'), (False, 1), (False, None)):
+            with self.subTest(flags=flags), patch.object(backend.threading, 'Thread') as worker:
+                self.assertFalse(self.api.start(synthetic(), 'all', True, '', *flags)['ok'])
+                worker.assert_not_called()
+        self.assertTrue(self.api.validate_fields({'claimNumber': 'SYNTHETIC-001'}, 'assign')['ok'])
+        self.assertTrue(self.api.validate_fields(synthetic(), 'unity', '', True)['ok'])
+
+    def test_postapproval_bridge_order_gate_and_per_run_options_without_live_dependencies(self):
+        self.calls['assign_ncm'] = Mock()
+        events = []
+        self.calls['assign_ncm'].side_effect = lambda *args: events.append('ncm')
+        self.calls['complete_assignment'].side_effect = lambda *args: events.append('rrs')
+        with patch.dict(sys.modules, {'pythoncom': None}), \
+                patch('AI.unity_browser.UnityBrowserSession') as session:
+            self.assertTrue(self.api.start(synthetic() | {'ncm': 'Synthetic Nurse'},
+                                           'assign', True, '', False, True)['ok'])
+            prompt = self.wait(lambda state: state['prompt'])['prompt']
+            self.calls['assign_ncm'].assert_not_called()
+            self.calls['complete_assignment'].assert_not_called()
+            self.assertTrue(self.api.answer_prompt(prompt['id'], True)['ok'])
+            result = self.finish()['result']
+            self.assertEqual(result['steps'], ['await_icasemanager_approval', 'assign_ncm', 'complete_assignment'])
+            self.assertEqual(events, ['ncm', 'rrs'])
+            self.calls['assign_ncm'].assert_called_once_with('Synthetic Person', 'SYNTHETIC-001', 'Synthetic Nurse')
+            session.assert_not_called()
+        self.calls['assign_ncm'].reset_mock()
+        self.assertTrue(self.api.start(synthetic(), 'unity', True, '', False, True)['ok'])
+        self.assertEqual(self.finish()['status'], 'completed')
+        self.calls['assign_ncm'].assert_not_called()
 
     def test_long_instructions_reach_callbacks_exactly_and_keep_approval_gate(self):
         for length in (1001, 32767):

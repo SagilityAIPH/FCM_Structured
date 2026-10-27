@@ -1969,8 +1969,6 @@ def CheckCaseUnity(claim_number, *, confirm_unity_login=None, unity_driver=None)
     def loginUnity(driver):
         from AI.rrs_assignment import confirm_unity_login as attend_login
         if unity_driver is not None:
-            # Borrowed sessions must remain untouched until explicit consent.
-            attend_login(confirm_unity_login)
             unity_handle = driver.current_window_handle
             driver.get(UNITY_URL)
         else:
@@ -1990,7 +1988,8 @@ def CheckCaseUnity(claim_number, *, confirm_unity_login=None, unity_driver=None)
         if not search_ready(driver):
             driver.get(UNITY_URL)
         WebDriverWait(driver, 15).until(
-            search_ready, "Unity case search is not ready after manual sign-in.")
+            search_ready, "Unity case search is not ready in the reused session."
+            if unity_driver is not None else "Unity case search is not ready after manual sign-in.")
         
     def create_driver():
         from AI.unity_browser import create_driver as create_unity_driver

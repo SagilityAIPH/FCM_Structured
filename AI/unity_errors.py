@@ -1,6 +1,15 @@
 """Value-free failure boundaries for Unity UI stages."""
 
 
+class UnityNCMAssignmentError(RuntimeError):
+    def __init__(self, stage):
+        self.stage = stage
+        super().__init__(
+            f"Unity NCM assignment failed while {stage}. Automated work stopped. "
+            "Task changes are unconfirmed; inspect before retrying."
+        )
+
+
 class UnityTaskCompletionError(RuntimeError):
     def __init__(self, stage):
         self.stage = stage

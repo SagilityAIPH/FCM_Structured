@@ -17,7 +17,7 @@ sys.path.insert(0, str(HERE))
 from unity_model import defaults, schema, validate, warnings, to_controller, adapter
 from unity_excel import create_template, read_workbook
 from AI.referral_attachments import referral_document
-from AI.unity_errors import UnityCustomerFieldsError, UnityEmployerFieldsError, UnityFlagError
+from AI.unity_errors import UnityCustomerFieldsError, UnityEmployerFieldsError, UnityFlagError, UnityNCMAssignmentError
 
 
 def _runner():
@@ -37,7 +37,8 @@ def response(function):
     return call
 
 
-def live_callbacks(attachment_path=None, *, confirm_unity_login=None, browser_session=None):
+def live_callbacks(attachment_path=None, *, confirm_unity_login=None, browser_session=None,
+                   claimant_state=''):
     """Lazy defaults: bypass legacy.main, which swallows automation failures."""
     runner = _runner()
     sys.path.insert(0, str(runner.ROOT))
@@ -84,11 +85,31 @@ def live_callbacks(attachment_path=None, *, confirm_unity_login=None, browser_se
                 raise RuntimeError('Unity All session is unavailable; no replacement was created.')
             options['unity_driver'] = browser_session.driver
         return runner._complete_live(runner.ROOT, claim, **options)
+    def assign_ncm(claimant, claim, ncm):
+        from AI.unity_ncm import assign_ncm as assign_requested_ncm
+        from AI.rrs_assignment import confirm_unity_login as attend_login
+        try:
+            if browser_session is None:
+                raise RuntimeError('Post-approval NCM requires a per-run Unity session.')
+            unity = load_module_from_path('_desktop_legacy_unity', UNITY_SCRIPT)
+            if browser_session.driver is None:
+                driver = browser_session.acquire(lambda: unity.create_driver(detach=True))
+                driver.maximize_window()
+                driver.get(unity.UNITY_URL)
+                attend_login(confirm_unity_login)
+            else:
+                driver = browser_session.driver
+            assign_requested_ncm(driver, unity.UNITY_URL, claimant, claim, ncm,
+                                 claimant_state=claimant_state)
+        except UnityNCMAssignmentError:
+            raise
+        except Exception as error:
+            raise UnityNCMAssignmentError('preparing the per-run Unity session') from error
     return {'list_attachments': (lambda: [referral_document(attachment_path)]) if attachment_path is not None
             else lambda: sorted(p for p in Path(ATTACHMENT_FOLDER).glob('*') if p.is_file()),
             'run_unity': portal,
             'record_assignment': lambda name, claim: runner._record_live(runner.ROOT, name, claim),
-            'complete_assignment': complete}
+            'complete_assignment': complete, 'assign_ncm': assign_ncm}
 
 
 def checked_validate(unity, driver, customer, claimant, data, *, attachment_path=None):
@@ -139,8 +160,8 @@ class UnityAPI:
             return state
 
     @response
-    def validate_fields(self, payload, stage='all', jurisdiction=''):
-        data = validate(payload, stage)
+    def validate_fields(self, payload, stage='all', jurisdiction='', assign_ncm_after_approval=False):
+        data = validate(payload, stage, assign_ncm_after_approval)
         if jurisdiction and jurisdiction not in adapter.STATE_NAMES:
             raise ValueError('Choose a valid claim jurisdiction.')
         derived = to_controller(data, claim_jurisdiction=jurisdiction)
@@ -255,8 +276,15 @@ class UnityAPI:
         return True
 
     @response
-    def start(self, payload, stage='all', record_attempt_on_failure=True, jurisdiction=''):
-        checked = self.validate_fields(payload, stage, jurisdiction)
+    def start(self, payload, stage='all', record_attempt_on_failure=True, jurisdiction='',
+              nurse_case_manager_present=False, assign_ncm_after_approval=False):
+        if type(nurse_case_manager_present) is not bool:
+            raise ValueError('Nurse Case Manager preference must be boolean.')
+        if type(assign_ncm_after_approval) is not bool:
+            raise ValueError('Post-approval NCM preference must be boolean.')
+        if nurse_case_manager_present and assign_ncm_after_approval:
+            raise ValueError('Choose only one assignment scenario.')
+        checked = self.validate_fields(payload, stage, jurisdiction, assign_ncm_after_approval)
         if not checked['ok']:
             raise ValueError(checked['error'])
         if type(record_attempt_on_failure) is not bool:
@@ -272,11 +300,14 @@ class UnityAPI:
             self._started = time.monotonic()
             self._state.update(status='running', busy=True, stage=stage, result=None, prompt=None,
                                error='', elapsed=0, warnings=checked['data']['warnings'])
-            self._thread = threading.Thread(target=self._run, args=(data, stage, record_attempt_on_failure, attachment_path), daemon=True)
+            self._thread = threading.Thread(target=self._run, args=(
+                data, stage, record_attempt_on_failure, attachment_path, nurse_case_manager_present,
+                assign_ncm_after_approval), daemon=True)
             self._thread.start()
         return True
 
-    def _run(self, data, stage, tracking, attachment_path):
+    def _run(self, data, stage, tracking, attachment_path, nurse_case_manager_present=False,
+             assign_ncm_after_approval=False):
         com = None
         try:
             if self._factory is None:
@@ -284,19 +315,24 @@ class UnityAPI:
                 com = pythoncom
                 com.CoInitialize()
             lifecycle = nullcontext()
-            if self._factory is None and stage == 'all':
+            if self._factory is None and (stage == 'all' or
+                                          stage == 'assign' and assign_ncm_after_approval):
                 from AI.unity_browser import UnityBrowserSession
                 lifecycle = UnityBrowserSession()
             with lifecycle as session:
                 options = {'confirm_unity_login': self.confirm}
                 if session is not None:
                     options['browser_session'] = session
+                if assign_ncm_after_approval:
+                    options['claimant_state'] = data.get('state', '')
                 calls = (self._factory() if self._factory else
                          live_callbacks(attachment_path, **options))
                 if attachment_path is not None:
                     calls = {**calls, 'list_attachments': lambda: [referral_document(attachment_path)]}
                 result = _runner().load_core().run_flow(data, stage=stage, notify=self.notify,
-                           confirm=self.confirm, record_attempt_on_failure=tracking, **calls)
+                           confirm=self.confirm, record_attempt_on_failure=tracking,
+                           nurse_case_manager_present=nurse_case_manager_present,
+                           assign_ncm_after_approval=assign_ncm_after_approval, **calls)
                 if session is not None:
                     session.result = result
             with self._lock:

@@ -33,7 +33,8 @@ STAGES = ("all", "unity", "assign")
 
 
 def run_flow(data, *, list_attachments, run_unity, record_assignment, notify, confirm,
-             complete_assignment, stage="all", record_attempt_on_failure=True):
+             complete_assignment, stage="all", record_attempt_on_failure=True,
+             nurse_case_manager_present=False, assign_ncm_after_approval=False, assign_ncm=None):
     """Run the Unity assignment boundary; return completed, stopped or failed.
 
     list_attachments() returns the candidate export files for this referral.
@@ -41,16 +42,29 @@ def run_flow(data, *, list_attachments, run_unity, record_assignment, notify, co
     record_assignment(claimant_full, claim_number) writes the tracking row.
     complete_assignment(claim_number) finishes the assignment back in RRS.
     confirm(title, message) owns the iCaseManager approval gate.
+    Explicit nurse_case_manager_present=True skips only that gate, not completion.
+    assign_ncm_after_approval=True keeps approval, then calls
+    assign_ncm(claimant_full, claim_number, ncm) before RRS in All/Assign.
     """
+    if type(nurse_case_manager_present) is not bool:
+        raise ValueError("Nurse Case Manager preference must be boolean")
+    if type(assign_ncm_after_approval) is not bool:
+        raise ValueError("Post-approval NCM preference must be boolean")
+    if nurse_case_manager_present and assign_ncm_after_approval:
+        raise ValueError("Choose only one assignment scenario")
     if stage not in STAGES:
         raise ValueError("stage must be all, unity or assign")
     required = []
     if stage in {"all", "unity"}:
         required += ["customer", "claimantFirst", "claimantLast"]
     required += ["claimNumber"]
+    if assign_ncm_after_approval and stage in {"all", "assign"}:
+        required += ["claimantFirst", "claimantLast", "ncm"]
     missing = [key for key in dict.fromkeys(required) if not str(data.get(key) or "").strip()]
     if missing:
         raise ValueError("Missing process inputs: " + ", ".join(missing))
+    if assign_ncm_after_approval and stage in {"all", "assign"} and not callable(assign_ncm):
+        raise ValueError("Post-approval NCM callback must be callable")
 
     claimant_full = f"{str(data.get('claimantFirst', '')).strip()} {str(data.get('claimantLast', '')).strip()}".strip()
     claim_number = str(data["claimNumber"]).strip()
@@ -105,16 +119,26 @@ def run_flow(data, *, list_attachments, run_unity, record_assignment, notify, co
             return fail("run_unity", unity_error)
 
     if stage in {"all", "assign"}:
-        result["steps"].append("await_icasemanager_approval")
-        try:
-            approved = confirm("Complete Assignment Stopper",
-                               "Click Yes once the referral is approved in iCaseManager to proceed with "
-                               "Complete Assignment.\nClick No to stop here.")
-        except (Exception, SystemExit) as error:
-            return fail("await_icasemanager_approval", error)
-        if not approved:
-            result.update(status="stopped", reason="icasemanager_declined")
-            return result
+        if nurse_case_manager_present:
+            result["steps"].append("skip_icasemanager_approval_ncm_present")
+        else:
+            result["steps"].append("await_icasemanager_approval")
+            try:
+                approved = confirm("Complete Assignment Stopper",
+                                   "Click Yes once the referral is approved in iCaseManager to proceed with "
+                                   "Complete Assignment.\nClick No to stop here.")
+            except (Exception, SystemExit) as error:
+                return fail("await_icasemanager_approval", error)
+            if (approved is not True if assign_ncm_after_approval else not approved):
+                result.update(status="stopped", reason="icasemanager_declined")
+                return result
+
+        if assign_ncm_after_approval:
+            result["steps"].append("assign_ncm")
+            try:
+                assign_ncm(claimant_full, claim_number, str(data["ncm"]).strip())
+            except (Exception, SystemExit) as error:
+                return fail("assign_ncm", error)
 
         result["steps"].append("complete_assignment")
         try:

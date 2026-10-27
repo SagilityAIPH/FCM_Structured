@@ -41,6 +41,7 @@ GROUPS = [
     ('Attorney', [('claimantAttyName', 'Name'), ('claimantAttyAddr1', 'Address line 1'),
         ('claimantAttyAddr2', 'Address line 2'), ('claimantAttyState', 'State'),
         ('claimantAttyZip', 'ZIP'), ('claimantAttyPhone', 'Phone')]),
+    ('NCM', [('ncm', 'NCM full name')]),
 ]
 CHOICES = {'serviceType': ['', 'Medical Full', 'Medical Task', 'Vocational Full', 'Vocational Task', 'Employer', 'Other Services'],
            'gender': ['', 'Male', 'Female', 'Unknown']}
@@ -84,7 +85,9 @@ def verify_legacy_keys():
             'unexpected': sorted(keys - set(CONTEXT_KEYS))}
 
 
-def validate(payload, stage='all'):
+def validate(payload, stage='all', assign_ncm_after_approval=False):
+    if type(assign_ncm_after_approval) is not bool:
+        raise ValueError('Post-approval NCM preference must be boolean.')
     if stage not in ('all', 'unity', 'assign'):
         raise ValueError('stage must be all, unity or assign')
     if not isinstance(payload, dict):
@@ -99,6 +102,9 @@ def validate(payload, stage='all'):
             raise ValueError(f'Invalid value for {key}. Use text up to {limit:,} characters.')
         result[key] = value if key == 'specialInstructions' else value.strip()
     required = ['claimNumber'] + ([] if stage == 'assign' else ['customer', 'claimantFirst', 'claimantLast'])
+    if assign_ncm_after_approval and stage in ('all', 'assign'):
+        required += ['claimantFirst', 'claimantLast', 'ncm']
+    required = list(dict.fromkeys(required))
     missing = [key for key in required if not result[key]]
     if missing:
         raise ValueError('Required: ' + ', '.join(missing))

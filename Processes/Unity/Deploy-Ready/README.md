@@ -16,19 +16,94 @@ result = controller.run_flow(
     complete_assignment=finish_rrs,             # (claim_number)
     stage="all",                               # all | unity | assign
     record_attempt_on_failure=True,
+    nurse_case_manager_present=False,          # strict bool; attended by default
+    assign_ncm_after_approval=False,            # strict bool, exclusive with above
+    assign_ncm=assign_requested_ncm,            # (claimant_full, claim_number, ncm)
 )
 if result["status"] != "completed":
     return result  # Never advance on a business stop or technical failure.
 ```
 
 All/unity require customer, claimantFirst, claimantLast and claimNumber. Assign
-requires only claimNumber. Missing or whitespace-only values raise ValueError
+requires only claimNumber by default. Scenario-2 All/Assign also requires nonblank
+`ncm`, claimantFirst/Last and a callable `assign_ncm` before side effects.
+Missing or whitespace-only values raise ValueError
 naming the keys. The caller owns complete legacy input data; these minimum keys
 are not a complete validation schema for every portal branch.
 
+### Explicit NCM scenario (FCM-1.1-108; v1.0.13 build verified)
+
+`nurse_case_manager_present=True` skips ONLY the iCaseManager `confirm` in
+All/Assign, records `skip_icasemanager_approval_ncm_present` instead of
+`await_icasemanager_approval`, and still calls `complete_assignment` normally.
+It does not fabricate approval. Unity-only has no approval branch with either
+value. Non-booleans (including strings, integers and None) raise ValueError before
+callbacks. The desktop bridge appends the same optional boolean after jurisdiction
+and passes it through the worker; existing callers and CLI defaults remain attended.
+Do not suppress confirmations globally: initial login, fresh-lookup sign-in and
+pre-Complete-Task validation remain required. Reused All lookup has no second
+login prompt under FCM-1.1-109, independently of this scenario. Tracking, failure and browser ownership
+semantics are unchanged. The option is not referral/workbook data or persisted state.
+This change is not included in the historical v1.0.12 release record below.
+FCM-1.1-108's original source-only evidence remains historical; the scenario is
+now packaged in the unpublished v1.0.13
+[verified build](../Stand-Alone/README.md#v1013-verified-build-10272026-fcm-11-113).
+No live validation is implied.
+
+### Postapproval NCM scenario (FCM-1.1-110; v1.0.13 build verified)
+
+`assign_ncm_after_approval=True` retains approval in All/Assign. Only literal
+`True` from confirmation adds attempted step `assign_ncm` before
+`complete_assignment`. No/confirmation failure never calls either continuation;
+NCM failure returns `assign_ncm_failed` and never runs RRS. Unity-only ignores this
+postapproval branch/requirements. Both flags must be actual booleans and cannot
+both be true. Defaults and existing positional desktop callers remain compatible;
+no CLI scenario option is added.
+
+Desktop supplies `AI/unity_ncm.assign_ncm` with a borrowed per-run driver and the
+loaded legacy queue URL. It filters by claimant, opens only the first row in the
+queue's existing newest-first order, checks claimant/claim before claiming, uses
+the shared exact unique actionable **Assign Task** button helper, selects the
+exact workbook NCM name in the associated popup, writes today's local Assigned
+date only after the control becomes normally editable, verifies NCM/date readback,
+then reuses `complete_task`. No intake validation/upload replay, JavaScript field
+bypass, guessed global popup, fuzzy suggestion or click retry is allowed.
+One bounded first-name prefix query (at most four characters) retrieves candidates;
+selection uses exact full person names normalized only for case/whitespace,
+ignoring the ` - city, state` suffix. A unique name needs no state. Identical names
+require exactly one match to claimant address `data['state']`, never jurisdiction
+or provider state. Shared state normalization accepts full names and abbreviations.
+Missing/invalid/unmatched state or duplicate same-state options (even disabled)
+fail safely. Existing exact full-caption callers remain supported.
+Only one explicit `aria-controls` / `aria-owns` association or the known custom
+typeahead ancestor/container is supported; body-mounted popups and role options
+are supported, with legacy `li` fallback. Multiple/conflicting associations,
+duplicate visible associated popups and changed options fail; unrelated listboxes
+are ignored. Angular's disabled readonly
+selected-manager input must contain the exact chosen full caption; legacy
+same-input bindings require that caption and dismissed suggestions. Binding is
+rechecked after normal date blur. Failures are stage-only
+`UnityNCMAssignmentError` with retained cause and normal cleanup (not a fourth
+browser-preservation policy). All has no second login; fresh scenario-2 Assign
+has one attended sign-in and owns/reuses one browser through lookup/RRS.
+
+NCM is the appended 36th operator workbook column, not a legacy intake key or a
+persisted flag. No city/state input column is needed. Old workbooks load it blank
+for attended/scenario-1 use.
+A previous isolated guarded live field probe succeeded for the owned popup,
+readonly selection and editable date; the corrected production source has not
+been live verified. Server Complete Task/persistence and RRS handoff are untested.
+Returned clicks do not prove server completion. This scenario and FCM-1.1-112's
+NCM correction are packaged in the unpublished v1.0.13
+[verified build](../Stand-Alone/README.md#v1013-verified-build-10272026-fcm-11-113).
+Historical release/build evidence below is unchanged; FCM-1.1-111 remains blocked
+for corrected-helper live verification and server/RRS acceptance. No live
+portal/RRS/CMS/database/Bedrock work was performed during build verification.
+
 Results always contain status, reason, claimantFull, attachment, steps and error.
 Steps are ordered **attempted** stages, including the failing step, not just
-successful stages. Success is `completed` with an empty reason and error.
+successful stages; the explicit NCM skip marker records a skipped gate, not an
+attempted or approved confirmation. Success is `completed` with an empty reason and error.
 Business stops are `stopped` with attachment_missing, attachment_ambiguous or
 icasemanager_declined. Technical results are `failed` with one of:
 
@@ -36,10 +111,11 @@ icasemanager_declined. Technical results are `failed` with one of:
 - run_unity_failed
 - record_assignment_failed
 - await_icasemanager_approval_failed
+- assign_ncm_failed
 - complete_assignment_failed
 
 Error contains stage, type and message; SystemExit also supplies exit_code.
-Exception and SystemExit are contained for the five wrapped stage callables.
+Exception and SystemExit are contained for the wrapped stage callables.
 The notification callback is deliberately outside those wrappers: caller-owned
 UI notification errors propagate. KeyboardInterrupt is not swallowed.
 
@@ -49,11 +125,16 @@ UI notification errors propagate. KeyboardInterrupt is not swallowed.
   boundaries retain one driver through assignment, tracking, iCaseManager
   approval, lookup and RRS completion, then close it once (also on stop/failure).
   There is no cross-operation/referral persistence. Unity-only and Assign-only
-  remain independent; offline/custom callbacks create no browser. The controller
+  remain independent. Scenario-2 Assign owns/reuses one lazy driver through NCM
+  and lookup; other Assign modes retain their lifecycle.
+  Offline/custom callbacks create no browser. The controller
   has no browser/database lifecycle logic.
-  Approval and explicit manual Yes/No continue/sign-in remain mandatory, even
-  when already authenticated. Borrowed lookup waits for Yes before navigation
-  or readiness probes, uses the same browser/tab, and does not rerun login.
+  Approval remains mandatory by default; only the explicit scenario-1 NCM option
+  skips that gate. Current source (FCM-1.1-109) removes the redundant sign-in/continue
+  prompt only for borrowed All lookup; initial assignment login and fresh owned
+  lookup's manual Yes/No confirmation remain. Borrowed lookup uses the same
+  browser/tab without rerunning login and waits up to 15 seconds for one visible,
+  enabled, non-readonly claim input before searching.
   It clears the old claim before typing the exact current claim. Lost sessions
   stop without replacement, fallback or assignment replay. Detail-tab selection
   and existing partial-row handling are unchanged.
@@ -69,7 +150,9 @@ UI notification errors propagate. KeyboardInterrupt is not swallowed.
   Historical FCM-1.1-95 source verification on 10/27/2026 preceded this rebuild
   and did not itself build an EXE. Published v1.0.11 and historical
   FCM-1.1-88/90/94 release evidence remain unchanged. No live
-  portal/RRS/CMS/database/Bedrock validation occurred during this build.
+  portal/RRS/CMS/database/Bedrock validation occurred during this build. The
+  FCM-1.1-109 prompt change is not part of that historical release; it is included
+  in the unpublished v1.0.13 verified build linked above.
 - **Unity uses Chrome (FCM-1.1-90, v1.0.11).** Initial assignment and
   post-approval lookup share `AI/unity_browser.py`. Install Chrome; the blank
   `browser.chrome_driver_path` default enables Selenium Manager's runtime
@@ -82,7 +165,7 @@ UI notification errors propagate. KeyboardInterrupt is not swallowed.
   other Edge automation are unchanged. Typed-error manual recovery now leaves
   detached Chrome open; CLI/non-recovery and owned lookup cleanup remain.
   FCM-1.1-95 above governs All ownership in source and the published v1.0.12 artifact.
-  Manual lookup sign-in, gates, modes, selectors, tracking and 60-second
+  Fresh owned-lookup manual sign-in, gates, modes, selectors, tracking and 60-second
   page/script timeouts are preserved. Lookup retains its driver log as
   `chromedriver.log`; assignment adds no persistent driver log.
   Dated Edge observations refer to earlier versions. FCM-1.1-94 includes this
@@ -101,7 +184,9 @@ UI notification errors propagate. KeyboardInterrupt is not swallowed.
   error is not separately exposed by this result schema.
 - **The iCaseManager gate waits on a system absent from this repository.** The
   integration owns an attended boolean confirmation; there is no automated
-  approval lookup. Assign-only bypasses portal and attachment checks intentionally.
+  approval lookup. Only explicit NCM selection skips this confirmation, not other
+  prompts. Default/scenario-1 Assign bypasses intake portal and attachment checks.
+  Scenario-2 Assign adds only the postapproval NCM task operation, not intake.
 - Ship the repository src/, config/ and Processes/Unity layout together. Live
   execution requires Windows, the configured browser/driver and Selenium stack,
   pywinauto with an interactive RRS desktop, pyodbc/appropriate ODBC drivers,

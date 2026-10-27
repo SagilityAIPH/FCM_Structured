@@ -46,6 +46,9 @@ def main():
         from AI.unity_completion import complete_task
         from AI.unity_errors import UnityTaskCompletionError
         assert callable(complete_task) and issubclass(UnityTaskCompletionError, RuntimeError)
+        from AI.unity_ncm import assign_ncm
+        from AI.unity_errors import UnityNCMAssignmentError
+        assert callable(assign_ncm) and issubclass(UnityNCMAssignmentError, RuntimeError)
         import dotenv
         from fcm_intake.config import UNITY_SCRIPT, FCM_SCRIPT, get_rrs_db_connection
         assert UNITY_SCRIPT.is_file() and FCM_SCRIPT.is_file()
@@ -69,7 +72,7 @@ def main():
     assert len(instructions) == 32767
     data = defaults() | {'claimNumber': 'SYNTHETIC-ROUNDTRIP-001', 'customer': 'Synthetic Continental Tire',
                         'claimantFirst': 'Invented', 'claimantLast': 'Example', 'claimType': 'Auto', 'zip': '00123',
-                        'specialInstructions': instructions}
+                        'specialInstructions': instructions, 'ncm': 'Synthetic Nurse'}
     with tempfile.TemporaryDirectory() as directory:
         path = Path(directory) / 'synthetic.xlsx'
         create_template(path)
@@ -80,12 +83,14 @@ def main():
         book.close()
         row = read_workbook(path)[0]
         assert row['data'] == data
-        factory_calls, payloads = [], []
+        factory_calls, payloads, ncm_events = [], [], []
         def callbacks():
             factory_calls.append(True)
             return {'list_attachments': lambda: ['synthetic-referral.pdf'],
                 'run_unity': lambda customer, claimant, payload: payloads.append(payload),
-                'record_assignment': lambda *args: None, 'complete_assignment': lambda *args: None}
+                'record_assignment': lambda *args: None,
+                'complete_assignment': lambda *args: ncm_events.append('rrs'),
+                'assign_ncm': lambda *args: ncm_events.append('ncm')}
         api = UnityAPI(callbacks)
         oversized = data | {'specialInstructions': instructions + 'x'}
         for rejected in (api.validate_fields(oversized, 'all', 'MI'), api.start(oversized, 'all', True, 'MI')):
@@ -126,12 +131,29 @@ def main():
             local_results[extension.lower()] = local_result
             assert api.use_rrs_export_folder()['ok']
         assert len(payloads) == 4
+        ncm_events.clear()
+        assert api.start(row['data'], 'assign', True, '', False, True)['ok']
+        deadline = time.monotonic() + 5
+        while api.get_state()['busy']:
+            state = api.get_state()
+            if state['prompt']:
+                assert not ncm_events
+                assert api.answer_prompt(state['prompt']['id'], True)['ok']
+            if time.monotonic() > deadline:
+                raise RuntimeError('Synthetic NCM worker timeout.')
+            time.sleep(.01)
+        ncm_result = api.get_state()['result']
+        assert ncm_result['status'] == 'completed'
+        assert ncm_result['steps'] == ['await_icasemanager_approval', 'assign_ncm', 'complete_assignment']
+        assert ncm_events == ['ncm', 'rrs']
         audit = verify_legacy_keys()
         print(json.dumps({'mode': 'synthetic workbook roundtrip + bridge', 'operator_columns': len(COLUMNS),
             'single_all_session_cleanup': events == ['quit'],
             'rows': 1, 'zip_preserved': row['data']['zip'], 'ast_consumed_keys': audit['count'],
             'context_only': audit['context_only'], 'result': result,
             'instruction_length': len(payloads[0]['specialInstructions']), 'oversized_rejected': True,
+            'ncm_column_preserved': row['data']['ncm'] == 'Synthetic Nurse',
+            'postapproval_ncm_result': ncm_result,
             'local_pdf_result': local_results['pdf'], 'local_msg_result': local_results['msg'],
             'local_eml_result': local_results['eml']}, indent=2))
     return 0

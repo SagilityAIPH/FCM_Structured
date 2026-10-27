@@ -12,7 +12,7 @@ from openpyxl.worksheet.datavalidation import DataValidation
 from unity_model import GROUPS, CHOICES, LENGTH_LIMITS, defaults, validate
 
 SHEET = 'Unity Input'
-PREFIXES = ['Claim', 'Claimant', 'Provider', 'Adjuster', 'Attorney']
+PREFIXES = ['Claim', 'Claimant', 'Provider', 'Adjuster', 'Attorney', 'NCM']
 COLUMNS = [(field[0], f'{prefix} - {field[1]}', len(field) > 2 and field[2])
            for prefix, (_, fields) in zip(PREFIXES, GROUPS) for field in fields]
 
@@ -35,6 +35,10 @@ def create_template(path):
             header.comment = Comment(
                 f'Optional. Up to {LENGTH_LIMITS[key]:,} characters (Excel-compatible). '
                 'Line breaks and leading/trailing whitespace are preserved when loaded.', 'FCM')
+        if key == 'ncm':
+            header.comment = Comment(
+                'Exact full NCM name. Required only for Scenario 2 in All/Assign; '
+                'claimant first and last names are also required in that scenario.', 'FCM')
         sheet.column_dimensions[get_column_letter(index)].width = 25
         for row in range(2, 502):
             sheet.cell(row, index).number_format = '@'
@@ -47,9 +51,11 @@ def create_template(path):
             rule.add(f'{get_column_letter(index)}2:{get_column_letter(index)}501')
     guide = book.create_sheet('Instructions')
     notes = [
-        'Unity desktop workbook — 35 operator fields; no sample patient data.',
+        f'Unity desktop workbook — {len(COLUMNS)} operator fields; no sample patient data.',
         'One referral and one provider per row. Start at row 2. Keep sheet and headers.',
         'claimNumber is required for every stage; customer and claimant names for unity/all.',
+        'Scenario 2 All/Assign also requires NCM full name and claimant first/last names. '
+        'The scenario selection is not stored in Excel. Older 35-column workbooks load NCM blank.',
         'Other values are optional. Incomplete rows load with warnings for editing.',
         f'Special instructions: up to {LENGTH_LIMITS["specialInstructions"]:,} characters; line breaks and surrounding whitespace preserved.',
         f'All other fields: up to {LENGTH_LIMITS["claimNumber"]:,} characters. Longer supplied values must be corrected before running.',

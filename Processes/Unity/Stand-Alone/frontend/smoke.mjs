@@ -8,7 +8,7 @@ import assert from 'node:assert/strict'
 
 const here = fileURLToPath(new URL('.', import.meta.url))
 const dist = join(here, 'dist')
-const evidence = resolve(here, '../acceptance')
+const evidence = resolve(here, process.env.UNITY_SMOKE_EVIDENCE || '../acceptance')
 const fixture = JSON.parse(await readFile(join(here, 'src', 'schema.json'), 'utf8'))
 const scratch = await mkdtemp(join(here, '.browser-smoke-'))
 process.env.TEMP = scratch
@@ -31,6 +31,10 @@ try {
     executablePath: 'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe',
     headless: true, viewport: { width: 560, height: 900 },
   })
+  await context.route('**/*', route => {
+    const url = new URL(route.request().url())
+    return url.hostname === '127.0.0.1' ? route.continue() : route.abort()
+  })
   const page = await context.newPage()
   page.on('pageerror', error => errors.push(error.message))
   await page.goto(`http://127.0.0.1:${server.address().port}/?mock=1`)
@@ -38,6 +42,16 @@ try {
   await page.getByLabel('Employer / customer *', {exact:true}).fill('Synthetic Widgets')
   await page.getByLabel('First name *', {exact:true}).fill('Invented')
   await page.getByLabel('Last name *', {exact:true}).fill('Example')
+  const scenarios = page.getByRole('group', {name:'Assignment scenario',exact:true,includeHidden:true})
+  const ncm = scenarios.getByRole('radio', {name:'Scenario 1 - Nurse Case Manager present',exact:true,includeHidden:true})
+  const assignScenario = scenarios.getByRole('radio', {name:'Scenario 2 - Assign NCM after approval',exact:true,includeHidden:true})
+  const attended = scenarios.getByRole('button', {name:'Use attended flow',exact:true,includeHidden:true})
+  assert.equal(await scenarios.getByRole('radio').count(), 2)
+  assert.equal(await ncm.isChecked(), false)
+  assert.equal(await assignScenario.isChecked(), false)
+  assert.equal(await assignScenario.isDisabled(), false)
+  assert.equal(await attended.isDisabled(), true)
+  await page.getByText('No scenario selected means the existing attended workflow.', {exact:false}).waitFor()
   const chooseDocument = page.getByRole('button', {name:'Choose referral document',exact:true,includeHidden:true})
   const useExports = page.getByRole('button', {name:'Use RRS export folder',exact:true,includeHidden:true})
   const attachmentSource = page.getByRole('status', {name:'Attachment source'})
@@ -93,6 +107,9 @@ try {
   await page.getByRole('dialog').waitFor()
   assert.equal(await chooseDocument.isDisabled(), true)
   assert.equal(await useExports.isDisabled(), true)
+  assert.equal(await ncm.isDisabled(), true)
+  assert.equal(await assignScenario.isDisabled(), true)
+  assert.equal(await attended.isDisabled(), true)
   await page.keyboard.press('Escape')
   assert.equal(await page.getByRole('dialog').count(), 1)
   await mkdir(evidence, {recursive:true})
@@ -104,12 +121,108 @@ try {
   await page.getByLabel('Stage', {exact:true}).selectOption('unity')
   await page.getByRole('button', {name:'Run selected stage'}).click()
   await page.getByText('Process completed', {exact:true}).waitFor()
+  assert.doesNotMatch(await page.locator('.outcome').innerText(), /icasemanager_approval/)
   assert.equal(await attachmentSource.innerText(), 'Local document · synthetic-selected.eml')
   assert.equal(await chooseDocument.isEnabled(), true)
+  for (const stage of ['all', 'assign', 'unity']) {
+    await page.getByLabel('Stage', {exact:true}).selectOption(stage)
+    await ncm.check()
+    await page.getByRole('button', {name:'Run selected stage'}).click()
+    const expectedSteps = [
+      ...(stage==='assign'?[]:['resolve_attachment','run_unity','record_assignment']),
+      ...(stage==='unity'?[]:['skip_icasemanager_approval_ncm_present','complete_assignment']),
+    ].join(' → ')
+    await page.getByText(expectedSteps, {exact:true}).waitFor()
+    await page.getByText('Process completed', {exact:true}).waitFor()
+    assert.equal(await page.getByRole('dialog').count(), 0)
+    const outcome = await page.locator('.outcome').innerText()
+    assert.doesNotMatch(outcome, /await_icasemanager_approval/)
+    if (stage === 'unity') assert.doesNotMatch(outcome, /skip_icasemanager_approval|complete_assignment/)
+    else assert.match(outcome, /skip_icasemanager_approval_ncm_present → complete_assignment/)
+  }
+  await attended.click()
+  assert.equal(await ncm.isChecked(), false)
+  assert.equal(await assignScenario.isChecked(), false)
+  await page.getByLabel('Stage', {exact:true}).selectOption('assign')
+  await page.getByRole('button', {name:'Run selected stage'}).click()
+  await page.getByRole('dialog').waitFor()
+  await page.getByRole('button', {name:'Yes · approved',exact:true}).click()
+  await page.getByText('Process completed', {exact:true}).waitFor()
+  assert.match(await page.locator('.outcome').innerText(), /await_icasemanager_approval → complete_assignment/)
+  // Scenario 2 keeps approval and requires real NCM/claimant operator inputs.
+  await assignScenario.check()
+  await page.getByLabel('NCM full name *', {exact:true}).waitFor()
+  await page.getByLabel('First name *', {exact:true}).fill('')
+  await page.getByRole('button', {name:'Validate fields'}).click()
+  await page.getByRole('alert').filter({hasText:'claimantFirst, ncm'}).waitFor()
+  await page.getByLabel('First name *', {exact:true}).fill('Invented')
+  await page.getByLabel('NCM full name *', {exact:true}).fill('Synthetic Nurse')
+  for (const stage of ['all','assign','unity']) {
+    await page.getByLabel('Stage', {exact:true}).selectOption(stage)
+    await page.getByRole('button', {name:'Run selected stage'}).click()
+    if(stage!=='unity') {
+      await page.getByRole('dialog').waitFor()
+      assert.equal(await assignScenario.isDisabled(), true)
+      await page.getByRole('button', {name:'Yes · approved',exact:true}).click()
+    }
+    const expectedSteps = [
+      ...(stage==='assign'?[]:['resolve_attachment','run_unity','record_assignment']),
+      ...(stage==='unity'?[]:['await_icasemanager_approval','assign_ncm','complete_assignment']),
+    ].join(' → ')
+    await page.getByText(expectedSteps, {exact:true}).waitFor()
+    await page.getByText('Process completed', {exact:true}).waitFor()
+    if(stage==='unity') assert.doesNotMatch(await page.locator('.outcome').innerText(), /assign_ncm|complete_assignment/)
+  }
+  await page.getByLabel('Stage', {exact:true}).selectOption('assign')
+  await page.getByRole('button', {name:'Run selected stage'}).click()
+  await page.getByRole('dialog').waitFor()
+  await page.getByRole('button', {name:'No · stop',exact:true}).click()
+  await page.getByText('Process stopped', {exact:true}).waitFor()
+  assert.doesNotMatch(await page.locator('.outcome').innerText(), /assign_ncm|complete_assignment/)
+  await attended.click()
   await useExports.click()
   await page.getByText('RRS export folder · exactly one exported attachment required', {exact:true}).waitFor()
+
+  // Synthetic bridge spy: verify the actual UI passes only the append-only option.
+  await page.addInitScript(({fixture}) => {
+    window.__startCalls = []
+    window.pywebview = {api:{
+      async initialize(){return {...fixture,state:{status:'idle',busy:false,stage:'',elapsed:0,prompt:null,result:null,error:'',warnings:[],attachment:{source:'rrs',filename:''}}}},
+      async get_state(){return {status:'idle',busy:false,stage:'',elapsed:0,prompt:null,result:null,error:'',warnings:[],attachment:{source:'rrs',filename:''}}},
+      start(...args){window.__startCalls.push(args);return new Promise(resolve=>{window.__finishStart=()=>resolve({ok:true})})},
+    }}
+  }, {fixture})
+  await page.goto(`http://127.0.0.1:${server.address().port}/`)
+  await page.getByRole('button', {name:'Run selected stage'}).waitFor()
+  assert.equal(await ncm.isChecked(), false) // Reload never persists the scenario.
+  await ncm.check()
+  await page.getByRole('button', {name:'Run selected stage'}).click()
+  await page.waitForFunction(()=>window.__startCalls.length===1)
+  assert.equal(await ncm.isDisabled(), true)
+  assert.equal(await attended.isDisabled(), true) // Also locked during pending bridge replies.
+  let calls = await page.evaluate(()=>window.__startCalls)
+  assert.equal(calls[0].length, 6)
+  assert.deepEqual(calls[0].slice(1), ['all',true,'',true,false])
+  assert.deepEqual(Object.keys(calls[0][0]).sort(), Object.keys(fixture.defaults).sort())
+  await page.evaluate(()=>window.__finishStart())
+  await page.waitForFunction(()=>!document.querySelector('input[value="ncm-present"]').disabled)
+  await attended.click()
+  await page.getByRole('button', {name:'Run selected stage'}).click()
+  await page.waitForFunction(()=>window.__startCalls.length===2)
+  calls = await page.evaluate(()=>window.__startCalls)
+  assert.deepEqual(calls[1].slice(1), ['all',true,'',false,false])
+  await page.evaluate(()=>window.__finishStart())
+  await page.waitForFunction(()=>!document.querySelector('input[value="assign-ncm"]').disabled)
+  await assignScenario.check()
+  await page.getByRole('button', {name:'Run selected stage'}).click()
+  await page.waitForFunction(()=>window.__startCalls.length===3)
+  calls = await page.evaluate(()=>window.__startCalls)
+  assert.deepEqual(calls[2].slice(1), ['all',true,'',false,true])
+  assert.equal(await ncm.isChecked(), false)
+  assert.equal(await assignScenario.isDisabled(), true)
+  await page.evaluate(()=>window.__finishStart())
   assert.deepEqual(errors, [])
-  const result = {mode:'synthetic browser mock',checks:['PDF/MSG/EML file type help','choose original synthetic MSG then EML and show filename/source','clear to RRS export folder','Assign attachment guidance','selection retained through validation and runs','attachment controls disabled while busy','grouped form editing','shared schema length metadata','multiline textarea','1001 and 32767 characters preserved including whitespace and suffix after validation','32768 explicitly rejected without truncation','ordinary inputs retain 1000 limit','validate preview','blocking accessible confirm','Escape cannot dismiss','decline stopped reason','unity completed'],pageErrors:errors}
+  const result = {mode:'synthetic browser mock and bridge spy',checks:['PDF/MSG/EML file type help','choose original synthetic MSG then EML and show filename/source','clear to RRS export folder','Assign attachment guidance','selection retained through validation and runs','attachment controls disabled while busy','grouped form editing','shared schema length metadata','multiline textarea','1001 and 32767 characters preserved including whitespace and suffix after validation','32768 explicitly rejected without truncation','ordinary inputs retain 1000 limit','validate preview','blocking accessible confirm','Escape cannot dismiss','decline stopped reason','unity completed','two enabled native scenario radios','attended initial and reset behavior','NCM All/Assign skip-only steps and Unity unchanged','scenario controls locked while busy or bridge reply pending','append-only exclusive bridge boolean mapping','scenario not persisted after reload','scenario2 Assign claimant and NCM requirements and markers','scenario2 All/Assign approval then NCM before RRS; Unity unchanged','scenario2 decline has no downstream steps','all navigation intercepted to local server'],pageErrors:errors}
   await writeFile(join(evidence, 'browser-smoke.json'), JSON.stringify(result,null,2)+'\n')
   console.log(JSON.stringify(result,null,2))
 } finally {
