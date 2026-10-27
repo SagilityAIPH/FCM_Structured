@@ -17,6 +17,37 @@ npm --prefix Processes/Unity/Stand-Alone/frontend run build
 openpyxl and the configured legacy automation dependencies are required. `run.py` with no
 arguments retains the existing offline happy-path scenario; desktop is explicit.
 
+## Current All lifecycle (FCM-1.1-95; v1.0.12 prepared)
+
+Desktop **All** and `--live --stage all` own one Unity browser/session per run:
+assignment → tracking → iCaseManager approval → case lookup → RRS completion,
+then close it once. Stops/failures also close it; nothing persists across desktop
+operations/referrals or CLI runs. **Unity** and **Assign** remain independent
+operations with their existing create/cleanup behavior. Offline scenarios and
+injected callbacks do not create a browser.
+
+The iCaseManager approval and explicit manual Yes/No continue/sign-in pause are
+both required, including when already authenticated. Sign in manually if needed.
+Reused lookup does not navigate/probe until Yes, uses the same browser/tab and
+does not rerun login. It clears any previous claim before entering the exact
+current claim; existing detail-tab and row-selection behavior is unchanged.
+Lost sessions fail visibly without replacement, automatic replay or fallback.
+
+Direct legacy calls own/close their driver by default; borrowed assignment and
+lookup leave cleanup to the All boundary. Desktop flag/customer/employer typed
+manual-recovery failures retain detached Chrome and release the service/executor,
+including in All. Task-completion failures still quit normally. Cleanup failures
+remain visible alongside the primary process failure.
+
+FCM-1.1-96 includes this lifecycle in the rebuilt **v1.0.12** artifact, prepared
+**10/27/2026, not yet published**; see the
+[build record](#v1012-single-browser-all-build-preparation-10272026-fcm-11-96).
+Historical FCM-1.1-95 source verification on **10/27/2026**, before this rebuild,
+passed 156 primary JUnit cases and source smoke without rebuilding an EXE.
+Published v1.0.11 and historical FCM-1.1-88/90/94 build/release evidence remain
+unchanged. No live Unity, RRS, CMS, database or Bedrock operation was exercised
+during this build.
+
 ## Chrome automation (FCM-1.1-90, v1.0.11)
 
 Both initial Unity assignment and the post-approval Unity case lookup use
@@ -34,7 +65,8 @@ The desktop UI still uses pywebview `edgechromium` / WebView2, and unrelated CMS
 registration/IE-mode and other Edge automation are unchanged. Existing manual
 lookup sign-in, modes, business gates/selectors, tracking, typed-error recovery
 and 60-second page/script timeouts are preserved. Recovery now leaves detached
-Chrome open; normal/CLI cleanup and lookup's unconditional Quit are unchanged.
+Chrome open; normal/CLI cleanup and owned lookup's Quit remain. Current All
+ownership is now governed by FCM-1.1-95 above.
 Lookup retains its existing driver-log behavior under `chromedriver.log`;
 assignment adds no persistent log.
 
@@ -840,3 +872,67 @@ services remain prerequisites. The spec's existing allowlist was unchanged;
 no credentials were added. No native desktop workflow, browser startup, UI input,
 live portal, RRS, CMS, database or Bedrock operation was exercised during this
 build. Unity remains standalone and outside Final Code.
+
+### v1.0.12 single-browser All build preparation (10/27/2026, FCM-1.1-96)
+
+**Prepared, not yet published.** Rebuilt Unity's own production frontend and
+the existing, unmodified `unity_assignment.spec` with FCM-1.1-95's single-browser
+All lifecycle. The published v1.0.11 artifact and its release evidence above
+remain unchanged. This record covers build and independent offline verification;
+GitHub publication remains a separate gate.
+
+The documented virtual environment executable was absent. The build used
+installed **Python 3.13.15 / PyInstaller 6.22.3** and existing dependencies;
+no dependency restore or installation was needed. From the repository root,
+`$build` denotes the new session `files\unity112-build` directory:
+
+```powershell
+npm.cmd --prefix Processes\Unity\Stand-Alone\frontend run build
+python -m PyInstaller Processes\Unity\Stand-Alone\unity_assignment.spec --noconfirm --clean --distpath "$build\dist" --workpath "$build\work"
+$process = Start-Process -FilePath "$build\dist\UnityAssignment.exe" -ArgumentList @("--self-test", "--report", "$build\self-test.txt") -Wait -PassThru
+$process.ExitCode
+```
+
+| Prepared artifact | Verified value |
+| --- | --- |
+| Size | 48,487,782 bytes |
+| SHA-256 | `c64d0a143598712c442fda4134f3839278d7dc6b067c282c2bc51ba515d9d346` |
+| ASCII checksum sidecar | 86 bytes; lowercase hash, two spaces, `UnityAssignment.exe`, newline |
+
+Frontend and PyInstaller builds exited **0**. The packaged synthetic self-test
+exited **0** and reported `Frozen resource layout and live import prerequisites:
+OK`, `single_all_session_cleanup: true`, **39** consumed keys, zero context-only
+keys, a completed **five-step** main flow and **three** completed selected-document
+flows (PDF/MSG/EML), each with **three steps**. It preserved **32,767-character**
+instructions and reported `oversized_rejected: true`. These are fake-callback
+checks, not a live workflow or a count of independently executed test cases.
+Only after these assertions passed were the EXE and canonical checksum sidecar
+copied to ignored `dist`; both copied files were checked byte-for-byte.
+
+Build logs, `self-test.txt`, `self-test-exit.txt` and `build-metadata.json` remain
+under `files\unity112-build`, outside Git. Build warnings included missing optional
+`pycparser.lextab` / `pycparser.yacctab`, existing invalid-escape syntax warnings
+and pywinauto's STA COM warning. Packaging and the frozen prerequisite/self-test
+checks succeeded despite these warnings.
+
+Independent verification matched six raw sources, thirteen compiled modules and
+three frontend files to the artifact. The targeted source suite passed 156
+primary JUnit cases with no failures/errors/skips. Actual frozen code passed
+eleven Chrome/completion test methods plus twenty RRS/session test methods,
+including the frozen desktop and CLI All owners with synthetic external I/O.
+These include eight lifecycle regressions covering shared identity, factory
+counts, end-of-run cleanup, stops/failures, recovery, independent runs and
+owned/borrowed defaults. Six frozen Chrome configuration cases and four frozen
+tracking configuration cases passed. Selenium Manager/Chrome/Tk prerequisites,
+credential/operator/sample/session exclusions and unchanged unrelated owner
+files were verified. Evidence: `unity112-tests.xml`, `unity112-verification.json`.
+
+The existing spec allowlist and browser configuration were unchanged. Install
+Chrome; blank `browser.chrome_driver_path` uses Selenium Manager and may need
+network access for driver resolution. Explicit overrides retain the precedence
+described above. Windows/WebView2, authorized ODBC/database access and external
+operator settings/credentials remain live prerequisites. Nothing was copied
+from an operator `.env`, DPAPI store, workbook or referral fixture; no such
+credentials/settings were added to the build. No browser startup, native UI
+input, live Unity, RRS, CMS, database or Bedrock operation was exercised.
+Unity remains standalone and outside Final Code.

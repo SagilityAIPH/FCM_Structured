@@ -1,6 +1,7 @@
 """Session-only pywebview bridge. Live automation runs on a COM worker."""
 from copy import deepcopy
 from contextlib import redirect_stdout
+from contextlib import nullcontext
 from functools import wraps
 import importlib.util
 from io import StringIO
@@ -36,7 +37,7 @@ def response(function):
     return call
 
 
-def live_callbacks(attachment_path=None, *, confirm_unity_login=None):
+def live_callbacks(attachment_path=None, *, confirm_unity_login=None, browser_session=None):
     """Lazy defaults: bypass legacy.main, which swallows automation failures."""
     runner = _runner()
     sys.path.insert(0, str(runner.ROOT))
@@ -47,7 +48,8 @@ def live_callbacks(attachment_path=None, *, confirm_unity_login=None):
         if attachment_path is not None:
             referral_document(attachment_path)
         unity = load_module_from_path('_desktop_legacy_unity', UNITY_SCRIPT)
-        driver = unity.create_driver(detach=True)
+        driver = (unity.create_driver(detach=True) if browser_session is None else
+                  browser_session.acquire(lambda: unity.create_driver(detach=True)))
         preserve_browser = False
         try:
             unity.login(driver)
@@ -57,6 +59,8 @@ def live_callbacks(attachment_path=None, *, confirm_unity_login=None):
                 checked_validate(unity, driver, customer, claimant, data, attachment_path=attachment_path)
         except (UnityFlagError, UnityCustomerFieldsError, UnityEmployerFieldsError) as error:
             preserve_browser = True
+            if browser_session is not None:
+                browser_session.preserved = True
             error.browser_left_open = True
             # Detach keeps the browser alive even when the worker/service is collected.
             try:
@@ -69,15 +73,22 @@ def live_callbacks(attachment_path=None, *, confirm_unity_login=None):
                 error.service_release_failed = True
             raise
         finally:
-            if not preserve_browser:
+            if not preserve_browser and browser_session is None:
                 driver.quit()
+    def complete(claim):
+        options = {}
+        if confirm_unity_login is not None:
+            options['confirm_unity_login'] = confirm_unity_login
+        if browser_session is not None:
+            if browser_session.driver is None:
+                raise RuntimeError('Unity All session is unavailable; no replacement was created.')
+            options['unity_driver'] = browser_session.driver
+        return runner._complete_live(runner.ROOT, claim, **options)
     return {'list_attachments': (lambda: [referral_document(attachment_path)]) if attachment_path is not None
             else lambda: sorted(p for p in Path(ATTACHMENT_FOLDER).glob('*') if p.is_file()),
             'run_unity': portal,
             'record_assignment': lambda name, claim: runner._record_live(runner.ROOT, name, claim),
-            'complete_assignment': (lambda claim: runner._complete_live(runner.ROOT, claim))
-            if confirm_unity_login is None else
-            (lambda claim: runner._complete_live(runner.ROOT, claim, confirm_unity_login=confirm_unity_login))}
+            'complete_assignment': complete}
 
 
 def checked_validate(unity, driver, customer, claimant, data, *, attachment_path=None):
@@ -272,12 +283,22 @@ class UnityAPI:
                 import pythoncom
                 com = pythoncom
                 com.CoInitialize()
-            calls = (self._factory() if self._factory else
-                     live_callbacks(attachment_path, confirm_unity_login=self.confirm))
-            if attachment_path is not None:
-                calls = {**calls, 'list_attachments': lambda: [referral_document(attachment_path)]}
-            result = _runner().load_core().run_flow(data, stage=stage, notify=self.notify,
-                       confirm=self.confirm, record_attempt_on_failure=tracking, **calls)
+            lifecycle = nullcontext()
+            if self._factory is None and stage == 'all':
+                from AI.unity_browser import UnityBrowserSession
+                lifecycle = UnityBrowserSession()
+            with lifecycle as session:
+                options = {'confirm_unity_login': self.confirm}
+                if session is not None:
+                    options['browser_session'] = session
+                calls = (self._factory() if self._factory else
+                         live_callbacks(attachment_path, **options))
+                if attachment_path is not None:
+                    calls = {**calls, 'list_attachments': lambda: [referral_document(attachment_path)]}
+                result = _runner().load_core().run_flow(data, stage=stage, notify=self.notify,
+                           confirm=self.confirm, record_attempt_on_failure=tracking, **calls)
+                if session is not None:
+                    session.result = result
             with self._lock:
                 self._state.update(status=result['status'], result=result)
         except (Exception, SystemExit) as error:

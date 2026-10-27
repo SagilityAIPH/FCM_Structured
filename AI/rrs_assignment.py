@@ -5,7 +5,7 @@ import time
 def confirm_unity_login(confirm=None):
     """Wait for attended sign-in; never infer consent from browser state."""
     title = "Unity manual sign-in"
-    message = ("Sign in to the newly opened Unity lookup browser manually. "
+    message = ("Use the Unity browser and sign in manually if needed. "
                "Select Yes only when sign-in is complete and you are ready to continue. "
                "Select No to stop assignment completion.")
     if confirm is None:

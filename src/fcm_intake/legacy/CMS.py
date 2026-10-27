@@ -1964,14 +1964,20 @@ def claim_exists(ClaimantName, ClaimID):
     finally:
         wb.close()
 
-def CheckCaseUnity(claim_number, *, confirm_unity_login=None):
+def CheckCaseUnity(claim_number, *, confirm_unity_login=None, unity_driver=None):
     UNITY_URL = "https://uat-cm-portal-eus-wa.azurewebsites.net/Ng/search/caseSearch"
     def loginUnity(driver):
-        driver.maximize_window()
-        driver.get(UNITY_URL)
-        unity_handle = driver.current_window_handle
         from AI.rrs_assignment import confirm_unity_login as attend_login
-        attend_login(confirm_unity_login)
+        if unity_driver is not None:
+            # Borrowed sessions must remain untouched until explicit consent.
+            attend_login(confirm_unity_login)
+            unity_handle = driver.current_window_handle
+            driver.get(UNITY_URL)
+        else:
+            driver.maximize_window()
+            driver.get(UNITY_URL)
+            unity_handle = driver.current_window_handle
+            attend_login(confirm_unity_login)
 
         driver.switch_to.window(unity_handle)
 
@@ -1998,6 +2004,7 @@ def CheckCaseUnity(claim_number, *, confirm_unity_login=None):
 
         ClaimNumberField = driver.find_element(By.ID,"tasks-claim-number-general-input")
         driver.execute_script("arguments[0].scrollIntoView({block:'center'});", ClaimNumberField)
+        ClaimNumberField.clear()
         ClaimNumberField.send_keys(ClaimNumber)
 
         StatusDropdown = WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.ID, "tasks-case-status-select-input")))
@@ -2103,7 +2110,7 @@ def CheckCaseUnity(claim_number, *, confirm_unity_login=None):
 
         return latest_case_id
 
-    driver = create_driver()
+    driver = create_driver() if unity_driver is None else unity_driver
     try:
         loginUnity(driver)
         return NavigateSearch(claim_number,driver)
@@ -2111,7 +2118,8 @@ def CheckCaseUnity(claim_number, *, confirm_unity_login=None):
         # Release the lookup browser on failure without masking its cause.
         lookup_failed = sys.exc_info()[0] is not None
         try:
-            driver.quit()
+            if unity_driver is None:
+                driver.quit()
         except Exception:
             if not lookup_failed:
                 raise

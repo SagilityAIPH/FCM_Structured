@@ -45,6 +45,31 @@ UI notification errors propagate. KeyboardInterrupt is not swallowed.
 
 ## Safety and deployment requirements
 
+- **One session per All run (FCM-1.1-95; v1.0.12 prepared).** Desktop and live CLI
+  boundaries retain one driver through assignment, tracking, iCaseManager
+  approval, lookup and RRS completion, then close it once (also on stop/failure).
+  There is no cross-operation/referral persistence. Unity-only and Assign-only
+  remain independent; offline/custom callbacks create no browser. The controller
+  has no browser/database lifecycle logic.
+  Approval and explicit manual Yes/No continue/sign-in remain mandatory, even
+  when already authenticated. Borrowed lookup waits for Yes before navigation
+  or readiness probes, uses the same browser/tab, and does not rerun login.
+  It clears the old claim before typing the exact current claim. Lost sessions
+  stop without replacement, fallback or assignment replay. Detail-tab selection
+  and existing partial-row handling are unchanged.
+  Direct legacy calls retain owned create/cleanup defaults; optional borrowed
+  drivers are never quit by assignment/lookup. Desktop's existing three typed
+  flag/customer/employer recovery failures still release service/executor and
+  retain detached Chrome; task-completion failures quit normally. Cleanup errors
+  remain visible without silently hiding the primary process failure.
+  FCM-1.1-96 includes this lifecycle in the rebuilt v1.0.12 artifact, prepared
+  **10/27/2026, not yet published**. Its packaged synthetic self-test passed,
+  including `single_all_session_cleanup: true`; see the
+  [build record](../Stand-Alone/README.md#v1012-single-browser-all-build-preparation-10272026-fcm-11-96).
+  Historical FCM-1.1-95 source verification on 10/27/2026 preceded this rebuild
+  and did not itself build an EXE. Published v1.0.11 and historical
+  FCM-1.1-88/90/94 release evidence remain unchanged. No live
+  portal/RRS/CMS/database/Bedrock validation occurred during this build.
 - **Unity uses Chrome (FCM-1.1-90, v1.0.11).** Initial assignment and
   post-approval lookup share `AI/unity_browser.py`. Install Chrome; the blank
   `browser.chrome_driver_path` default enables Selenium Manager's runtime
@@ -55,7 +80,8 @@ UI notification errors propagate. KeyboardInterrupt is not swallowed.
   fallback. Do not bundle developer drivers or credentials. The desktop UI stays
   pywebview `edgechromium` / WebView2; unrelated CMS registration, IE-mode and
   other Edge automation are unchanged. Typed-error manual recovery now leaves
-  detached Chrome open; CLI/non-recovery and lookup cleanup remain unchanged.
+  detached Chrome open; CLI/non-recovery and owned lookup cleanup remain.
+  FCM-1.1-95 above governs All ownership in source and the prepared v1.0.12 artifact.
   Manual lookup sign-in, gates, modes, selectors, tracking and 60-second
   page/script timeouts are preserved. Lookup retains its driver log as
   `chromedriver.log`; assignment adds no persistent driver log.

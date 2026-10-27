@@ -21,6 +21,47 @@ Deploy-Ready is integration source, not an independently packaged EXE. No Unity
 EXE is built. The large Selenium body remains in
 `src/fcm_intake/legacy/legacy_unity.py`; it is not copied or rewritten here.
 
+## One browser per All run (FCM-1.1-95; v1.0.12 prepared)
+
+Desktop and live CLI **All** now retain one Unity WebDriver/session through
+assignment, tracking, iCaseManager approval, case lookup and RRS completion.
+The live boundary owns that session and closes it after RRS finishes or the run
+stops/fails; there is no reuse across operations or referrals. **Unity** and
+**Assign** remain independent operations with their existing owned-browser
+lifecycles. The controller remains browser/database independent.
+
+Both approval and the explicit manual Yes/No continue/sign-in pause remain,
+even for an already-authenticated session. Sign in manually if needed. Borrowed
+lookup waits for Yes before any search navigation or readiness probing, then
+uses the same browser/tab without rerunning assignment login. It clears the old
+claim before entering the current claim. Existing case-detail tabs/row selection
+are unchanged. A lost session stops completion; it never creates a replacement,
+replays assignment or opens a second authentication session.
+
+Direct legacy calls still create/close their own browser by default. Borrowed
+legacy assignment/lookup never quit their caller's driver; the All owner closes
+it once. Desktop's three existing typed flag/customer/employer manual-recovery
+errors still leave detached Chrome open and release service/executor resources.
+Task-completion errors use normal cleanup. Cleanup failures are reported without
+silently discarding the primary failure.
+
+FCM-1.1-96 includes this lifecycle in the rebuilt **v1.0.12** artifact, prepared
+on **10/27/2026, not yet published**. The packaged synthetic self-test passed,
+including `single_all_session_cleanup: true`; see the
+[build record](Stand-Alone/README.md#v1012-single-browser-all-build-preparation-10272026-fcm-11-96).
+The published **v1.0.11** EXE and historical FCM-1.1-88/90/94 release evidence
+remain unchanged. No live portal, RRS, CMS, database or Bedrock validation
+occurred during this build.
+
+Historical FCM-1.1-95 source evidence (**10/27/2026, before the FCM-1.1-96
+rebuild**): independent offline verification passed 156 primary JUnit cases with no
+failures/errors/skips. Actual desktop/CLI boundaries were exercised with
+synthetic external I/O: one factory call, identical borrowed driver, no early
+quit/relogin/replacement, and cleanup after RRS or ordinary stop/failure.
+Source smoke passed the one-session cleanup check, 39-key contract, main and
+PDF/MSG/EML flows, and instruction limits. Non-target legacy functions and
+unrelated owner files were unchanged.
+
 ## Unity browser (FCM-1.1-90, v1.0.11)
 
 Initial assignment and post-approval Unity case lookup now use Chrome through
@@ -37,7 +78,8 @@ No developer driver, credentials or browser binary is bundled.
 The desktop UI remains pywebview `edgechromium` / WebView2. Unrelated CMS
 registration, IE-mode and other Edge automation are unchanged. Assignment keeps
 opt-in detach and existing typed-error manual recovery (now in Chrome);
-CLI/non-recovery cleanup and lookup's unconditional Quit remain unchanged.
+CLI/non-recovery cleanup and owned lookup's Quit remain; FCM-1.1-95 above
+governs All ownership in source and the prepared v1.0.12 artifact.
 The manual post-approval sign-in pause, modes, gates, selectors, tracking and
 60-second page/script timeouts are preserved. Lookup's existing driver log is
 now `chromedriver.log`; assignment adds no persistent driver log.

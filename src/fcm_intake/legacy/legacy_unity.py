@@ -1466,11 +1466,12 @@ def validate_and_complete_task(driver, customer_name: str, claimant_name: str,da
         print(f"error occurred: {ex} (line {tb.tb_lineno})")
  
 # ---------- Entrypoint ----------
-def main(customer_name: str, claimant_name: str,dataRef: dict):
-    driver = None
+def main(customer_name: str, claimant_name: str,dataRef: dict, *, unity_driver=None):
+    driver = unity_driver
     try:
         # pprint(dataRef)
-        driver = create_driver()
+        if driver is None:
+            driver = create_driver()
         login(driver)
         validate_and_complete_task(driver, customer_name, claimant_name,dataRef)
     except UnityTaskCompletionError:
@@ -1479,7 +1480,7 @@ def main(customer_name: str, claimant_name: str,dataRef: dict):
         exc_type, exc_obj, tb = sys.exc_info()
         print(f"error occurred: {ex} (line {tb.tb_lineno})")
     finally:
-        if driver is not None:
+        if driver is not None and unity_driver is None:
             try:
                 driver.quit()
             except Exception:

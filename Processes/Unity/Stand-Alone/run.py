@@ -1,5 +1,6 @@
 """Run just this process. Defaults to an offline fixture; use --live for Unity."""
 import argparse
+from contextlib import nullcontext
 import importlib.util
 import json
 from pathlib import Path
@@ -98,16 +99,37 @@ def main(argv=None):
             from fcm_intake.config import UNITY_SCRIPT
             unity = load_module_from_path("standalone_legacy_unity", UNITY_SCRIPT)
             folder = Path(ATTACHMENT_FOLDER)
-            result = core.run_flow(
-                data, stage=args.stage,
-                list_attachments=lambda: sorted(p for p in folder.glob("*") if p.is_file()),
-                run_unity=unity.main,
-                record_assignment=lambda claimant, claim: _record_live(ROOT, claimant, claim),
-                notify=lambda title, message: print(f"[{title}]\n{message}"),
-                confirm=ask_yes_no,
-                complete_assignment=lambda claim: _complete_live(ROOT, claim, confirm_unity_login=ask_yes_no),
-                record_attempt_on_failure=args.record_attempt_on_failure == "yes",
-            )
+            lifecycle = nullcontext()
+            if args.stage == "all":
+                from AI.unity_browser import UnityBrowserSession
+                lifecycle = UnityBrowserSession()
+            with lifecycle as session:
+                def portal(customer, claimant, fields):
+                    if session is None:
+                        return unity.main(customer, claimant, fields)
+                    driver = session.acquire(unity.create_driver)
+                    return unity.main(customer, claimant, fields, unity_driver=driver)
+
+                def complete(claim):
+                    options = {"confirm_unity_login": ask_yes_no}
+                    if session is not None:
+                        if session.driver is None:
+                            raise RuntimeError("Unity All session is unavailable; no replacement was created.")
+                        options["unity_driver"] = session.driver
+                    return _complete_live(ROOT, claim, **options)
+
+                result = core.run_flow(
+                    data, stage=args.stage,
+                    list_attachments=lambda: sorted(p for p in folder.glob("*") if p.is_file()),
+                    run_unity=portal,
+                    record_assignment=lambda claimant, claim: _record_live(ROOT, claimant, claim),
+                    notify=lambda title, message: print(f"[{title}]\n{message}"),
+                    confirm=ask_yes_no,
+                    complete_assignment=complete,
+                    record_attempt_on_failure=args.record_attempt_on_failure == "yes",
+                )
+                if session is not None:
+                    session.result = result
         print(json.dumps(result, indent=2, default=str))
         return 0 if result["status"] == "completed" else 2
     except Exception as error:
@@ -152,14 +174,16 @@ def _record_live(root, claimant_full, claim_number):
     legacy.InsertIntoTable(claimant_full, claim_number)
 
 
-def _complete_live(root, claim_number, *, confirm_unity_login=None):
+def _complete_live(root, claim_number, *, confirm_unity_login=None, unity_driver=None):
     from fcm_intake.config import FCM_SCRIPT
     from fcm_intake.legacy_loader import load_module_from_path
     legacy = load_module_from_path("standalone_legacy_fcm", FCM_SCRIPT)
-    if confirm_unity_login is None:
-        legacy.CompleteAssignment(claim_number)
-    else:
-        legacy.CompleteAssignment(claim_number, confirm_unity_login=confirm_unity_login)
+    options = {}
+    if confirm_unity_login is not None:
+        options["confirm_unity_login"] = confirm_unity_login
+    if unity_driver is not None:
+        options["unity_driver"] = unity_driver
+    legacy.CompleteAssignment(claim_number, **options)
 
 
 if __name__ == "__main__":

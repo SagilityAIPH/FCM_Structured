@@ -739,6 +739,277 @@ class RRSCompletionTests(unittest.TestCase):
                 root.destroy.assert_called_once()
                 driver.quit.assert_called_once()
 
+    def all_fixture(self):
+        """Real frontend/controller/delegates; only external I/O is synthetic."""
+        driver, field, search, wait = self.actual_lookup()
+        env = {
+            'create_driver': Mock(return_value=driver),
+            'login': Mock(side_effect=lambda actual: self.assertIs(actual, driver)),
+            'validate_and_complete_task': Mock(),
+            'UnityTaskCompletionError': UnityTaskCompletionError, 'sys': sys,
+        }
+        exec(compile(ast.Module(body=[legacy_function('main')], type_ignores=[]),
+                     '<actual borrowed Unity main>', 'exec'), env)
+        unity = SimpleNamespace(**{key: env[key] for key in
+            ('main', 'create_driver', 'login', 'validate_and_complete_task')})
+        self.loader.side_effect = lambda name, path: (
+            unity if name.endswith('legacy_unity') else self.legacy)
+        config = SimpleNamespace(ATTACHMENT_FOLDER='synthetic', UNITY_SCRIPT='synthetic.py',
+                                 FCM_SCRIPT='synthetic-fcm.py')
+        self.enterContext(patch.dict(sys.modules, {'fcm_intake.config': config}))
+        tracking = self.enterContext(patch.object(self.runner, '_record_live',
+            side_effect=lambda *args: driver.quit.assert_not_called()))
+        # Desktop loads a runner lazily; use this same real module with its I/O patched.
+        self.enterContext(patch.object(backend, '_runner', return_value=self.runner))
+        def finish():
+            driver.quit.assert_not_called()
+            self.events.append('RRS finished')
+        self.final_ok.click_input.side_effect = finish
+        driver.quit.side_effect = lambda: self.events.append('quit')
+        return unity, driver, field, search, tracking, config
+
+    def execute_all(self, frontend, config, answer, api=None):
+        if frontend == 'desktop':
+            api = api or backend.UnityAPI()
+            api._started = time.monotonic()
+            api.confirm, api.notify = answer, Mock()
+            with patch.dict(sys.modules, {'pythoncom': Mock()}), \
+                    patch.object(Path, 'glob', return_value=[Path('synthetic.pdf')]), \
+                    patch.object(Path, 'is_file', return_value=True):
+                api._run(synthetic(), 'all', True, None)
+            return api.get_state()['result']
+        with patch.object(self.runner, '_preflight_tracking'), \
+                patch.object(self.runner, 'ask_yes_no', side_effect=answer), \
+                patch.object(Path, 'glob', return_value=[Path('synthetic.pdf')]), \
+                patch.object(Path, 'is_file', return_value=True), \
+                backend.redirect_stdout(backend.StringIO()) as output, \
+                patch('sys.stderr', output):
+            code = self.runner.main(['--live', '--claim-number', 'SYNTHETIC-001',
+                '--customer', 'Synthetic', '--claimant-first', 'Invented',
+                '--claimant-last', 'Example'])
+        if code == 1:
+            return {'status': 'failed', 'reason': 'cli_exception', 'error': output.getvalue()}
+        text = output.getvalue()
+        return json.loads(text[text.index('{\n'):])
+
+    def test_actual_all_frontends_borrow_identical_driver_until_rrs_finishes(self):
+        for frontend in ('desktop', 'cli'):
+            with self.subTest(frontend=frontend):
+                self.doCleanups()
+                self.setUp()
+                unity, driver, field, search, tracking, config = self.all_fixture()
+                def answer(title, message):
+                    driver.quit.assert_not_called()
+                    if title == 'Unity manual sign-in':
+                        # No lookup navigation/probe even when already signed in.
+                        self.events.append('manual Yes')
+                        driver.get.assert_not_called()
+                        driver.find_elements.assert_not_called()
+                        search.assert_not_called()
+                    else:
+                        self.events.append('approval')
+                    return True
+                result = self.execute_all(frontend, config, answer)
+                self.assertEqual(result['status'], 'completed', result)
+                unity.create_driver.assert_called_once()
+                unity.login.assert_called_once_with(driver)
+                self.assertIs(unity.validate_and_complete_task.call_args.args[0], driver)
+                self.lookup.assert_called_once()
+                self.assertIs(self.lookup.call_args.kwargs['unity_driver'], driver)
+                search.assert_called_once_with('SYNTHETIC-001', driver)
+                tracking.assert_called_once()
+                driver.get.assert_called_once()
+                driver.quit.assert_called_once()
+                self.assertNotIn('create browser', self.events)
+                self.assertLess(self.events.index('approval'), self.events.index('manual Yes'))
+                self.assertLess(self.events.index('manual Yes'), self.events.index('open Unity'))
+                self.assertEqual(self.events[-2:], ['RRS finished', 'quit'])
+
+    def test_all_stops_clean_up_without_retry_or_replacement(self):
+        for frontend in ('desktop', 'cli'):
+            for failure in ('approval', 'tracking', 'lookup', 'login No', 'stale',
+                            'cleanup', 'lookup and cleanup', 'task'):
+                with self.subTest(frontend=frontend, failure=failure):
+                    self.doCleanups()
+                    self.setUp()
+                    unity, driver, field, search, tracking, config = self.all_fixture()
+                    if failure == 'tracking':
+                        tracking.side_effect = self.original_error
+                    if 'lookup' in failure:
+                        search.side_effect = self.original_error
+                    if failure == 'stale':
+                        driver.get.side_effect = self.original_error
+                    if 'cleanup' in failure:
+                        driver.quit.side_effect = RuntimeError('synthetic cleanup failed')
+                    if failure == 'task':
+                        unity.validate_and_complete_task.side_effect = UnityTaskCompletionError('click')
+                    def answer(title, message):
+                        if title == 'Unity manual sign-in':
+                            driver.get.assert_not_called()
+                            driver.find_elements.assert_not_called()
+                            return failure != 'login No'
+                        return failure != 'approval'
+                    result = self.execute_all(frontend, config, answer)
+                    self.assertEqual(result['status'], 'stopped' if failure == 'approval' else 'failed', result)
+                    unity.create_driver.assert_called_once()
+                    unity.login.assert_called_once()
+                    unity.validate_and_complete_task.assert_called_once()
+                    driver.quit.assert_called_once()
+                    self.assertNotIn('create browser', self.events)
+                    if failure in ('approval', 'tracking', 'task'):
+                        self.lookup.assert_not_called()
+                        driver.get.assert_not_called()
+                    else:
+                        self.lookup.assert_called_once()
+                    if failure in ('approval', 'tracking', 'task', 'login No', 'stale'):
+                        search.assert_not_called()
+                    if failure != 'cleanup':
+                        self.final_ok.click_input.assert_not_called()
+                    if failure == 'lookup and cleanup':
+                        self.assertIn('complete_assignment_failed', str(result))
+                        self.assertIn('cleanup failed', str(result))
+
+    def test_all_desktop_retains_only_three_manual_recovery_types(self):
+        for error_type in (UnityFlagError, UnityCustomerFieldsError, UnityEmployerFieldsError):
+            with self.subTest(error_type=error_type):
+                self.doCleanups()
+                self.setUp()
+                unity, driver, field, search, tracking, config = self.all_fixture()
+                error = error_type('synthetic stage')
+                unity.validate_and_complete_task.side_effect = error
+                result = self.execute_all('desktop', config, Mock())
+                self.assertEqual(result['reason'], 'run_unity_failed')
+                driver.quit.assert_not_called()
+                driver.service.stop.assert_called_once()
+                driver.command_executor.close.assert_called_once()
+                self.assertTrue(error.browser_left_open)
+                self.lookup.assert_not_called()
+
+    def test_borrowed_lookup_decline_and_failure_never_quit_or_create(self):
+        for failure in ('No', 'stale', 'search'):
+            with self.subTest(failure=failure):
+                self.doCleanups()
+                self.setUp()
+                driver, field, search, wait = self.actual_lookup()
+                if failure == 'stale':
+                    driver.get.side_effect = self.original_error
+                if failure == 'search':
+                    search.side_effect = self.original_error
+                with self.assertRaises(RRSCompletionError) as caught:
+                    self.runner._complete_live(model.ROOT, 'SYNTHETIC-001',
+                        confirm_unity_login=lambda *args: failure != 'No', unity_driver=driver)
+                if failure != 'No':
+                    self.assertIs(caught.exception.__cause__, self.original_error)
+                self.assertNotIn('create browser', self.events)
+                driver.quit.assert_not_called()
+                if failure == 'No':
+                    driver.get.assert_not_called()
+                    driver.find_elements.assert_not_called()
+                    search.assert_not_called()
+
+    def test_independent_all_runs_use_fresh_drivers_on_same_frontend(self):
+        stable_runner = self.runner
+        for frontend in ('desktop', 'cli'):
+            api = backend.UnityAPI()
+            previous = None
+            for operation in range(2):
+                with self.subTest(frontend=frontend, operation=operation):
+                    self.doCleanups()
+                    self.setUp()
+                    self.runner = stable_runner
+                    unity, driver, field, search, tracking, config = self.all_fixture()
+                    result = self.execute_all(frontend, config, lambda *args: True, api)
+                    self.assertEqual(result['status'], 'completed', result)
+                    self.assertIsNot(driver, previous)
+                    unity.create_driver.assert_called_once()
+                    search.assert_called_once_with('SYNTHETIC-001', driver)
+                    driver.quit.assert_called_once()
+                    self.assertEqual(self.events[-2:], ['RRS finished', 'quit'])
+                    previous = driver
+
+    def test_legacy_main_owns_default_but_not_borrowed_driver_and_keeps_swallow_policy(self):
+        for borrowed in (False, True):
+            for failure in (None, ValueError('synthetic unrelated'),
+                            UnityTaskCompletionError('synthetic completion')):
+                with self.subTest(borrowed=borrowed, failure=type(failure)):
+                    driver = Mock()
+                    env = {'create_driver': Mock(return_value=driver), 'login': Mock(),
+                           'validate_and_complete_task': Mock(side_effect=failure),
+                           'UnityTaskCompletionError': UnityTaskCompletionError, 'sys': sys}
+                    function = legacy_function('main')
+                    exec(compile(ast.Module(body=[function], type_ignores=[]),
+                                 '<actual Unity ownership>', 'exec'), env)
+                    options = {'unity_driver': driver} if borrowed else {}
+                    with backend.redirect_stdout(backend.StringIO()):
+                        if isinstance(failure, UnityTaskCompletionError):
+                            with self.assertRaises(UnityTaskCompletionError) as caught:
+                                env['main']('Synthetic', 'Example', {}, **options)
+                            self.assertIs(caught.exception, failure)
+                        else:
+                            env['main']('Synthetic', 'Example', {}, **options)
+                    self.assertEqual(env['create_driver'].call_count, int(not borrowed))
+                    env['login'].assert_called_once_with(driver)
+                    env['validate_and_complete_task'].assert_called_once_with(driver, 'Synthetic', 'Example', {})
+                    self.assertEqual(driver.quit.call_count, int(not borrowed))
+
+    def test_actual_case_search_replaces_old_claim_with_exact_current_claim(self):
+        function = next(node for node in legacy_function('CheckCaseUnity', 'CMS.py').body
+                        if isinstance(node, ast.FunctionDef) and node.name == 'NavigateSearch')
+        driver, field = Mock(), Mock()
+        stored = ['SYNTHETIC-PREVIOUS']
+        field.clear.side_effect = lambda: stored.clear()
+        field.send_keys.side_effect = lambda claim: stored.append(claim)
+        driver.find_element.side_effect = lambda by, locator: (
+            field if locator == 'tasks-claim-number-general-input' else Mock())
+        driver.find_elements.return_value = []
+        env = {'WebDriverWait': Mock(), 'EC': Mock(), 'Select': Mock(),
+               'By': SimpleNamespace(ID='id', XPATH='xpath'),
+               'time': SimpleNamespace(sleep=lambda _: None)}
+        exec(compile(ast.Module(body=[function], type_ignores=[]),
+                     '<actual exact current claim search>', 'exec'), env)
+        claim = 'SYNTHETIC-CURRENT/001-A'
+        with backend.redirect_stdout(backend.StringIO()):
+            self.assertIsNone(env['NavigateSearch'](claim, driver))
+        field.clear.assert_called_once_with()
+        field.send_keys.assert_called_once_with(claim)
+        self.assertEqual(stored, [claim])
+
+    def test_session_cleanup_surfaces_primary_exception_and_cleanup_failure(self):
+        from AI.unity_browser import UnityBrowserSession
+        primary = ValueError('SYNTHETIC-PRIVATE process failure')
+        original_cause = LookupError('synthetic root cause')
+        primary.__cause__ = original_cause
+        cleanup = RuntimeError('SYNTHETIC-PRIVATE cleanup failure')
+        driver = Mock()
+        driver.quit.side_effect = cleanup
+        with self.assertRaisesRegex(RuntimeError, 'cleanup failed after ValueError') as caught:
+            with UnityBrowserSession() as session:
+                session.acquire(lambda: driver)
+                raise primary
+        self.assertIs(caught.exception.__cause__, primary)
+        self.assertIs(primary.__cause__, original_cause)
+        self.assertIs(caught.exception.cleanup_error, cleanup)
+        self.assertNotIn('SYNTHETIC-PRIVATE', str(caught.exception))
+        driver.quit.assert_called_once()
+        for result in (
+                None,
+                {'status': 'completed', 'reason': '', 'error': {}},
+                {'status': 'failed', 'reason': 'complete_assignment_failed',
+                 'error': {'type': 'RRSCompletionError', 'message': 'SYNTHETIC-PRIVATE'}}):
+            with self.subTest(result=result):
+                driver.quit.reset_mock()
+                with self.assertRaisesRegex(RuntimeError, 'Unity browser cleanup failed') as caught:
+                    with UnityBrowserSession() as session:
+                        session.acquire(lambda: driver)
+                        session.result = result
+                self.assertIs(caught.exception.__cause__, cleanup)
+                self.assertIs(caught.exception.process_result, result)
+                self.assertNotIn('SYNTHETIC-PRIVATE', str(caught.exception))
+                if result and result['status'] == 'failed':
+                    self.assertIn('complete_assignment_failed', str(caught.exception))
+                    self.assertIn('RRSCompletionError', str(caught.exception))
+                driver.quit.assert_called_once()
+
 
 class ModelTests(unittest.TestCase):
     def test_contract_and_ast(self):
@@ -1304,8 +1575,8 @@ class CompleteTaskTests(unittest.TestCase):
                 # Exercise run.py's actual --live wiring with AST-extracted
                 # legacy code and local synthetic inputs, never live bindings.
                 runner = backend._runner()
-                unity.main = lambda customer, claimant, data: env['main'](
-                    customer, claimant, fixture.data | data)
+                unity.main = lambda customer, claimant, data, **options: env['main'](
+                    customer, claimant, fixture.data | data, **options)
                 with tempfile.TemporaryDirectory(dir=HERE) as directory:
                     (Path(directory) / 'synthetic.pdf').touch()
                     config.ATTACHMENT_FOLDER = directory

@@ -4173,12 +4173,15 @@ def notify(title: str, text: str):
     except Exception:
         print(f"[{title}] {text}")
 
-def CompleteAssignment(clmNumber, *, confirm_unity_login=None):
+def CompleteAssignment(clmNumber, *, confirm_unity_login=None, unity_driver=None):
     from AI.rrs_assignment import complete_assignment
     from pywinauto.timings import TimeoutError as DialogTimeout
 
     def lookup_case(claim_number):
         from legacy import CMS
+        if unity_driver is not None:
+            return CMS.CheckCaseUnity(claim_number, confirm_unity_login=confirm_unity_login,
+                                     unity_driver=unity_driver)
         if confirm_unity_login is None:
             return CMS.CheckCaseUnity(claim_number)
         return CMS.CheckCaseUnity(claim_number, confirm_unity_login=confirm_unity_login)

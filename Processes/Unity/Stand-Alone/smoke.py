@@ -13,6 +13,14 @@ from unity_excel import create_template, read_workbook, COLUMNS, SHEET
 def main():
     import sys
     from unity_model import ROOT
+    from AI.unity_browser import UnityBrowserSession
+    events = []
+    driver = SimpleNamespace(quit=lambda: events.append('quit'))
+    with UnityBrowserSession() as session:
+        assert session.acquire(lambda: driver) is driver
+        assert session.acquire(lambda: None) is driver
+        assert not events
+    assert events == ['quit']
     if getattr(sys, 'frozen', False):
         required = ['frontend/dist/index.html',
             'Processes/Unity/Stand-Alone/run.py',
@@ -120,6 +128,7 @@ def main():
         assert len(payloads) == 4
         audit = verify_legacy_keys()
         print(json.dumps({'mode': 'synthetic workbook roundtrip + bridge', 'operator_columns': len(COLUMNS),
+            'single_all_session_cleanup': events == ['quit'],
             'rows': 1, 'zip_preserved': row['data']['zip'], 'ast_consumed_keys': audit['count'],
             'context_only': audit['context_only'], 'result': result,
             'instruction_length': len(payloads[0]['specialInstructions']), 'oversized_rejected': True,
