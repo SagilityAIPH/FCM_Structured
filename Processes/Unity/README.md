@@ -21,7 +21,7 @@ Deploy-Ready is integration source, not an independently packaged EXE. No Unity
 EXE is built. The large Selenium body remains in
 `src/fcm_intake/legacy/legacy_unity.py`; it is not copied or rewritten here.
 
-## One browser per All run (FCM-1.1-95; v1.0.12 prepared)
+## One browser per All run (FCM-1.1-95; v1.0.12)
 
 Desktop and live CLI **All** now retain one Unity WebDriver/session through
 assignment, tracking, iCaseManager approval, case lookup and RRS completion.
@@ -45,10 +45,10 @@ errors still leave detached Chrome open and release service/executor resources.
 Task-completion errors use normal cleanup. Cleanup failures are reported without
 silently discarding the primary failure.
 
-FCM-1.1-96 includes this lifecycle in the rebuilt **v1.0.12** artifact, prepared
-on **10/27/2026, not yet published**. The packaged synthetic self-test passed,
+FCM-1.1-96 includes this lifecycle in the rebuilt **v1.0.12** release,
+published on **10/27/2026**. The packaged synthetic self-test passed,
 including `single_all_session_cleanup: true`; see the
-[build record](Stand-Alone/README.md#v1012-single-browser-all-build-preparation-10272026-fcm-11-96).
+[release record](Stand-Alone/README.md#v1012-single-browser-all-release-10272026-fcm-11-96).
 The published **v1.0.11** EXE and historical FCM-1.1-88/90/94 release evidence
 remain unchanged. No live portal, RRS, CMS, database or Bedrock validation
 occurred during this build.
@@ -79,7 +79,7 @@ The desktop UI remains pywebview `edgechromium` / WebView2. Unrelated CMS
 registration, IE-mode and other Edge automation are unchanged. Assignment keeps
 opt-in detach and existing typed-error manual recovery (now in Chrome);
 CLI/non-recovery cleanup and owned lookup's Quit remain; FCM-1.1-95 above
-governs All ownership in source and the prepared v1.0.12 artifact.
+governs All ownership in source and the published v1.0.12 artifact.
 The manual post-approval sign-in pause, modes, gates, selectors, tracking and
 60-second page/script timeouts are preserved. Lookup's existing driver log is
 now `chromedriver.log`; assignment adds no persistent driver log.

@@ -17,7 +17,7 @@ npm --prefix Processes/Unity/Stand-Alone/frontend run build
 openpyxl and the configured legacy automation dependencies are required. `run.py` with no
 arguments retains the existing offline happy-path scenario; desktop is explicit.
 
-## Current All lifecycle (FCM-1.1-95; v1.0.12 prepared)
+## Current All lifecycle (FCM-1.1-95; v1.0.12)
 
 Desktop **All** and `--live --stage all` own one Unity browser/session per run:
 assignment → tracking → iCaseManager approval → case lookup → RRS completion,
@@ -39,9 +39,9 @@ manual-recovery failures retain detached Chrome and release the service/executor
 including in All. Task-completion failures still quit normally. Cleanup failures
 remain visible alongside the primary process failure.
 
-FCM-1.1-96 includes this lifecycle in the rebuilt **v1.0.12** artifact, prepared
-**10/27/2026, not yet published**; see the
-[build record](#v1012-single-browser-all-build-preparation-10272026-fcm-11-96).
+FCM-1.1-96 includes this lifecycle in the rebuilt **v1.0.12** release, published
+**10/27/2026**; see the
+[release record](#v1012-single-browser-all-release-10272026-fcm-11-96).
 Historical FCM-1.1-95 source verification on **10/27/2026**, before this rebuild,
 passed 156 primary JUnit cases and source smoke without rebuilding an EXE.
 Published v1.0.11 and historical FCM-1.1-88/90/94 build/release evidence remain
@@ -873,13 +873,13 @@ no credentials were added. No native desktop workflow, browser startup, UI input
 live portal, RRS, CMS, database or Bedrock operation was exercised during this
 build. Unity remains standalone and outside Final Code.
 
-### v1.0.12 single-browser All build preparation (10/27/2026, FCM-1.1-96)
+### v1.0.12 single-browser All release (10/27/2026, FCM-1.1-96)
 
-**Prepared, not yet published.** Rebuilt Unity's own production frontend and
+**Published as Latest.** Rebuilt Unity's own production frontend and
 the existing, unmodified `unity_assignment.spec` with FCM-1.1-95's single-browser
 All lifecycle. The published v1.0.11 artifact and its release evidence above
-remain unchanged. This record covers build and independent offline verification;
-GitHub publication remains a separate gate.
+remain unchanged. This record covers build, independent offline verification
+and verified GitHub publication.
 
 The documented virtual environment executable was absent. The build used
 installed **Python 3.13.15 / PyInstaller 6.22.3** and existing dependencies;
@@ -893,7 +893,7 @@ $process = Start-Process -FilePath "$build\dist\UnityAssignment.exe" -ArgumentLi
 $process.ExitCode
 ```
 
-| Prepared artifact | Verified value |
+| Released artifact | Verified value |
 | --- | --- |
 | Size | 48,487,782 bytes |
 | SHA-256 | `c64d0a143598712c442fda4134f3839278d7dc6b067c282c2bc51ba515d9d346` |
@@ -926,6 +926,15 @@ owned/borrowed defaults. Six frozen Chrome configuration cases and four frozen
 tracking configuration cases passed. Selenium Manager/Chrome/Tk prerequisites,
 credential/operator/sample/session exclusions and unchanged unrelated owner
 files were verified. Evidence: `unity112-tests.xml`, `unity112-verification.json`.
+
+Source `5ca310949fe7ce234c27a997421316101702a4c3` and annotated tag
+`unityassignment-v1.0.12` were pushed atomically. GitHub release `425581661`
+was published as Latest at `2026-10-27T14:40:52Z`; both uploaded asset sizes,
+SHA-256 digests and states matched local files before and after publication.
+The checksum sidecar SHA-256 is
+`2e53836bf8eb9f3920525c0c525da9ba378a9f3a105fb76030e79158dfcb0d54`.
+Download [Unity Assignment v1.0.12](https://github.com/SagilityAIPH/FCM_Structured/releases/tag/unityassignment-v1.0.12).
+Publication evidence: `unity112-publication.json`.
 
 The existing spec allowlist and browser configuration were unchanged. Install
 Chrome; blank `browser.chrome_driver_path` uses Selenium Manager and may need
