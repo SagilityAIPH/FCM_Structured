@@ -19,8 +19,8 @@ Unity/
 
 Deploy-Ready is integration source, not an independently packaged EXE. The Unity
 EXE is built from `Stand-Alone/unity_assignment.spec`; the current v1.0.13
-[verified build](Stand-Alone/README.md#v1013-verified-build-10272026-fcm-11-113)
-is not yet published or live validated. The large Selenium body remains in
+[verified build and publication](Stand-Alone/README.md#v1013-verified-build-10272026-fcm-11-113)
+is published, but not live validated. The large Selenium body remains in
 `src/fcm_intake/legacy/legacy_unity.py`; it is not copied or rewritten here.
 
 ## One browser per All run (FCM-1.1-95; v1.0.12)
@@ -58,7 +58,7 @@ including `single_all_session_cleanup: true`; see the
 The published **v1.0.11** EXE and historical FCM-1.1-88/90/94 release evidence
 remain unchanged. No live portal, RRS, CMS, database or Bedrock validation
 occurred during this build. The FCM-1.1-109 prompt change is not included
-in that historical release; it is packaged in the unpublished v1.0.13
+in that historical release; it is packaged in the published v1.0.13
 [verified build](Stand-Alone/README.md#v1013-verified-build-10272026-fcm-11-113).
 
 Historical FCM-1.1-95 source evidence (**10/27/2026, before the FCM-1.1-96
@@ -102,7 +102,7 @@ from the desktop worker to the same controller. Scenario 2 requires `ncm`,
 claimant first/last and an injected `assign_ncm` callback before side effects.
 Existing callers and CLI defaults
 remain attended; no CLI scenario option is added. These scenarios and
-FCM-1.1-112's NCM correction are included in the unpublished v1.0.13
+FCM-1.1-112's NCM correction are included in the published v1.0.13
 [verified build](Stand-Alone/README.md#v1013-verified-build-10272026-fcm-11-113).
 Historical v1.0.12 release evidence above does not cover these scenarios.
 FCM-1.1-111's corrected-helper live verification and server/RRS acceptance

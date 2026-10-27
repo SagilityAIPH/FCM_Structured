@@ -52,7 +52,7 @@ passed 156 primary JUnit cases and source smoke without rebuilding an EXE.
 Published v1.0.11 and historical FCM-1.1-88/90/94 build/release evidence remain
 unchanged. No live Unity, RRS, CMS, database or Bedrock operation was exercised
 during this build. The FCM-1.1-109 prompt change is not part of that
-historical release; it is packaged in the unpublished v1.0.13
+historical release; it is packaged in the published v1.0.13
 [verified build](#v1013-verified-build-10272026-fcm-11-113).
 
 ## Assignment scenarios (FCM-1.1-108/110; v1.0.13 build verified)
@@ -94,7 +94,7 @@ scenario option is added. The synthetic browser preview skips only its approval
 preview for scenario 1 and adds the truthful `assign_ncm` step only after approval
 in scenario 2; it is not a live-login/save simulation.
 
-These controls and FCM-1.1-112's NCM correction are packaged in the unpublished
+These controls and FCM-1.1-112's NCM correction are packaged in the published
 v1.0.13 [verified build](#v1013-verified-build-10272026-fcm-11-113).
 The historical v1.0.12 release evidence remains unchanged and does not cover
 these controls. FCM-1.1-111 remains blocked for corrected-helper live verification
@@ -1063,16 +1063,23 @@ Unity remains standalone and outside Final Code.
 
 ### v1.0.13 verified build (10/27/2026, FCM-1.1-113)
 
-**Build verified; not published.** Clean production frontend and PyInstaller EXE
-builds package FCM-1.1-108/109/110/112. Source commit, push, tag and release
-publication remain pending. Intended tag: `unityassignment-v1.0.13`; no release
-or download availability is claimed.
+**Build and publication independently verified.** Clean production frontend and
+PyInstaller EXE builds package FCM-1.1-108/109/110/112. Source
+`f38ae445632686242c7051b5c97b7f795b88a444` and annotated tag
+`unityassignment-v1.0.13` were pushed atomically.
+[Unity Assignment v1.0.13](https://github.com/SagilityAIPH/FCM_Structured/releases/tag/unityassignment-v1.0.13),
+release `425848465`, was published at `2026-10-27T18:41:36Z` (`isDraft=false`).
 
 | Built artifact | Verified value |
 | --- | --- |
 | Size | 48,538,368 bytes |
 | SHA-256 | `ee0d11484721fc575cd54dcc887d573c46f76a2b0ca4c03535d31a4aa5eec5f5` |
 | Local output | Ignored `dist` EXE and checksum verified |
+| Uploaded checksum | 86 bytes; canonical checksum verified |
+
+Both uploaded asset sizes and GitHub SHA-256 digests matched local verification.
+Fresh downloads of the EXE and checksum matched the verified local build
+byte-for-byte.
 
 Independent source verification passed **198 cases**, zero failures/errors/skips.
 **103 actual-frozen regression methods** passed using packaged
@@ -1087,5 +1094,7 @@ Operator/sample/settings/credential payload exclusions and unchanged protected
 unrelated owner files were verified. No live portal, RRS, CMS, Bedrock or tracking
 actions were performed. FCM-1.1-111 remains blocked: the corrected production
 helper has not been live-tested, and server Complete/save/persistence and RRS
-acceptance remain unverified. FCM-1.1-113 stays in progress until source/tag
-publication and uploaded asset size/digest checks are recorded.
+acceptance remain unverified. No owner files were committed.
+FCM-1.1-113 is completed and archived in `docs/completed.md`; source/tag
+publication and uploaded/downloaded asset verification do not establish live
+workflow acceptance.

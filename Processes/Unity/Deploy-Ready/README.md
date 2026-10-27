@@ -46,7 +46,7 @@ login prompt under FCM-1.1-109, independently of this scenario. Tracking, failur
 semantics are unchanged. The option is not referral/workbook data or persisted state.
 This change is not included in the historical v1.0.12 release record below.
 FCM-1.1-108's original source-only evidence remains historical; the scenario is
-now packaged in the unpublished v1.0.13
+now packaged in the published v1.0.13
 [verified build](../Stand-Alone/README.md#v1013-verified-build-10272026-fcm-11-113).
 No live validation is implied.
 
@@ -94,7 +94,7 @@ A previous isolated guarded live field probe succeeded for the owned popup,
 readonly selection and editable date; the corrected production source has not
 been live verified. Server Complete Task/persistence and RRS handoff are untested.
 Returned clicks do not prove server completion. This scenario and FCM-1.1-112's
-NCM correction are packaged in the unpublished v1.0.13
+NCM correction are packaged in the published v1.0.13
 [verified build](../Stand-Alone/README.md#v1013-verified-build-10272026-fcm-11-113).
 Historical release/build evidence below is unchanged; FCM-1.1-111 remains blocked
 for corrected-helper live verification and server/RRS acceptance. No live
@@ -152,7 +152,7 @@ UI notification errors propagate. KeyboardInterrupt is not swallowed.
   FCM-1.1-88/90/94 release evidence remain unchanged. No live
   portal/RRS/CMS/database/Bedrock validation occurred during this build. The
   FCM-1.1-109 prompt change is not part of that historical release; it is included
-  in the unpublished v1.0.13 verified build linked above.
+  in the published v1.0.13 verified build linked above.
 - **Unity uses Chrome (FCM-1.1-90, v1.0.11).** Initial assignment and
   post-approval lookup share `AI/unity_browser.py`. Install Chrome; the blank
   `browser.chrome_driver_path` default enables Selenium Manager's runtime
