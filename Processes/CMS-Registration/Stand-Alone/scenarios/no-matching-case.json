@@ -1,0 +1,17 @@
+{
+  "request": {
+    "claim_number": "SYN-0001",
+    "claimant_first_name": "Testy",
+    "claimant_last_name": "Example",
+    "referral_type": "Medical"
+  },
+  "candidates": [],
+  "data": {
+    "cem_employer_request": false,
+    "synthetic": "Testy Example"
+  },
+  "expected": {
+    "outcome": "stopped",
+    "reason": "no_matching_case"
+  }
+}

@@ -1,0 +1,30 @@
+{
+  "request": {
+    "claim_number": "SYN-0001",
+    "claimant_first_name": "Testy",
+    "claimant_last_name": "Example",
+    "referral_type": "Medical"
+  },
+  "candidates": [
+    {
+      "case_id": "SYN-CASE-1",
+      "assigned_date": "2026-01-02",
+      "referral_type": "Medical"
+    }
+  ],
+  "data": {
+    "cem_employer_request": false,
+    "synthetic": "Testy Example"
+  },
+  "steps": [
+    {
+      "step": "synthetic_operator_action",
+      "status": "manual",
+      "detail": "operator confirmed"
+    }
+  ],
+  "expected": {
+    "outcome": "completed",
+    "reason": "registered"
+  }
+}

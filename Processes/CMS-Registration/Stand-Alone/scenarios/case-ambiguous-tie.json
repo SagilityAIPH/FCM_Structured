@@ -1,0 +1,28 @@
+{
+  "request": {
+    "claim_number": "SYN-0001",
+    "claimant_first_name": "Testy",
+    "claimant_last_name": "Example",
+    "referral_type": "Medical"
+  },
+  "candidates": [
+    {
+      "case_id": "SYN-CASE-1",
+      "assigned_date": "2026-01-02",
+      "referral_type": "Medical"
+    },
+    {
+      "case_id": "SYN-CASE-2",
+      "assigned_date": "2026-01-02",
+      "referral_type": "Medical"
+    }
+  ],
+  "data": {
+    "cem_employer_request": false,
+    "synthetic": "Testy Example"
+  },
+  "expected": {
+    "outcome": "stopped",
+    "reason": "case_ambiguous"
+  }
+}
