@@ -2,6 +2,8 @@
 
 **Status:** Phase 0 documentation and interface scaffold; source design only. No live CMS, Unity, RRS, database, workbook contents, or referral tested. Recall from [[INSTRUCTIONS]] under the CMS Registration module section (FCM-1.1-97–105).
 
+**Implementation:** [`Processes/CMS-Registration/`](../../Processes/CMS-Registration/) is published as [`cmsregistration-v1.0.0`](https://github.com/SagilityAIPH/FCM_Structured/releases/tag/cmsregistration-v1.0.0); synthetic verification only, supervised live validation pending.
+
 ## Purpose and boundary
 
 Modularise legacy `src/fcm_intake/legacy/CMS.py`'s `run_case` → `searchCase` → RRS Complete Registration as the process **after Unity**. Conclusion **B: sequential but decoupled**. Unity's case, attachments and transferred fields must exist, but its code does not launch registration (`Processes/Unity/Deploy-Ready/unity_flow.py:88-127`; `src/fcm_intake/legacy/CMS.py:2128-2167`). BRD slides 94–101 describe the handoff: Unity completion/assignment and acceptance, then supervisor assignment to a registration agent (slide 101), before that agent works the CMS case. The operator starts one standalone registration run per claim **after** that assignment, rather than chaining immediately to the Unity browser or Final Code's earlier CMS customer-search stage. See [[W1-unity-cms-connection]].
