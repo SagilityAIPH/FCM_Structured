@@ -28,6 +28,7 @@ verified_at: b47ced0 (2026-10-28)
 | `browser.chrome_driver_path` | `FCM_CHROME_DRIVER_PATH`, `CHROME_DRIVER_PATH` | **Unity only**; blank uses Selenium Manager with the installed Chrome. No Edge fallback |
 | `folders.attachment_folder` | `FCM_ATTACHMENT_FOLDER` | Unity attachment export and pickup |
 | `cms.login_url`, `cms.case_search_url` | `FCM_CMS_LOGIN_URL`, `FCM_CMS_CASESEARCH_URL` | CMS navigation |
+| `cem.environment`, `cem.employer_search_url`, `cem.employer_add_url`, `cem.cem_log_path`, `cem.allow_placeholder_address` | `FCM_CEM_ENVIRONMENT`, `FCM_CEM_EMPLOYER_SEARCH_URL`, `FCM_CEM_EMPLOYER_ADD_URL`, `FCM_CEM_LOG_PATH`, `FCM_CEM_ALLOW_PLACEHOLDER_ADDRESS` | CEM app ([[code/cem]]); `cem_log_path` also CMS Registration. Environment defaults to `uat`; URLs and log path have no defaults |
 
 ## Environment variables by area
 

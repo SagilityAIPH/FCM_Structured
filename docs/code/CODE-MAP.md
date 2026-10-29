@@ -18,6 +18,7 @@ flowchart LR
     S[Subject Line Builder<br/>Processes/SubjectLineBuilder]
     U[Unity Assignment<br/>Processes/Unity]
     G[CMS Registration<br/>Processes/CMS-Registration]
+    E[CEM Request<br/>Processes/CEM]
   end
   AI[(AI PDF Analyzer module<br/>AI/)]
   L[(Legacy automation<br/>src/fcm_intake/legacy)]
@@ -31,6 +32,8 @@ flowchart LR
   U --> AI
   U --> L
   G --> L
+  C -.->|needs_cem handoff| E
+  E -.->|CEM log| G
 ```
 
 Shared business rules live in `AI/`. Portal automation that hasn't been migrated yet still lives in `src/fcm_intake/legacy/`. Each process in `Processes/` has a `Deploy-Ready/` controller and a `Stand-Alone/` runner, which share one implementation.
@@ -48,6 +51,7 @@ Shared business rules live in `AI/`. Portal automation that hasn't been migrated
 | [[code/cms-customer-search]] | `Processes/Reopen-Check` (CMSCustomerSearch): re-open check and customer validation |
 | [[code/subject-line-builder]] | `Processes/SubjectLineBuilder`: the RRS Subject Line Builder, Complete Triage and Unity Entry export |
 | [[code/unity-assignment]] | `Processes/Unity`: Unity task, tracking, iCaseManager gate, NCM assignment and RRS Complete Assignment |
+| [[code/cem]] | `Processes/CEM`: CEM new-employer request (separate app after Customer Search stops with `needs_cem`) |
 | [[code/cms-registration]] | `Processes/CMS-Registration`: CMS case setup and RRS Complete Registration (after Unity) |
 | [[code/legacy-code]] | `src/fcm_intake/` and the legacy scripts: what each does, who still calls it, migration status |
 | [[code/configuration]] | Settings files, environment variable names, frozen-path rules and credential handling (names only) |

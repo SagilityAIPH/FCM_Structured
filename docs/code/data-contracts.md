@@ -21,7 +21,7 @@ Exactly five keys: `claimNumber`, `claimID`, `customer`, `claimantFull`, `referr
 
 ## 3. CMS Customer Search result (`reopen_flow.run_flow`)
 
-`{status: completed|stopped, reason, customer, …}`. On `completed`, Final Code requires a nonblank resolved `customer` and passes **that** value, not the extracted employer, to the adapter.
+`{status: completed|stopped, reason, customer, …}`. On `completed`, Final Code requires a nonblank resolved `customer` and passes **that** value, not the extracted employer, to the adapter. Since 2026-10-30, `stopped / needs_cem` also carries `cem_handoff` = `{employer_name, claim_number, claim_id, claimant_full}` (claim number from the input, never the Claim ID) and an operator `instruction`; Final Code copies both into its stopped result and shows them in the CMS section. The operator carries the values into the separate CEM app ([[code/cem]]).
 
 ## 4. Legacy Subject Line Builder input: `allData` (`Final Code/finalcode/field_adapter.py:106`)
 
@@ -51,7 +51,7 @@ Since 2026-10-30 the workbook is **schema version 4**. **Referral Number** is ap
 
 ## 9. Daily CEM log (legacy `FCM CEM Checher.xlsx`)
 
-Written by `legacy_cem.add_claim_record` (`legacy_cem.py:385-409`) and read by CMS Registration (`CMS.py:1915-1965`, via `cms_steps.py:815-842`). One sheet per day named `MMDDYYYY`, headers **Claimant | Claim ID | Status**. A row means *a CEM request was started*, not that it was submitted or approved: Status is always blank. **Key mismatch:** the writer puts the PDF Claim ID in column B, but the reader compares it with the claim number. Owner decision (2026-10-30) for the planned `Processes/CEM/` module: column B = claim number plus a new Claim ID column, written only after the request is read back from the portal (FCM-1.1-125/126, [[cem/INVESTIGATION]]).
+Written by `legacy_cem.add_claim_record` (`legacy_cem.py:385-409`) and read by CMS Registration (`CMS.py:1915-1965`, via `cms_steps.py:815-842`). One sheet per day named `MMDDYYYY`, headers **Claimant | Claim ID | Status**. A row means *a CEM request was started*, not that it was submitted or approved: Status is always blank. **Key mismatch:** the writer puts the PDF Claim ID in column B, but the reader compares it with the claim number. The new CEM app ([[code/cem]]) writes column B = claim number, C = `Submitted`, D = PDF Claim ID, then employer, request reference, submitted-at and environment, and only after the request is read back from the portal (FCM-1.1-125). CMS Registration reads it from `[cem] cem_log_path` when set (FCM-1.1-126).
 
 ## Related
 

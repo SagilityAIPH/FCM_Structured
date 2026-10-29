@@ -16,6 +16,7 @@ verified_at: b47ced0 (2026-10-28)
 | CMS Customer Search | `CMSCustomerSearch.exe` | `Processes/Reopen-Check/Stand-Alone/CMSCustomerSearch.spec`, `build.ps1` | `cmscustomersearch-v*` | v1.1.0 | EXE, portable zip, a `.sha256` for each |
 | Subject Line Builder | `SubjectLineBuilder.exe` | `Processes/SubjectLineBuilder/Stand-Alone/subject_line_builder.spec`, `build.ps1` | `subjectlinebuilder-v*` | v1.1.1 | EXE, `SubjectLineBuilder.sha256`, `SubjectLineBuilder-Input.xlsx` |
 | Unity Assignment | `UnityAssignment.exe` | `Processes/Unity/Stand-Alone/unity_assignment.spec`, `build.ps1` | `unityassignment-v*` | v1.0.13 | EXE, `.sha256` |
+| CEM Request | `CEMRequest.exe` | `Processes/CEM/Stand-Alone/cem.spec`, `build.ps1` | `cem-v*` (proposed) | not released (built 2026-10-30) | EXE, `.sha256` |
 | CMS Registration | `CMSRegistration.exe` | `Processes/CMS-Registration/Stand-Alone/cms_registration.spec`, `build.ps1` | `cmsregistration-v*` | v1.0.0 | EXE, `.sha256` |
 | Native Bedrock reader (older) | `AI-FCM-Bedrock-Runtime.exe` | `AI/bedrock.spec` | `bedrock-runtime-v*` | v1.5.6 | EXE, CMSCustomerSearch.exe, `SHA256SUMS.txt` |
 

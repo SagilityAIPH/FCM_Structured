@@ -11,14 +11,17 @@ verified_at: b47ced0 (2026-10-28)
 
 | Suite | Command (from the repo root) | Result |
 | --- | --- | --- |
-| Main unit (`tests/unit`, 36 files) | `.venv-bedrock/Scripts/python.exe -m pytest tests/unit -q -p no:cacheprovider` | 663 passed, 1 skipped, 82 subtests |
+| Main unit (`tests/unit`, 37 files) | `.venv-bedrock/Scripts/python.exe -m pytest tests/unit -q -p no:cacheprovider` | 686 passed, 1 skipped, 82 subtests |
 | Smoke (`tests/smoke`) | `… -m pytest tests/smoke -q -p no:cacheprovider` | 1 passed |
 | Subject Line Builder standalone | `… -m unittest discover -s Processes/SubjectLineBuilder/Stand-Alone -p "test_*.py"` | 70 OK |
-| CMS Registration core | `… -m unittest discover -s Processes/CMS-Registration/Deploy-Ready -p "test_*.py"` | 39 OK |
+| CMS Registration core | `… -m unittest discover -s Processes/CMS-Registration/Deploy-Ready -p "test_*.py"` | 54 OK |
+| CEM core | `… -m unittest discover -s Processes/CEM/Deploy-Ready -p "test_*.py"` | 74 OK |
+| CEM app | `… -m unittest discover -s Processes/CEM/Stand-Alone -p "test_*.py"` | 8 OK |
+| CEM scenarios | `… Processes/CEM/Stand-Alone/run.py --self-test --report <file>` | 17/17 + smoke |
 | CMS Registration app | `… -m unittest discover -s Processes/CMS-Registration/Stand-Alone -p "test_*.py"` | 14 OK |
 | CMS Registration scenarios | `… Processes/CMS-Registration/Stand-Alone/run.py --self-test --report <file>` | 14/14 |
 | Unity standalone | `… -m pytest Processes/Unity/Stand-Alone -q -p no:cacheprovider` | 153 passed, 559 subtests |
-| CMS Customer Search standalone | `… -m pytest Processes/Reopen-Check/Stand-Alone -q -p no:cacheprovider` | 18 passed, **1 failed** (see below) |
+| CMS Customer Search standalone | `… -m pytest Processes/Reopen-Check/Stand-Alone -q -p no:cacheprovider` | 23 passed, **1 failed** (see below) |
 | Reader front end | `npm --prefix AI/workbench/frontend run build`, then `run test:e2e` (Edge Playwright, 9 spec files) | not run for this note |
 
 ## What the main unit suite covers (`tests/unit`)

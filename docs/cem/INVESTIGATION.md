@@ -5,7 +5,18 @@ verified_at: 9774a34 (2026-10-30)
 ---
 # CEM (Employer Request Add) investigation
 
-**Status:** Phase 0: investigation and owner decisions recorded. Nothing has been built yet; no live CEM, CMS, RRS or CMU system was touched. Backlog: [[INSTRUCTIONS]] → *CEM module* (FCM-1.1-124 to 130). Detailed reports: [[cem/W1-cem-code]] (legacy code, file:line) and [[cem/W2-cem-process-design]] (BRD position and proposed boundary). Where those reports differ from the owner decisions below, this note wins.
+**Status (2026-10-30):**
+
+- **Built:** phases 0 to 3, all synthetic only.
+  - Phase 1: the core (`Processes/CEM/Deploy-Ready/`, 74 tests).
+  - Phase 2: the operator app (`Stand-Alone/`, 8 tests, 17/17 self-test scenarios) and `CEMRequest.exe`, whose packaged self-test passed in and outside the repo.
+  - Phase 3: Customer Search returns `stopped / needs_cem` with a handoff instead of running legacy CEM (FCM-1.1-127), and CMS Registration reads the new CEM log from `[cem] cem_log_path` (FCM-1.1-126).
+- **Pending:**
+  - Rebuilding the Final Code, Workbench and CMSCustomerSearch EXEs for the needs-CEM change.
+  - Rebuilding the CMSRegistration EXE (its spec now bundles `cem_log.py`).
+  - A `cem-v1.0.0` release (owner decision).
+  - The attended UAT inspection: the live selectors are unverified, and a live run stops at the bill-to check (FCM-1.1-130).
+- **Code note:** [[code/cem]]. Backlog: [[INSTRUCTIONS]] → *CEM module* (FCM-1.1-124 to 130). Detailed reports: [[cem/W1-cem-code]] (legacy code, file:line) and [[cem/W2-cem-process-design]] (BRD position and proposed boundary). Where those reports differ from the owner decisions below, this note wins.
 
 ## Purpose and boundary
 
