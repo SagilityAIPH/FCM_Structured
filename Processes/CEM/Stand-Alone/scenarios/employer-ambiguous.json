@@ -1,0 +1,24 @@
+{
+  "search": {
+    "state": "results",
+    "names": [
+      "Other Synthetic Works"
+    ]
+  },
+  "request": {
+    "employer_name": "Synthetic Example Works",
+    "claim_number": "SYN-CLAIM-001",
+    "claim_id": "SYN-ID-777",
+    "claimant_first_name": "Testy",
+    "claimant_last_name": "Example",
+    "address1": "100 Imaginary Lane",
+    "city": "Exampletown",
+    "state": "ZZ",
+    "postal_code": "00001",
+    "country": "USA"
+  },
+  "expected": {
+    "outcome": "stopped",
+    "reason": "ambiguous_employer"
+  }
+}
