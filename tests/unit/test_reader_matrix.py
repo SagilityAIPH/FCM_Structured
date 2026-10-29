@@ -16,9 +16,9 @@ def parse(data):
 
 
 def test_matrix_fields_unique_and_source_priority():
-    assert len(schema.REQUIRED_FIELDS) == len(set(schema.REQUIRED_FIELDS)) == 63
-    # 59 owner-matrix fields + 3 RRS classification fields (Body Part, Injury Type, Injury Cause).
-    assert sum(map(len, schema.FIELD_GROUPS.values())) == 62
+    assert len(schema.REQUIRED_FIELDS) == len(set(schema.REQUIRED_FIELDS)) == 64
+    # 60 owner-matrix fields + 3 RRS classification fields (Body Part, Injury Type, Injury Cause).
+    assert sum(map(len, schema.FIELD_GROUPS.values())) == 63
     data = payload()
     data.update({'Attorney Name': 'Section Attorney', 'Accident Description': 'Section description',
                  'Employer Contact Name': 'Customer contact', 'Employer First Name': 'Section',
@@ -242,6 +242,6 @@ def test_v2_upgrade_preserves_manager_names_and_appointment_confirmation(tmp_pat
     assert status['status'] == 'Passed'
     assert old.appointment_review == fields.appointment_review
     book = load_workbook(path)
-    assert book['Schema']['B1'].value == '3'
+    assert book['Schema']['B1'].value == '4'
     assert book['Referrals']['D2'].value == 'Passed'
     book.close()

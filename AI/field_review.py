@@ -2,6 +2,16 @@
 from datetime import date, datetime
 import re
 
+try:
+    from .appointment_rules import PlaceholderMissing
+    from . import icd10
+except ImportError:
+    from appointment_rules import PlaceholderMissing
+    import icd10
+
+# Disabled by owner request on 2026-10-30; set True to restore incomplete-code flags.
+FLAG_INCOMPLETE_ICD10 = False
+
 ZIP_KEYS = {'Zip', 'Provider Zip'}
 DATE_KEYS = {'Date of Birth', 'Date of Injury/Accident/Illness'}
 PHONE_KEYS = {'Phone Number', 'Provider Phone', 'Attorney Phone Number',
@@ -95,13 +105,47 @@ def review_formats(fields, previous=(), edited=(), today=None):
     edited = set(edited)
     flags = [dict(item) for item in previous if item.get('kind') == 'disagreement'
              and (item.get('field'), item.get('provider_index')) not in edited]
+    for item in previous:
+        if item.get('kind') != 'placeholder':
+            continue
+        index = item.get('provider_index')
+        providers = getattr(fields, 'providers', [])
+        if (isinstance(index, int) and 0 <= index < len(providers)
+                and providers[index].get('Appointment Date') == 'Not found'
+                and ('Appointment Date', index) not in edited):
+            flags.append(dict(item))
     for key in (*ZIP_KEYS, *DATE_KEYS, *PHONE_KEYS, *SSN_KEYS, *GENDER_KEYS):
         reason = format_reason(key, fields.get(key, 'Not found'), today)
         if reason and key != 'Provider Zip' and key != 'Provider Phone':
             flags.append({'field': key, 'provider_index': None, 'kind': 'format', 'reason': reason})
     for index, provider in enumerate(getattr(fields, 'providers', [])):
+        if isinstance(provider.get('Appointment Date'), PlaceholderMissing):
+            flags = [item for item in flags if not (item.get('kind') == 'placeholder'
+                     and item.get('provider_index') == index)]
+            flags.append({'field': 'Appointment Date', 'provider_index': index,
+                          'kind': 'placeholder',
+                          'reason': 'placeholder appointment date 01/01/2099 -- no appointment scheduled'})
         for key in ('Provider Zip', 'Provider Phone'):
             reason = format_reason(key, provider.get(key, 'Not found'), today)
             if reason:
                 flags.append({'field': key, 'provider_index': index, 'kind': 'format', 'reason': reason})
+    for key in ('Diagnosis Code', 'Additional Diagnosis Codes'):
+        value = fields.get(key, 'Not found')
+        if not present(value):
+            continue
+        for code in (value.split(';') if key == 'Additional Diagnosis Codes' else [value]):
+            code = code.strip()
+            if not present(code):
+                continue
+            status = icd10.check(code)
+            if status == 'valid' or (status == 'incomplete' and not FLAG_INCOMPLETE_ICD10):
+                continue
+            reason = (f"'{code}' is an ICD-10-CM category, not a billable code -- more characters needed ({icd10.YEAR})"
+                      if status == 'incomplete' and len(code.replace('.', '').strip()) == 3 else
+                      f"'{code}' is an incomplete ICD-10-CM code, not billable -- more characters needed ({icd10.YEAR})"
+                      if status == 'incomplete' else
+                      f"'{code}' is not a valid ICD-10-CM code ({icd10.YEAR})"
+                      if status == 'invalid' else
+                      f"ICD-10-CM validation could not run for '{code}' ({icd10.YEAR}); verify the code manually")
+            flags.append({'field': key, 'provider_index': None, 'kind': 'format', 'reason': reason})
     return flags

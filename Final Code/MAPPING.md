@@ -63,7 +63,7 @@ extraction dependencies. Office lookup and openpyxl load lazily on adaptation.
 | Legacy default Medical; Continental rule -> Task | refType |
 | Legacy default Coordination of Care/Services; Continental rule -> MI MCCA Attendant Care | CaseObj |
 | Selected providerZip | correctZipCode |
-| No AI source; empty string | referralNumber |
+| Referral Number (empty string if Not found) | referralNumber |
 
 Provider mappings use only `fields.providers[0]` when records exist; missing
 values in that record never borrow another record or a flat aggregate. With no
@@ -116,7 +116,7 @@ Other parties' addresses are never substituted.
 
 ## Provenance / deliberate omissions
 
-- `referralNumber` has no canonical AI key. Claim Number and Claim ID are distinct
+- `referralNumber` comes from the page-one `Referral Number` key. Claim Number and Claim ID are distinct
   identifiers and must not be repurposed. Default is empty, as in legacy parsing.
   Its sole SLB tail use at line 1118 is commented out.
 - `refSource` is not guessed from routing prose: `legacy_fcm.py:1656` explicitly

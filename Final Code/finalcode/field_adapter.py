@@ -33,7 +33,7 @@ FIELD_MAP = {
     "customer": "Employer Name",
     "claimantFirst": "First Name", "claimantLast": "Last Name",
     "claimantSSN": "Social Security Number",
-    "claimNumber": "Claim Number", "claimID": "Claim ID",
+    "claimNumber": "Claim Number", "referralNumber": "Referral Number", "claimID": "Claim ID",
     "claimType": "Claim Type", "dxCode": "Diagnosis Code",
     "referralType": "Referral Type",
     "addressLine1": "Address-line-1", "addressLine2": "Address-line-2",
@@ -69,7 +69,6 @@ ADDRESS_DEFAULTS = dict.fromkeys((
     "adjAddr1", "adjAddr2", "adjAddrFull", "adjAddrMail", "adjCity", "adjState",
     "adjZip",
 ), "")
-UNMAPPED_DEFAULTS = {"referralNumber": ""}
 # Legacy state_map (legacy_fcm.py 1601-1608); no jurisdiction is inferred.
 STATE_NAMES = {
     "AL": "Alabama", "AK": "Alaska", "AZ": "Arizona", "AR": "Arkansas",
@@ -124,7 +123,6 @@ def to_all_data(fields, *, cms_customer=None):
     # The shared classifier stores its final selections in canonical flat keys.
     result.update({key: _legacy_value(fields.get(source))
                    for key, source in CLASSIFICATION_MAP.items()})
-    result.update(UNMAPPED_DEFAULTS)
     result.update(ADDRESS_DEFAULTS)
     result["claimantFull"] = " ".join(filter(None, (result["claimantFirst"], result["claimantLast"])))
     result["claimStateAbbr"], result["claimStateFull"] = _claim_state(fields.get("State/Jurisdiction of Claim"))

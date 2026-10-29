@@ -44,6 +44,17 @@ def appointment(text):
     return result
 
 
+_ORGANIZATION = re.compile(
+    r'\b(?:occ\s+med|occupational|clinic|health|partners|cent(?:er|re)|group|'
+    r'orthop(?:edics?|aedic|edic)|hospital|institute|specialists?|associates?|'
+    r'pt|urgent\s+care|ortho)\b', re.I)
+
+
+def provider_phone_base(value):
+    """Only provider numbers lose a trailing extension; leave other roles alone."""
+    return re.sub(r'(?i)\s*(?:ext(?:ension)?\.?|x)\s*\d+\s*$', '', value).strip() if value != MISSING else value
+
+
 def _identity(label):
     label = re.sub(r'^\(include[^)]*\)\s*', '', label.strip(), flags=re.I)
     label = re.sub(r'\s*-?\s*\((?:Treating|Specialist|Speicalist)\)\s*$', '', label, flags=re.I)
@@ -52,21 +63,48 @@ def _identity(label):
         result = _identity(reverse[2])
         result[FACILITY] = reverse[1].strip()
         return result
-    # Credentials or an explicit Dr/Surgeon marker distinguish people from clinics.
-    doctor = re.search(r'^(?:Dr\.?\s+|Surgeon\s*:\s*)([^/]+?)(?:\s*[-/]\s*(.+))?$', label, re.I)
-    credential = re.search(r'^(.+?)\s*,?\s+(?:M\.?D\.?|D\.?O\.?|DPM|FNP|NP|PA-C)\b\.?\s*(?:[-/]\s*(.*))?$', label, re.I)
+    # A clinician can follow the facility without a separator.
+    with_facility = re.fullmatch(r'((?:Dr\.?\s+)?[A-Za-z][A-Za-z\'-]+(?:\s+[A-Za-z][A-Za-z\'-]+){0,2})\s+with\s+(.+)', label, re.I)
+    if with_facility and _ORGANIZATION.search(with_facility[2]):
+        name = re.sub(r'^Dr\.?\s+', '', with_facility[1], flags=re.I)
+        name = re.sub(r'\s+(?:M\.?D\.?|D\.?O\.?|DPM|FNP|NP|PA-C)$', '', name, flags=re.I)
+        result = _identity('Dr ' + name)
+        result[FACILITY] = with_facility[2].strip()
+        return result
+    reverse = re.fullmatch(r'(.+?)\s+Dr\.?\s+([A-Za-z][A-Za-z\'-]*(?:\s+[A-Za-z][A-Za-z\'-]*)?)', label, re.I)
+    if reverse and _ORGANIZATION.search(reverse[1]):
+        result = _identity('Dr ' + reverse[2])
+        result[FACILITY] = reverse[1].strip()
+        return result
+    # A doctor prefix or credential is evidence; "Occ Med" alone is a specialty,
+    # not evidence that the preceding two words are a human name.
+    doctor = re.fullmatch(r'(?:Dr\.?\s+|Surgeon\s*:\s*)(.+)', label, re.I)
+    credential = re.fullmatch(r'(.+?)\s*,?\s+(?:M\.?D\.?|D\.?O\.?|DPM|FNP|NP|PA-C)\b\.?\s*(.*)', label, re.I)
+    combined = re.fullmatch(r'(.+?)\s+(?:with\s+|[-/]\s*)(.+)', label, re.I)
+    if combined and not doctor and not credential and _ORGANIZATION.search(combined[2]) and not _ORGANIZATION.search(combined[1]):
+        doctor = combined
     if doctor or credential:
         match = doctor or credential
-        name = re.sub(r'\s*,?\s*(?:M\.?D\.?|D\.?O\.?)\.?$', '', match[1], flags=re.I).strip()
+        assert match is not None
+        name = match[1].strip()
+        facility = (match[2] if match.lastindex and match.lastindex >= 2 else '').strip()
+        facility = re.sub(r'^[-/]\s*', '', facility)
+        if facility.lower().startswith('with '):
+            facility = facility[5:].strip()
+        # "Dr Surname ACRONYM Hand" documents a surname and a department.
+        if not facility:
+            department = re.fullmatch(r"([A-Za-z][A-Za-z'-]+)\s+([A-Z]{2,}(?:\s+.+)?)", name)
+            if department:
+                name, facility = department.groups()
+            else:
+                specialty = re.fullmatch(r'(.+?)\s+Occ\s+Med', name, re.I)
+                if specialty:
+                    name = specialty[1]
         parts = name.split()
         if not parts:
             return {}
         return {'Doctor First Name': ' '.join(parts[:-1]) or MISSING,
-                'Doctor Last Name': parts[-1], FACILITY: (match[2] or '').strip() or MISSING,
-                'Determining if Doctor or Provider Name': 'Doctor'}
-    occ = re.fullmatch(r'([A-Za-z\'-]+)\s+([A-Za-z\'-]+)\s+Occ\s+Med', label, re.I)
-    if occ:
-        return {'Doctor First Name': occ[1], 'Doctor Last Name': occ[2], FACILITY: MISSING,
+                'Doctor Last Name': parts[-1], FACILITY: facility or MISSING,
                 'Determining if Doctor or Provider Name': 'Doctor'}
     if label and not re.search(r"multiple treating|\bphysicians?\b", label, re.I):
         return {FACILITY: label, 'Determining if Doctor or Provider Name': 'Facility'}
@@ -80,11 +118,20 @@ def _norm(value):
 def recover_provider_records(records, source, keys):
     records = [dict(record) for record in records]
     for record in records:
+        record['Provider Phone'] = provider_phone_base(record.get('Provider Phone', MISSING))
         identity = _identity(record.get(FACILITY, MISSING))
+        surname_department = bool(re.match(
+            r'(?i:Dr\.?)\s+[A-Za-z\'-]+\s+[A-Z]{2,}\b', record.get(FACILITY, '')))
         if identity.get('Doctor Last Name'):
             for key, value in identity.items():
-                if key in (FACILITY, 'Determining if Doctor or Provider Name') or record.get(key, MISSING) == MISSING:
+                if value != MISSING and (key in (FACILITY, 'Determining if Doctor or Provider Name')
+                                         or record.get(key, MISSING) == MISSING):
                     record[key] = value
+            # A source label that documents only a surname cannot justify a
+            # model's invented given name or treating the acronym as a name.
+            if surname_department:
+                record['Doctor First Name'] = MISSING
+                record['Doctor Last Name'] = identity['Doctor Last Name']
     special = extract_special_instructions(source) or ''
     labels = list(re.finditer(r'(?im)^[ \t]*Provider(?: Name)?\s*:[ \t]*([^\n]+)', special))
     for index, label in enumerate(labels):
@@ -103,7 +150,7 @@ def recover_provider_records(records, source, keys):
             continue
         phone_match = re.search(r'(?im)^[ \t]*(?:Phone|Tel\.?)\s*#?\s*:?\s*([^\n]+)', block)
         phone = PHONE.search(phone_match[1]) if phone_match else None
-        phone_value = phone[0] if phone else MISSING
+        phone_value = provider_phone_base(phone[0]) if phone else MISSING
         matches = [r for r in records if
                    (phone and _norm(r.get('Provider Phone', MISSING)) == _norm(phone_value))
                    or any(_norm(identity.get(k, MISSING)) and _norm(identity[k]) == _norm(r.get(k, MISSING))
@@ -119,6 +166,13 @@ def recover_provider_records(records, source, keys):
         evidence.update(appointment(block))
         if len(matches) == 1:
             target = matches[0]
+            # A documented surname-only doctor supersedes an invented given
+            # name in a model field, but never invents a surname from a clinic.
+            if (identity.get('Doctor Last Name') not in (None, MISSING)
+                    and identity.get('Doctor First Name') == MISSING
+                    and re.match(r'(?i:Dr\.?)\s+[A-Za-z\'-]+\s+[A-Z]{2,}\b', label_text)):
+                target['Doctor First Name'] = MISSING
+                target['Doctor Last Name'] = identity['Doctor Last Name']
             # Source identity corrects omissions; preserve more detailed doctor
             # names when a source block documents only a surname.
             for key, value in evidence.items():

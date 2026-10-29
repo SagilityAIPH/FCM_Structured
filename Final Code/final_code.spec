@@ -67,6 +67,7 @@ datas.append((str(ie_driver), "drivers"))
 rrs_lists = repo / "AI" / "rrs_dropdowns.json"
 if rrs_lists.is_file():
     datas.append((str(rrs_lists), "AI"))
+datas.append((str(repo / "AI" / "data" / "icd10cm_2027.txt"), "AI/data"))
 
 # Bedrock extraction goes through an OpenAI-compatible client, so unlike
 # CMSCustomerSearch.spec this build must NOT exclude openai.

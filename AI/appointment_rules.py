@@ -16,12 +16,25 @@ def missing_appointment_value(value):
 
 
 def parse_date(value):
-    for fmt in ('%Y-%m-%d', '%m/%d/%Y', '%m-%d-%Y', '%B %d, %Y', '%b %d, %Y'):
+    text = str(value).strip()
+    for fmt in ('%Y-%m-%d', '%m/%d/%Y', '%m-%d-%Y', '%m/%d/%y', '%m-%d-%y', '%B %d, %Y', '%b %d, %Y'):
+        # strptime accepts two digits with %Y (e.g. 3/12/16 -> year 16).
+        if fmt in ('%m/%d/%Y', '%m-%d-%Y') and not re.search(r'\d{4}$', text):
+            continue
         try:
-            return datetime.strptime(str(value).strip(), fmt).date()
+            return datetime.strptime(text, fmt).date()
         except ValueError:
             pass
     return None
+
+
+class PlaceholderMissing(str):
+    """Missing date retaining provenance until the non-blocking review is built."""
+
+
+def placeholder_appointment(value):
+    """The printed 2099 sentinel means scheduling has not occurred."""
+    return parse_date(value) == date(2099, 1, 1)
 
 
 def parse_time(value):
@@ -70,6 +83,8 @@ def normalize_appointment(date_value, time_value, today=None):
         except ValueError:
             pass
     clock = parse_time(time_value)
+    if parsed == date(2099, 1, 1):
+        return PlaceholderMissing('Not found'), 'Not found'
     return (parsed.isoformat() if parsed else date_value,
             clock.strftime('%I:%M %p') if clock else time_value)
 
@@ -144,6 +159,8 @@ def appointment_checks(fields, today=None):
     for index, provider in enumerate(getattr(fields, 'providers', []), 1):
         value = provider.get('Appointment Date', 'Not found')
         parsed = parse_date(value)
+        if placeholder_appointment(value):
+            parsed = None
         time_value = provider.get('Appointment Time', 'Not found')
         invalid_time = not missing_appointment_value(time_value) and parse_time(time_value) is None
         reasons = []

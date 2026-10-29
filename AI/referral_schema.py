@@ -7,6 +7,7 @@ try:
     from .provider_records import merge_provider_records, provider_identity, provider_summary, provider_display_name
     from .source_evidence import explicit_form_fields, special_evidence, recover_provider_identity, enforce_source_roles, ICD
     from .provider_evidence import recover_provider_records
+    from .referral_number import read_referral_number
     from .document_sections import clean_special_instructions, extract_special_instructions
     from .injury_classification import FIELDS as CLASSIFICATION_FIELDS, classify, prompt_lists
 except ImportError:
@@ -15,6 +16,7 @@ except ImportError:
     from provider_records import merge_provider_records, provider_identity, provider_summary, provider_display_name
     from source_evidence import explicit_form_fields, special_evidence, recover_provider_identity, enforce_source_roles, ICD
     from provider_evidence import recover_provider_records
+    from referral_number import read_referral_number
     from document_sections import clean_special_instructions, extract_special_instructions
     from injury_classification import FIELDS as CLASSIFICATION_FIELDS, classify, prompt_lists
 
@@ -25,7 +27,7 @@ FIELD_GROUPS = {
         "Gender", "Customer Name", "Customer Contact Name", "Customer Contact Phone Number",
     ],
     "Claim Information": [
-        "Claim Number", "Claim ID", "Claim Type", "Date of Injury/Accident/Illness",
+        "Claim Number", "Referral Number", "Claim ID", "Claim Type", "Date of Injury/Accident/Illness",
         "State/Jurisdiction of Claim", "Accident Description", "Injury Description", "Diagnosis Code", "Compensable Body/Part(s)",
     ],
     # Chosen after extraction from the RRS dropdown lists (injury_classification.py).
@@ -63,7 +65,7 @@ REQUIRED_FIELDS = [
     "Employer Name", "Employer Contact Name", "Employer Contact Email", "Employer Contact Mobile",
     "First Name", "Last Name", "Address-line-1", "Address-line-2", "City", "State", "Zip",
     "Phone Number", "Social Security Number", "Date of Birth", "Gender",
-    "Claim Number", "Claim ID", "Claim Type", "Date of Injury/Accident/Illness",
+    "Claim Number", "Referral Number", "Claim ID", "Claim Type", "Date of Injury/Accident/Illness",
     "State/Jurisdiction of Claim", "Accident Description", "Injury Description", "Diagnosis Code",
     "Company / Market", "Claims Case Manager Name", "Claims Office Number", "Claims Office Name",
     "Office Phone Number", "Claims Case Manager E-mail Address", "Send Referral Response To",
@@ -85,6 +87,7 @@ OPTIONAL_FIELDS += ["Employer Contact Name", "Employer Contact Mobile", "Diagnos
 OPTIONAL_FIELDS += ["Compensable Body/Part(s)", "Additional Diagnosis Codes", "Provider Phone", "Appointment Time",
                     "Provider Address Line 2", "Employer First Name", "Employer Last Name", "Employer Contact Email",
                     "Employer Mobile", "Language", "NCM", "Claims Case Manager Name"]
+OPTIONAL_FIELDS += ["Referral Number"]
 # Python-derived after extraction: never workbook Referrals columns or completeness requirements.
 DERIVED_FIELDS = list(CLASSIFICATION_FIELDS)
 OPTIONAL_FIELDS += DERIVED_FIELDS
@@ -129,6 +132,8 @@ Rules:
   when that section is missing the value. No inferred defaults for Commercial or Case Manager.
 - Split the documented Claims Case Manager Name into Claims Case Manager First Name
   and Claims Case Manager Last Name, including Last, First order when present.
+  Claims Case Manager Name must be a person; if the form prints an identifier
+  (digits or hyphenated code) instead of a person, return Not found for person names.
   Keep Claims Case Manager Name as the legacy combined name from the same source.
 - Provider, attorney, employer contact, language and compensable body-part values
   prioritize Special Instructions. Their named sections supply missing values.
@@ -153,6 +158,7 @@ Rules:
 - Split street addresses into lines 1 and 2 (unit/suite), city, state and zip.
   Preserve leading zeros in ZIPs, identifiers, SSNs and phone numbers as strings.
 - Claim Number and Claim ID are distinct; never copy one to the other without evidence.
+- Referral Number is the number labelled Referral Number in the header at the top of page 1, near Date Submitted to vendor and Referral Time; copy digits only, exactly as printed. Never use the claim number, a date, the referral time, a phone or a case/office ID. Return Not found if absent.
 - Extract injury date separately from appointment, referral, submission and document dates.
 - Customer Name and Customer Contact details refer to the employer/customer only.
 - Reuse existing output labels: Customer Name = Employer Name, Customer Contact Name =
@@ -185,10 +191,16 @@ Rules:
   invent a first name. Split combined clinic/Dr labels and DPM credentials into
   the facility and practitioner fields of the same record.
   Never substitute another
-  party's contact details. An email is not a phone number.
+  party's contact details. An email is not a phone number. Provider Phone must
+  contain only the base number, without an extension.
 - Most Complete Info: all provider mentions across Special Instructions, Referral
   Instructions and Provider Information describe ONE provider unless a facility name,
-  doctor name, address or appointment date genuinely conflicts. A missing value is
+  doctor name or address genuinely conflicts, or distinct visits are documented. One physical visit
+  means one provider record even when repeated in Provider Information, Referral
+  Instructions and Special Instructions. For that one visit, keep the Special
+  Instructions appointment date as written even when Referral Instructions give a
+  different year; do not correct a suspected typo from the other section. Python
+  flags a past appointment for review. A missing value is
   never a conflict: merge name-only and address-only mentions to fill the same record.
   Phone or appointment-time differences do not create another provider; source priority
   is Special Instructions, then Referral Instructions, then Provider Information.
@@ -220,13 +232,16 @@ Rules:
   Separate combined appointment date/time and preserve compact times for Python
   normalization; never invent midnight when time is absent.
   Next appt, NOV and Appt. Date: Time: are appointment labels. Pending scheduling
-  is not a date. LOV, prior surgery and PT start dates are not next appointments.
+  is not a date. A printed appointment date of 01/01/2099 is a placeholder,
+  not an appointment: return Not found for that date. LOV, prior surgery and PT start dates are not next appointments.
   Appointment Date is required; time is optional
   and missing time means Date Only. Provider Phone and Provider Address Line 2 are optional.
   Provider address line 1, city, state and ZIP are required. Identity must be either
   a facility name or both doctor first and last names. Never invent appointment confirmation.
   Return [] when no provider information exists.
 - Attorney Information fields are optional: missing attorney data must not block processing.
+  Attorney Name is the individual person, never the firm's name; when Special
+  Instructions spell the person differently, prefer the named Attorney Information section.
   A phone printed on the attorney name line belongs only in Attorney Phone Number,
   never in Attorney Name. Keep a neighboring firm's phone separate from that person.
   Referral Instructions, Referral Type and Referral Priority are also optional; extract
@@ -244,8 +259,11 @@ Rules:
   'S39.012A Strain of muscle, fascia and tendon of lower back.' means the diagnosis
   fallback is S39.012A and the body/part text is the description without that code.
   Keep the primary Diagnosis Code from Claim Information, with Special Instructions
-  as fallback. Capture all other documented codes in Additional Diagnosis Codes
+  as fallback. Additional Diagnosis Codes require explicitly stated diagnosis/ICD
+  codes with ICD-10 shape; anatomical levels such as T12, L4-L5 and C5 are not codes.
+  Capture all other documented codes in Additional Diagnosis Codes
   separated by semicolons. Do not replace a primary code with the list.
+- Transcribe diagnosis codes exactly as written; never correct, complete or invent a code; Python validates them against ICD-10-CM.
 - The top-level Special Instructions string contains the actual instruction text,
   stopping BEFORE the Referrer Name label and value. Do not include that label or
   anything after it. Keep this text separate from the Special Instruction Fields object.
@@ -260,14 +278,19 @@ Rules:
   Do not expand initials alone, invent names from generic mailboxes, or merge
   different employer contacts into one person.
 - Company names (for example Acme Wholesale) are not employer contact people.
+  Employer First/Last Name means the employer CONTACT PERSON from the 'Employer name
+  or contact' label or its following Phone # line; take the person before 'with'
+  a company, never split the company into a person's name and never use instruction
+  text such as 'Telephonic NCM to update' or 'please provide updates'.
   When several employer contacts are listed, preserve all first and last names
   in aligned order separated by &; never combine one person's first name with
   another person's surname. Preserve partial names if no matching email resolves them.
 - Read all attorney name and phone labels inside Special Instructions even if
   Attorney Information is blank. A facility accompanying a practitioner (including
   FNP, NP or PA) belongs in the SAME provider record. Dr followed by one name is
-  a surname, not a first name. Occupational medicine/Occ Med is a specialty, not
-  a facility; preserve the named clinician. Do not invent a hospital from a
+  a surname, not a first name. Bare occupational medicine/Occ Med denotes a
+  specialty, not a facility by itself; a named organization ending in Occ Med
+  is a facility, not a doctor. Preserve any separately named clinician. Do not invent a hospital from a
   truncated department name or specialty. Capture every explicitly named clinic.
 - Language includes narrative statements such as 'Patient speaks Spanish'.
   Referral Instructions is the labeled referral-section content, not a duplicate
@@ -312,6 +335,10 @@ def split_claims_manager_name(fields):
     first, last = 'Claims Case Manager First Name', 'Claims Case Manager Last Name'
     full = clean_value(fields.get('Claims Case Manager Name'))
     if full != 'Not found':
+        # Transcribe opaque office/claim IDs in the legacy field, not person slots.
+        if re.search(r'\d', full):
+            fields[first] = fields[last] = 'Not found'
+            return
         if ',' in full:
             surname, given = [part.strip() for part in full.split(',', 1)]
         else:
@@ -345,9 +372,12 @@ def _email_name(email, documented_last='Not found'):
 def parse_field_block(text, source_text='', today=None):
     text = re.sub(r"^```(?:json)?\s*|\s*```$", "", text.strip(), flags=re.I)
     data = json.loads(text)
+    # Old saved model fixtures may predate this optional identifier. Permit
+    # that key alone to be absent; all pre-existing keys remain mandatory.
     scalar_keys = set(REQUIRED_FIELDS).difference(PROVIDER_FIELDS)
-    if not isinstance(data, dict) or not (scalar_keys | {"Provider Information"}).issubset(data):
+    if not isinstance(data, dict) or not (scalar_keys.difference({'Referral Number'}) | {"Provider Information"}).issubset(data):
         raise ValueError("Bedrock returned an incomplete referral object.")
+    data.setdefault('Referral Number', 'Not found')
     # Older model fixtures used this name for the source-separated object.
     legacy_special = data.get("Special Instructions")
     fallback = data.get("Special Instruction Fields", legacy_special if isinstance(legacy_special, dict) else {})
@@ -363,6 +393,20 @@ def parse_field_block(text, source_text='', today=None):
     except ImportError:
         from field_review import merge_form_fields, review_formats
     review_flags = merge_form_fields(fields, explicit_form_fields(source_text), today)
+    # The printed page-one identifier overrides model output even when both are
+    # well-formed. Keep a non-blocking disagreement for the operator to inspect.
+    printed_referral = read_referral_number(source_text)
+    if printed_referral != 'Not found':
+        model_referral = fields['Referral Number']
+        if model_referral != 'Not found' and model_referral != printed_referral:
+            review_flags.append({'field': 'Referral Number', 'provider_index': None,
+                                 'kind': 'disagreement',
+                                 'reason': f'Form text says: {printed_referral}',
+                                 'reader_value': printed_referral})
+        fields['Referral Number'] = printed_referral
+    else:
+        # A model guess without a page-one label is not an extracted identifier.
+        fields['Referral Number'] = 'Not found'
     fallback.update(special_evidence(source_text))
     split_claims_manager_name(fields)
     split_claims_manager_name(fallback)
@@ -370,6 +414,22 @@ def parse_field_block(text, source_text='', today=None):
         candidate = clean_value(fallback.get(key))
         if fields[key] == "Not found" or (key in SPECIAL_FIRST_FIELDS and candidate != "Not found"):
             fields[key] = candidate
+    # Prefer the named attorney section's person spelling and phone extension.
+    attorney_section = re.search(r'(?ims)^\s*Attorney Information\s*\n(.*?)(?=^\s*Referral Instructions\s*$|\Z)', source_text)
+    if attorney_section:
+        section = attorney_section[1]
+        named = re.search(r'(?im)^\s*Attorney Name\s*:\s*([^\n]*)', section)
+        if named:
+            value = named[1].strip() or (section[named.end():].splitlines() or [''])[0].strip()
+            if clean_value(value) != 'Not found':
+                fields['Attorney Name'] = clean_value(value)
+        base = re.search(r'(?im)^\s*Phone Number\s*:\s*([^\n]*)', section)
+        extension = re.search(r'(?im)^\s*Extension\s*:\s*(\d+)\b', section)
+        if base and extension:
+            base_phone = re.search(r'(?:\(?\d{3}\)?[ .-]*)\d{3}[ .-]*\d{4}', base[1])
+            current_phone = re.search(r'(?:\(?\d{3}\)?[ .-]*)\d{3}[ .-]*\d{4}', fields['Attorney Phone Number'])
+            if base_phone and (not current_phone or re.sub(r'\D', '', current_phone[0]) == re.sub(r'\D', '', base_phone[0])):
+                fields['Attorney Phone Number'] = base_phone[0] + ' Ext. ' + extension[1]
     split_claims_manager_name(fields)
     # A long model-generated transcription can stop at a page break. Restore
     # this verbatim output from the full source, independently of AI extraction.
@@ -378,14 +438,19 @@ def parse_field_block(text, source_text='', today=None):
         fields['Special Instructions'] = source_instructions
     split_address(fields, 'Address-line-1', 'Address-line-2', 'City', 'State', 'Zip')
     split_address(fields, 'Attorney Address', 'Attorney Address-line-2', 'Attorney City', 'Attorney State', 'Attorney Zip')
-    fields['Compensable Body/Part(s)'] = clean_value(re.sub(r'\(\s*\)', '', ICD.sub('', fields['Compensable Body/Part(s)'])))
+    # Strip dotted ICD codes from prose, never bare anatomical levels (T12, L4, C5).
+    body_part = re.sub(r'\b[A-TV-Z][0-9][0-9A-Z]\.[0-9A-Z]{1,4}\b', '', fields['Compensable Body/Part(s)'], flags=re.I)
+    fields['Compensable Body/Part(s)'] = clean_value(re.sub(r'\(\s*\)', '', body_part))
     code_sources = [clean_value(data.get('Additional Diagnosis Codes')),
                     clean_value(fallback.get('Additional Diagnosis Codes')), clean_value(fallback.get('Diagnosis Code'))]
     codes = {}
     for value in code_sources:
         for code in value.split(';'):
             code = clean_value(code)
-            if code != 'Not found' and code.casefold() != fields['Diagnosis Code'].casefold():
+            documented_bare = not source_text or bool(re.search(
+                r'(?im)^\s*(?:diagnosis(?: codes?)?|ICD(?:-10)?)\s*:[^\n]*\b'
+                + re.escape(code) + r'\b(?!\.)', source_text))
+            if code != 'Not found' and ICD.fullmatch(code) and ('.' in code or documented_bare) and code.casefold() != fields['Diagnosis Code'].casefold():
                 codes.setdefault(code.casefold(), code)
     fields['Additional Diagnosis Codes'] = '; '.join(codes.values()) or 'Not found'
     name_inference = []
@@ -399,11 +464,15 @@ def parse_field_block(text, source_text='', today=None):
                                        'source': 'Employer Contact Email',
                                        'method': 'Derived from email per matrix priority; not verified'})
     parts = _email_name(fields['Nurse Case Manager E-mail Address'])
-    if fields['NCM'] == 'Not found' and parts:
+    given_only = re.fullmatch(r"[A-Za-z][A-Za-z'-]*", fields['NCM'])
+    if parts and (fields['NCM'] == 'Not found' or
+                  (given_only and fields['NCM'].casefold() == parts[0].casefold())):
+        previous = fields['NCM']
         fields['NCM'] = ' '.join(parts)
         name_inference.append({'field': 'NCM', 'value': fields['NCM'],
+                               'previous_value': previous,
                                'source': 'Nurse Case Manager E-mail Address',
-                               'method': 'Derived from email for missing nurse name; not verified'})
+                               'method': 'Derived from matching nurse email; not verified'})
     enforce_source_roles(fields, source_text)
     providers = data["Provider Information"]
     if not isinstance(providers, list):

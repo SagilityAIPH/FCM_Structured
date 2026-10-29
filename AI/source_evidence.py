@@ -6,6 +6,7 @@ try:
 except ImportError:
     from document_sections import extract_special_instructions
 
+# Bare codes are valid only when documented in diagnosis/ICD context.
 ICD = re.compile(r'\b[A-TV-Z][0-9][0-9A-Z](?:\.[0-9A-Z]{1,4})?\b', re.I)
 EMAIL = re.compile(r"[A-Za-z0-9._'+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}")
 PHONE = re.compile(r'(?:\+?1[ .-]?)?(?:\(\d{3}\)|\d{3})[ .-]*\d{3}[ .-]*\d{4}(?:\s*(?:ext\.?|x)\s*\d+)?', re.I)
@@ -58,9 +59,23 @@ def explicit_form_fields(source):
 def _name_parts(text):
     text = re.sub(r'^(?:DMS|Mr\.?|Ms\.?|Mrs\.?)\s+', '', text.strip(), flags=re.I)
     match = re.fullmatch(r"([A-Za-z][A-Za-z'-]*)\s+([A-Za-z][A-Za-z' -]*)", text)
-    if not match or len(text.split()) > 4 or re.search(r'\b(?:and|contact|no|required|protocol|wholesale|corporation|company|inc|llc)\b', text, re.I):
+    if not match or len(text.split()) > 4 or re.search(
+            r'\b(?:and|contact|no|required|protocol|wholesale|corporation|company|inc|llc|'
+            r'transit|telephonic|ncm|updates?|provide|please|only|with|to)\b', text, re.I):
         return None
     return match[1], match[2]
+
+
+def _employer_person(value, company=''):
+    """Only explicit person shapes; a bare organization is not person evidence."""
+    value = value.strip()
+    if re.match(r'(?i)^\*?\s*(?:please|telephonic|no\s+contact)', value):
+        return None
+    # A named person can precede an organization on the same form line.
+    value = re.split(r'\s+with\s+|\s+-\s+(?=[^\n]*\b(?:Inc|Corp|Company)\b)', value, maxsplit=1, flags=re.I)[0]
+    if company and value.casefold() == company.casefold():
+        return None
+    return _name_parts(value)
 
 
 def special_evidence(source):
@@ -72,7 +87,11 @@ def special_evidence(source):
     attorney = re.search(r'(?im)^[ \t]*(?:Atty|Attorney) name\s*:[ \t]*([^\n]*)', text)
     if attorney and attorney[1].strip():
         inline_phone = PHONE.search(attorney[1])
-        values['Attorney Name'] = _clean(PHONE.sub('', attorney[1]).strip(' ,;-'))
+        person = PHONE.sub('', attorney[1]).strip(' ,;-')
+        # A firm followed by a dash and a person is not one attorney name.
+        if ' - ' in person:
+            person = person.rsplit(' - ', 1)[1].strip()
+        values['Attorney Name'] = _clean(person)
         if inline_phone:
             values['Attorney Phone Number'] = inline_phone[0]
         tail = text[attorney.end():]
@@ -96,7 +115,13 @@ def special_evidence(source):
         emails = EMAIL.findall(block)
         if emails:
             name_line = re.split(r'\s*-\s*(?=[^\s]*@)|\s*<', name_line, maxsplit=1)[0]
-        parts = _name_parts(name_line)
+        parts = _employer_person(name_line)
+        # A company in the employer label may have its human contact on the
+        # immediately following Phone # line instead of a phone number.
+        if not parts:
+            phone_contact = re.search(r'(?im)^[ \t]*(?:Phone\s*#?|Ph\.?\s*#|Mobile)\s*:\s*([^\n]*)', block)
+            if phone_contact:
+                parts = _employer_person(re.split(r'\s+-\s+(?=[^\s]*@)', phone_contact[1], maxsplit=1)[0])
         if parts:
             values['Employer First Name'], values['Employer Last Name'] = parts
             # "GT Lomas-georgelomas@..." uses a dash as prose punctuation,
@@ -115,8 +140,27 @@ def special_evidence(source):
         tail = text[comp.end():]
         end = re.search(r'(?im)^[ \t]*(?!ICD\s*:)(?:[A-Za-z][A-Za-z /()&-]{2,70}):', tail)
         block = tail[:end.start()] if end else tail
-        codes = list(dict.fromkeys(match[0].upper() for match in ICD.finditer(block)))
-        description = ICD.sub('', block)
+        # Only code-shaped tokens in diagnosis/ICD-labeled text are diagnoses;
+        # anatomical levels elsewhere in body-part prose remain description.
+        diagnosis_context = bool(re.search(r'(?i)\b(?:diagnosis|ICD(?:-10)?)\b', comp[0]))
+        diagnosis_lines = [line for line in tail.splitlines() if
+                           re.search(r'(?i)^\s*(?:diagnosis(?: codes?)?|ICD(?:-10)?)\s*:', line)]
+        codes = list(dict.fromkeys(
+            match[0].upper()
+            for line in block.splitlines() if diagnosis_context or
+            re.search(r'(?i)\b(?:diagnosis|ICD(?:-10)?)\b', line)
+            for match in ICD.finditer(line)
+            if '.' in match[0] or re.search(
+                r'(?i)^\s*(?:diagnosis(?: codes?)?|ICD(?:-10)?)\s*:', line)))
+        codes.extend(match[0].upper() for line in block.splitlines()
+                     for parenthesized in re.finditer(r'\([A-TV-Z][0-9][0-9A-Z]\.[0-9A-Z]{1,4}\)', line, re.I)
+                     for match in ICD.finditer(parenthesized[0]) if match[0].upper() not in codes)
+        codes.extend(match[0].upper() for line in diagnosis_lines
+                     for match in ICD.finditer(line) if match[0].upper() not in codes)
+        codes = list(dict.fromkeys(codes))
+        description = block
+        for code in codes:
+            description = re.sub(r'(?i)\b' + re.escape(code) + r'\b', '', description)
         description = re.sub(r'(?im)^[ \t]*ICD\s*:\s*', '', description)
         description = re.sub(r'\(\s*\)', '', description)
         values['Compensable Body/Part(s)'] = _clean(description)
@@ -199,10 +243,18 @@ def enforce_source_roles(fields, source):
         name = employer[1].strip()
         company = fields.get('Employer Name', '')
         if (re.search(r'\b(?:wholesale|corporation|company|inc|llc)\b', name, re.I)
-                or name.casefold() == company.casefold()) and not re.search(r'[@,&]|\bcontact\b', name, re.I):
+                or (company and name.casefold() == company.casefold())) and not re.search(r'\bwith\b', name, re.I):
+            fields['Employer First Name'] = fields['Employer Last Name'] = 'Not found'
+        # A model may split an organization such as "Example Transit" into two
+        # person fields. Clear only when the two fields reproduce the whole
+        # organization and no person was evidenced on the adjacent Phone line.
+        if (not _employer_person(name) and
+                name.casefold() == (fields.get('Employer First Name', '') + ' ' + fields.get('Employer Last Name', '')).casefold()):
+            fields['Employer First Name'] = fields['Employer Last Name'] = 'Not found'
+        if re.search(r'(?i)^\*?\s*(?:please|telephonic|no\s+contact)', name):
             fields['Employer First Name'] = fields['Employer Last Name'] = 'Not found'
         names = re.split(r'\s+(?:and|&)\s+', name)
-        if len(names) > 1:
+        if len(names) > 1 and all(_employer_person(person) or re.fullmatch(r'[A-Za-z]+', person) for person in names):
             emails = EMAIL.findall(fields.get('Employer Contact Email', ''))
             firsts, lasts = [], []
             for person in names:

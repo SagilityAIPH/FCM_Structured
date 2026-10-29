@@ -23,16 +23,18 @@ except ImportError:
     from referral_schema import (REQUIRED_FIELDS, PROVIDER_FIELDS, DERIVED_FIELDS, ReferralFields, completeness,
                                  split_claims_manager_name)
 
-VERSION = "3"
-HEADERS = ["Record ID", "Extracted At", "Source File", "NEXT STEP", "Missing Required Fields"] + REQUIRED_FIELDS
+VERSION = "4"
+# Keep existing column indexes stable for external consumers; append the new key.
+HEADERS = ["Record ID", "Extracted At", "Source File", "NEXT STEP", "Missing Required Fields"] + [key for key in REQUIRED_FIELDS if key != 'Referral Number'] + ['Referral Number']
+V3_HEADERS = [key for key in HEADERS if key != 'Referral Number']
 PROVIDER_HEADERS = ["Record ID", "Provider Index"] + PROVIDER_FIELDS + ['Date Only', 'Appointment Confirmation']
 NEW_FIELDS = {"Compensable Body/Part(s)", "Additional Diagnosis Codes", "Doctor First Name", "Doctor Last Name",
               "Provider Address Line 2", "Employer First Name", "Employer Last Name", "Employer Mobile", "Language", "Special Instructions",
               "Claims Case Manager First Name", "Claims Case Manager Last Name"}
-V2_HEADERS = [h for h in HEADERS if h not in ('Claims Case Manager First Name', 'Claims Case Manager Last Name')]
-LEGACY_HEADERS = [h for h in HEADERS if h not in NEW_FIELDS]
+V2_HEADERS = [h for h in V3_HEADERS if h not in ('Claims Case Manager First Name', 'Claims Case Manager Last Name')]
+LEGACY_HEADERS = [h for h in V3_HEADERS if h not in NEW_FIELDS]
 LEGACY_PROVIDER_HEADERS = [h for h in ['Record ID', 'Provider Index'] + PROVIDER_FIELDS if h not in NEW_FIELDS]
-REVIEW_SHEETS = ('Address Review', 'Appointment Review', 'Name Inference')
+REVIEW_SHEETS = ('Address Review', 'Appointment Review', 'Name Inference', 'Review Flags')
 # Separate sheet so the Referrals/Providers layout (and every existing reader) is unchanged.
 CLASSIFICATION_SHEET = 'RRS Classification'
 CLASSIFICATION_HEADERS = ['Record ID'] + DERIVED_FIELDS + ['Review', 'Detail JSON']
@@ -75,10 +77,10 @@ def append_text(sheet, values):
 
 
 def check_layout(book):
-    if "Schema" not in book or book["Schema"]["B1"].value not in ('1', '2', VERSION):
+    if "Schema" not in book or book["Schema"]["B1"].value not in ('1', '2', '3', VERSION):
         raise ValueError("Unsupported daily workbook schema.")
     legacy = book['Schema']['B1'].value == '1'
-    referral_headers = LEGACY_HEADERS if legacy else V2_HEADERS if book['Schema']['B1'].value == '2' else HEADERS
+    referral_headers = LEGACY_HEADERS if legacy else V2_HEADERS if book['Schema']['B1'].value == '2' else V3_HEADERS if book['Schema']['B1'].value == '3' else HEADERS
     for name, headers in [("Referrals", referral_headers),
                           ("Providers", LEGACY_PROVIDER_HEADERS if legacy else PROVIDER_HEADERS)]:
         if name not in book or [c.value for c in book[name][1]] != headers:
@@ -145,7 +147,7 @@ def save_daily_output(fields, source_file, *, directory=None, record_id=None, ex
                                 sheet.delete_rows(row)
             append_text(book["Referrals"], [record_id, timestamp.isoformat(), Path(source_file).name,
                         assessment["status"], "\n".join(assessment["missing_fields"] + assessment['confirmation_required'])]
-                        + [fields.get(key, "Not found") for key in REQUIRED_FIELDS])
+                        + [fields.get(key, "Not found") for key in HEADERS[5:]])
             for index, provider in enumerate(providers, 1):
                 check = assessment['appointments'][index - 1]
                 status = 'Confirmed' if check['confirmed'] else 'Required' if check['reasons'] else 'Not required'

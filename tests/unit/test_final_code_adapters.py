@@ -15,7 +15,7 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "Final Code"))
 from finalcode.rrs_capture import capture
 from finalcode.field_adapter import (to_all_data, FIELD_MAP, PROVIDER_MAP,
-                                     CLASSIFICATION_MAP, UNMAPPED_DEFAULTS)
+                                     CLASSIFICATION_MAP)
 from finalcode.cms_inputs import to_cms_inputs, missing_cms_inputs
 
 
@@ -207,7 +207,7 @@ def test_all_data_covers_every_legacy_reference_including_comments():
     assert set(result) == keys | {"claimantFull", "correctZipCode", "adjOffice"}
     assert set(FIELD_MAP.values()) <= set(REQUIRED_FIELDS)
     assert set(PROVIDER_MAP.values()) <= set(PROVIDER_FIELDS)
-    assert {key: result[key] for key in UNMAPPED_DEFAULTS} == UNMAPPED_DEFAULTS
+    assert result['referralNumber'] == ''
 
 
 @pytest.mark.parametrize("claim,customer,state,fires", [

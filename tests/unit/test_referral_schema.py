@@ -42,7 +42,7 @@ def test_multiple_providers_keep_matching_slots_and_most_complete_first():
     assert fields.providers[-1]['Provider Phone'] == 'Not found'
     # Each of the three provider records has its own 11-field section.
     rows = core.fields_to_table_df(fields)
-    assert len(rows) == 92
+    assert len(rows) == 93
     assert list(rows.loc[rows['Field'] == 'Doctor / Facility', 'Section']) == ['Provider 1', 'Provider 2', 'Provider 3']
     assert list(rows.loc[rows['Field'] == 'Appointment Date', 'Value']) == [record['Appointment Date'] for record in fields.providers]
 
