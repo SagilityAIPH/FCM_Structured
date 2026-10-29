@@ -2,7 +2,27 @@
 
 Dependencies are passed as callables so the same process can run in the intake
 app, the standalone runner, or offline tests. No session is opened on import.
+
+check_customer returns the resolved customer string, a falsey value when the
+operator declined CEM / nothing resolved (reason customer_unresolved_or_cem,
+unchanged), or a needs-CEM marker mapping ({"needs_cem": True, ...}). CEM runs
+in the separate operator-started CEMRequest app; this flow only reports the
+handoff values (reason needs_cem) and never starts CEM itself.
 """
+
+NEEDS_CEM_INSTRUCTION = "Employer not found in CMS. Start the CEM app (CEMRequest) with these values."
+
+
+def is_needs_cem(value):
+    return isinstance(value, dict) and value.get("needs_cem") is True
+
+
+def cem_handoff(data):
+    """Handoff from the flow inputs; claim_number is never replaced by claim ID."""
+    return {"employer_name": str(data.get("customer") or ""),
+            "claim_number": str(data.get("claimNumber") or ""),
+            "claim_id": str(data.get("claimID") or ""),
+            "claimant_full": str(data.get("claimantFull") or "")}
 
 
 def run_flow(data, *, search_cases, check_customer, notify, confirm, stage="all"):
@@ -49,7 +69,17 @@ def run_flow(data, *, search_cases, check_customer, notify, confirm, stage="all"
     if stage in {"all", "customer"}:
         result["steps"].append("validate_customer")
         selected = check_customer(data["customer"], data["claimID"], data["claimantFull"])
-        if not selected or not str(selected).strip():
+        if is_needs_cem(selected):
+            handoff = cem_handoff(data)
+            notify("CEM Required", NEEDS_CEM_INSTRUCTION + "\n\n" + "\n".join(
+                f"{label}: {handoff[key]}" for key, label in (
+                    ("employer_name", "Employer Name"), ("claim_number", "Claim Number"),
+                    ("claim_id", "Claim ID"), ("claimant_full", "Claimant Full Name"))))
+            result.update(status="stopped", reason="needs_cem", cem_handoff=handoff,
+                          instruction=NEEDS_CEM_INSTRUCTION)
+            return result
+        # A mapping is never a customer name; only the marker above means needs_cem.
+        if isinstance(selected, dict) or not selected or not str(selected).strip():
             result.update(status="stopped", reason="customer_unresolved_or_cem")
             return result
         result["customer"] = str(selected).strip()

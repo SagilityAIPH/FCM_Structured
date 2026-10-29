@@ -7,6 +7,7 @@ const reasons: Record<string, string> = {
   tire_customer_open_tcm: 'Open TCM case for tire customer: send an email and handle this referral manually. Automation has stopped.',
   user_declined: 'The operator declined to continue. Automation has stopped.',
   customer_unresolved_or_cem: 'Customer unresolved or CEM: operator action is required. Automation has stopped.',
+  needs_cem: 'Employer not found in CMS: complete CEM in the separate CEMRequest app. Automation has stopped.',
   incomplete: 'Required information is incomplete. Fix the fields below before continuing.',
   no_referral_attached: 'No referral attachment was found.', operator_cancelled: 'The operator cancelled review.',
 }
@@ -19,9 +20,16 @@ export function CmsSection({result}: {result?: WorkflowResult | null}) {
         {result.reason && <><p className="cms-reason">{reasons[result.reason] || result.reason.replaceAll('_', ' ')}</p><p>Reason: {result.reason}</p></>}
         {result.outcome === 'ended' && result.reason === 'incomplete' && <><h4>Missing fields</h4><ul>{result.missing_fields.map((field, i) => <li key={i}>{field}</li>)}</ul>
           {!!result.confirmation_required?.length && <><h4>Confirm appointments</h4><ul>{result.confirmation_required.map((field, i) => <li key={i}>{field}</li>)}</ul></>}</>}
+        {result.outcome === 'stopped' && result.instruction && <p className="cms-instruction"><strong>{result.instruction}</strong></p>}
+        {result.outcome === 'stopped' && result.cem_handoff && <dl className="cms-handoff" aria-label="CEM handoff values">
+          <dt>Employer Name</dt><dd>{result.cem_handoff.employer_name || 'Not supplied'}</dd>
+          <dt>Claim Number</dt><dd>{result.cem_handoff.claim_number || 'Not supplied'}</dd>
+          <dt>Claim ID</dt><dd>{result.cem_handoff.claim_id || 'Not supplied'}</dd>
+          <dt>Claimant Full Name</dt><dd>{result.cem_handoff.claimant_full || 'Not supplied'}</dd>
+        </dl>}
         {result.outcome === 'failed' && (result.error ? <dl><dt>Error stage</dt><dd>{result.error.stage}</dd><dt>Error type</dt><dd>{result.error.type}</dd><dt>Error message</dt><dd>{result.error.message}</dd></dl> : <p>No structured error details were supplied by the workflow.</p>)}
       </div>
-      <Card><CardHeader><CardTitle>Resolved customer</CardTitle></CardHeader><CardContent>{result.customer || 'No resolved customer returned.'}</CardContent></Card>
+      <Card><CardHeader><CardTitle>Resolved customer</CardTitle></CardHeader><CardContent>{result.reason === 'needs_cem' ? 'No resolved customer: employer not found in CMS.' : result.customer || 'No resolved customer returned.'}</CardContent></Card>
       <h3>Found cases ({result.cases.length})</h3>
       {result.cases.map((item, i) => <Card className="cms-case" key={i} role="article" aria-label={`CMS case ${i + 1}`}><CardContent><dl>
         <dt>Case number</dt><dd>{item.cms_caseNum || 'Not supplied'}</dd>

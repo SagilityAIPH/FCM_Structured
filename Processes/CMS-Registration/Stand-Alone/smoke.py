@@ -13,6 +13,7 @@ def main():
         required = [HERE / 'frontend/dist/index.html', HERE / 'run.py', HERE / 'scenarios/registered-normal.json',
                     HERE.parent / 'Deploy-Ready/contract.py', HERE.parent / 'Deploy-Ready/cms_registration_flow.py',
                     HERE.parent / 'Deploy-Ready/cms_steps.py', ROOT / 'src/fcm_intake/legacy/CMS.py',
+                    ROOT / 'Processes/CEM/Deploy-Ready/cem_log.py',
                     ROOT / 'drivers/IEDriverServer.exe']
         for item in required:
             assert item.is_file(), f'Missing packaged resource: {item.name}'

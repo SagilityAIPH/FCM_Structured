@@ -509,7 +509,9 @@ class StepsTests(unittest.TestCase):
                                           "selenium.webdriver.common.by": fake_by,
                                           "openpyxl": fake_openpyxl}), \
                  patch.object(S, "_legacy", return_value=legacy), \
+                 patch.object(S, "_local_cem_log_path", return_value=""), \
                  patch.object(S, "_type"), patch.object(S, "_click"):
+                # Unconfigured [cem] cem_log_path: legacy daily checker path.
                 session = S.open_live_session(settings)
                 try:
                     self.assertEqual(driver.urls, [legacy.CMS_LOGIN_URL])

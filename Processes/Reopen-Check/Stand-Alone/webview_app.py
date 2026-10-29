@@ -224,7 +224,7 @@ class Api:
             self.result = _json_safe({**response, "extracted_tables": self.extracted_tables})
             self.status_text = (
                 "Error \u2014 see details below." if "error" in response
-                else "Process " + response.get("result", {}).get("status", "finished") + "."
+                else desktop.result_status(response)
             )
 
     def answer_prompt(self, value):

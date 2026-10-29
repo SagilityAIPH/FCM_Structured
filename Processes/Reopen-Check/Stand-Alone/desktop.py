@@ -21,6 +21,8 @@ from openpyxl import load_workbook
 STAGES = {"Both: re-open + customer": "all", "Re-open only": "reopen", "Customer only": "customer"}
 INPUTS = [("claimNumber", "Claim Number"), ("customer", "Customer Name"),
           ("claimID", "Claim ID"), ("claimantFull", "Claimant Full Name"), ("referralType", "Referral Type")]
+CEM_HANDOFF_LABELS = [("employer_name", "Employer Name"), ("claim_number", "Claim Number"),
+                      ("claim_id", "Claim ID"), ("claimant_full", "Claimant Full Name")]
 
 
 def workbook_records(path):
@@ -78,6 +80,18 @@ class DesktopPrompts:
         if self._root is not None:
             self._root.destroy()
             self._root = None
+
+
+def result_status(response):
+    """One-line status; a business stop with a manual instruction shows it."""
+    result = response.get("result") or {}
+    text = "Process " + str(result.get("status", "finished")) + "."
+    if result.get("instruction"):
+        text += " " + str(result["instruction"])
+    handoff = result.get("cem_handoff")
+    if isinstance(handoff, dict):
+        text += " " + "; ".join(f"{label}: {handoff.get(key, '')}" for key, label in CEM_HANDOFF_LABELS)
+    return text
 
 
 def execute_request(request, prompts_factory=None):
@@ -335,7 +349,7 @@ class App:
         self.result = response
         self.display(response)
         self.status.set("Error — see details below." if "error" in response else
-                        "Process " + response.get("result", {}).get("status", "finished") + ".")
+                        result_status(response))
         for control, state in self.controls:
             control.configure(state=state)
         if self.filename.get():

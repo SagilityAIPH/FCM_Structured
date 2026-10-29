@@ -6,16 +6,18 @@ stored-procedure mapper alone is reused lazily. No credentials are returned.
 from dataclasses import asdict
 from datetime import datetime
 import importlib.util
+import os
 from pathlib import Path
 import re
 import sys
 import time
+from types import SimpleNamespace
 from difflib import SequenceMatcher
 
 SETTINGS_KEYS = (
     "cms_db_connection", "reference_dir", "cms_user", "cms_password",
     "ie_driver_path", "notify", "confirm", "office_matrix_filename",
-    "supervisor_mapping_filename",
+    "supervisor_mapping_filename", "cem_log_path",
 )
 OFFICE_MATRIX = "Liberty Mutual Claims Office Matrix_08-29-19.xlsx"
 SUPERVISOR_MAPPING = "Liberty Mutual Medical Dedicated Supervisor Mapping 04-07-2025.xlsx"
@@ -38,6 +40,57 @@ def _contract():
 
 def _rules():
     return _sibling("cms_rules.py", "_cms_registration_pure_rules")
+
+
+# The new CEM app's daily log reader (Processes/CEM/Deploy-Ready/cem_log.py).
+# Loaded by path, lazily, under a module name unique to this adapter.
+CEM_LOG_MODULE = "_cmsreg_cem_log"
+CEM_LOG_SOURCE = Path(__file__).resolve().parents[2] / "CEM" / "Deploy-Ready" / "cem_log.py"
+_cem_clock = datetime.now  # one reading fixes "today" for probe and lookup
+
+
+def _cem_log():
+    if CEM_LOG_MODULE not in sys.modules:
+        spec = importlib.util.spec_from_file_location(CEM_LOG_MODULE, CEM_LOG_SOURCE)
+        if spec is None or spec.loader is None:
+            raise ImportError("CEM log module unavailable")
+        module = importlib.util.module_from_spec(spec)
+        sys.modules[CEM_LOG_MODULE] = module
+        try:
+            spec.loader.exec_module(module)
+        except BaseException:
+            sys.modules.pop(CEM_LOG_MODULE, None)
+            raise
+    return sys.modules[CEM_LOG_MODULE]
+
+
+def _local_cem_log_path():
+    """[cem] cem_log_path / FCM_CEM_LOG_PATH, same convention as the CEM app."""
+    try:
+        from fcm_intake.config import get_local_setting
+    except ImportError:
+        return os.environ.get("FCM_CEM_LOG_PATH", "")
+    try:
+        return get_local_setting("cem", "cem_log_path", "FCM_CEM_LOG_PATH")
+    except KeyError:
+        # No built-in default: absent means "not configured".
+        return ""
+
+
+def _configured_cem_log_path(settings):
+    """Return the configured CEM log path, or '' when not configured.
+
+    A non-blank ``settings['cem_log_path']`` wins over local settings/env.
+    A non-text value counts as configured-but-invalid (the reader rejects it).
+    """
+    value = settings.get("cem_log_path")
+    if value is None or (isinstance(value, str) and not value.strip()):
+        value = _local_cem_log_path()
+    if isinstance(value, os.PathLike):
+        value = os.fspath(value)
+    if not isinstance(value, str):
+        return value if value else ""
+    return value.strip()
 
 
 def _legacy():
@@ -842,6 +895,58 @@ def _daily_cem_request(legacy, request):
         return None
 
 
+def _cem_sheet_available(log, location, day):
+    """True only when the workbook opens and has the dated sheet.
+
+    Probed under the CEM module's own sidecar lock (the one find_duplicate and
+    record take) so this read never holds the file open across the CEM app's
+    atomic replace. A held lock times out (TimeoutError) and the caller treats
+    that as unknown.
+    """
+    with log._lock(location):
+        if not location.is_file():
+            return False
+        from openpyxl import load_workbook
+        wb = load_workbook(location, read_only=True, data_only=True)
+        try:
+            return day in wb.sheetnames
+        finally:
+            wb.close()
+
+
+def _cem_log_request(request, path):
+    """Configured new-CEM-log check: True match, False readable no-match, None unknown.
+
+    Uses cem_log.find_duplicate (today's sheet, column A claimant, column B claim
+    NUMBER, strip+casefold, Status ignored). It returns None both for "no row"
+    and "no workbook/sheet", so availability is probed before and after the
+    lookup; only a sheet present on both sides with no row is a genuine False.
+    Any failure (missing, unreadable, locked, invalid path/value, module
+    unavailable) is unknown, never False.
+    """
+    try:
+        log = _cem_log()
+        moment = _cem_clock()
+        if not isinstance(moment, datetime):
+            raise TypeError("CEM clock must return datetime")
+        day = moment.strftime("%m%d%Y")
+        location = log._location(path)  # same absolute-path/filename rule as the writer
+        if not _cem_sheet_available(log, location, day):
+            return None
+        # find_duplicate builds the claimant exactly as the CEM writer
+        # (cem_log.record) stores column A, f"{first} {last}", which is also the
+        # string load_data passes to legacy claim_exists; both sides then
+        # strip+casefold. RegistrationRequest has the same three attribute names.
+        found = log.find_duplicate(request, SimpleNamespace(cem_log_path=path), now=lambda: moment)
+        if found is None:
+            return False if _cem_sheet_available(log, location, day) else None
+        if isinstance(found, dict) and found.get("sheet") == day and found.get("row"):
+            return True
+        raise ValueError("CEM log result invalid")
+    except (Exception, SystemExit):
+        return None
+
+
 class LiveSession:
     """One CMS IE-mode session per operator-started run; idempotent cleanup."""
     def __init__(self, driver, stages):
@@ -865,7 +970,9 @@ def open_live_session(settings: dict) -> LiveSession:
 
     Required: cms_db_connection, reference_dir, cms_user, cms_password,
     notify, confirm. Optional: ie_driver_path, office_matrix_filename,
-    supervisor_mapping_filename. Never falls back to FCM_RRS_DB_CONNECTION.
+    supervisor_mapping_filename, cem_log_path (else [cem] cem_log_path /
+    FCM_CEM_LOG_PATH; blank = legacy CMS.claim_exists daily checker).
+    Never falls back to FCM_RRS_DB_CONNECTION.
     """
     C = _contract()
     required = ("cms_db_connection", "reference_dir", "cms_user", "cms_password", "notify", "confirm")
@@ -873,13 +980,17 @@ def open_live_session(settings: dict) -> LiveSession:
         raise ValueError("Required CMS session setting missing")
     if not callable(settings["notify"]) or not callable(settings["confirm"]):
         raise ValueError("CMS operator callbacks must be callable")
-    # CEM status is obtained lazily from the legacy daily checker at DATA;
-    # the independent option-10 operator confirmation remains mandatory.
+    # CEM status is obtained lazily at DATA from the configured CEM app log or,
+    # when unconfigured, the legacy daily checker; the independent option-10
+    # operator confirmation remains mandatory either way.
     # Reuse the legacy stored-procedure mapper and daily checker only. Its
     # browser helpers rely on module-global `driver`; keep explicit-driver actions.
     driver = None
     try:
         legacy = _legacy()
+        # [cem] cem_log_path / FCM_CEM_LOG_PATH (FCM-1.1-126): when configured,
+        # the new CEM app's log is the only CEM hint source; legacy is unused.
+        cem_log_path = _configured_cem_log_path(settings)
         if settings.get("ie_driver_path"):
             # Legacy creator uses its module constant; construct a local driver
             # instead of mutating shared state.
@@ -924,11 +1035,14 @@ def open_live_session(settings: dict) -> LiveSession:
                                                for key, value in asdict(raw).items()}
             except (Exception, SystemExit):
                 raise ValueError("CMS stored-procedure result invalid") from None
-            # Use the legacy date-sheet/exact claimant+claim checker only when
-            # its workbook and sheet can be read. Otherwise leave unknown.
-            # The legacy helper owns the exact normalized claimant/claim
-            # matching; never manufacture a True from a workbook path alone.
-            cem = _daily_cem_request(legacy, request)
+            # Configured CEM app log: its reader owns the exact normalized
+            # claimant/claim matching. Unconfigured: the legacy date-sheet
+            # checker, only when its workbook and sheet can be read. Either way
+            # unknown stays unknown; never manufacture a True from a path alone.
+            if cem_log_path:
+                cem = _cem_log_request(request, cem_log_path)
+            else:
+                cem = _daily_cem_request(legacy, request)
             if cem is not None:
                 fields["cem_employer_request"] = cem
             # Return only a boolean routing field, never the workbook path or

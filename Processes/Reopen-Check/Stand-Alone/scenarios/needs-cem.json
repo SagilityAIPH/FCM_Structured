@@ -1,0 +1,5 @@
+{
+  "input": {"claimNumber": "DEMO-005", "customer": "Example New Employer", "claimID": "DEMO-ID-5", "claimantFull": "Example Person"},
+  "cases": [],
+  "selected_customer": {"needs_cem": true, "employer_name": "Example New Employer", "claim_id": "DEMO-ID-5", "claimant_full": "Example Person"}
+}

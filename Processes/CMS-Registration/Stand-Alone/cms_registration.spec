@@ -29,6 +29,9 @@ for name in ('CMS.py', 'legacy_fcm.py', 'legacy_unity.py', 'legacy_providerresul
              'legacy_googlesearch.py', 'legacy_reopencheck.py', 'legacy_customerchecker.py', 'legacy_cem.py'):
     require(legacy / name, 'src/fcm_intake/legacy')
 require(repo / 'Processes/Reopen-Check/Deploy-Ready/reopen_flow.py', 'Processes/Reopen-Check/Deploy-Ready')
+# cms_steps.py path-loads the CEM app's log reader from parents[2]/CEM/Deploy-Ready (FCM-1.1-126);
+# keep it at the same repository-relative destination so the frozen lookup resolves.
+require(repo / 'Processes/CEM/Deploy-Ready/cem_log.py', 'Processes/CEM/Deploy-Ready')
 for name in ('subject_line_flow.py', 'legacy_steps.py', 'office_matrix.py', 'provider_match.py',
              'rrs_ui.py', 'body_part.py', 'injury_match.py', 'excel_input.py', 'manual_flow.py'):
     require(shared / name, 'Processes/SubjectLineBuilder/Deploy-Ready')

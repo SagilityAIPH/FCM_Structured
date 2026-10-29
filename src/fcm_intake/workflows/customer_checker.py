@@ -1,11 +1,68 @@
 # Compatibility workflow wrapper around the legacy CustomerChecker script.
 from __future__ import annotations
 
+import contextlib
+import sys
+import types
+
 from fcm_intake.config import CUSTOMERCHECKER_SCRIPT
 from fcm_intake.legacy_loader import load_module_from_path
 from fcm_intake.cms import session as cms_session
 
 _orig = load_module_from_path("legacy_customerchecker_shared_runtime", CUSTOMERCHECKER_SCRIPT)
+
+# CEM (Employer Request Add) is a separate operator-started app (CEMRequest).
+# The legacy checker imports legacy_cem (which opens a browser at import) when
+# the operator answers Yes to "Do you need to complete CEM?". During the legacy
+# call that import resolves to a recording stub; the wrapper then returns this
+# structured marker instead of a customer string.
+NEEDS_CEM = "needs_cem"
+_CEM_MODULE_NAMES = ("legacy.legacy_cem", "legacy_cem")
+_MISSING = object()
+
+
+def needs_cem_marker(employer_name, claim_id, claimant_full):
+    return {NEEDS_CEM: True, "employer_name": employer_name, "claim_id": claim_id,
+            "claimant_full": claimant_full}
+
+
+@contextlib.contextmanager
+def _cem_handoff_stub():
+    """Shadow every legacy_cem import name with a stub that only records calls.
+
+    Previous sys.modules entries and the legacy package attribute are restored
+    on every exit path, including exceptions and SystemExit.
+    """
+    calls = []
+    stub = types.ModuleType("legacy_cem")
+    stub.__doc__ = "Recording stub: CEM runs in the separate CEMRequest app."
+
+    def main(CustomerName, ClaimID, ClaimantName, *args, **kwargs):
+        calls.append(needs_cem_marker(CustomerName, ClaimID, ClaimantName))
+
+    stub.main = main
+    saved = {name: sys.modules.get(name, _MISSING) for name in _CEM_MODULE_NAMES}
+    package = sys.modules.get("legacy")
+    saved_attr = getattr(package, "legacy_cem", _MISSING) if package is not None else _MISSING
+    for name in _CEM_MODULE_NAMES:
+        sys.modules[name] = stub
+    if package is not None:
+        package.legacy_cem = stub
+    try:
+        yield calls
+    finally:
+        for name, previous in saved.items():
+            if previous is _MISSING:
+                if sys.modules.get(name) is stub:
+                    del sys.modules[name]
+            else:
+                sys.modules[name] = previous
+        if package is not None:
+            if saved_attr is _MISSING:
+                if getattr(package, "legacy_cem", None) is stub:
+                    delattr(package, "legacy_cem")
+            else:
+                package.legacy_cem = saved_attr
 
 def _bind():
     drv = cms_session.get_shared_driver()
@@ -46,8 +103,11 @@ def MainCustomerCheck(customer_name, claim_id, claimant_name, app=None, *, show_
         pass
 
     try:
-        result = _orig.ValidateCustomer(customer_name, claim_id, claimant_name, app=app,
-                                       show_results=show_results)
+        with _cem_handoff_stub() as cem_calls:
+            result = _orig.ValidateCustomer(customer_name, claim_id, claimant_name, app=app,
+                                           show_results=show_results)
+        if cem_calls:
+            return dict(cem_calls[0])
     finally:
         try:
             drv.execute_script = original_execute_script

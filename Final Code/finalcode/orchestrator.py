@@ -109,6 +109,11 @@ def run(*, capture, extract, review, cms, subject_line, on_stage=None,
         result["cases"] = _snapshot(response.get("cases", []))
         result["customer"] = _snapshot(response.get("customer"))
         if response["status"] == "stopped":
+            # Manual-action details (e.g. needs_cem's CEMRequest handoff) ride
+            # with the business stop; the Subject Line Builder never starts.
+            for key in ("instruction", "cem_handoff"):
+                if key in response:
+                    result[key] = _snapshot(response[key])
             return finish("stopped", response.get("reason") or "cms_stopped")
         if response["status"] == "failed":
             returned_error(response)

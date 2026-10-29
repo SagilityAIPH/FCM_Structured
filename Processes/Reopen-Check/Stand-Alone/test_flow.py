@@ -59,6 +59,27 @@ class FlowTests(unittest.TestCase):
         self.customer.return_value = None
         self.assertEqual(self.run_flow()["reason"], "customer_unresolved_or_cem")
 
+    def test_needs_cem_marker_stops_with_handoff_and_instruction(self):
+        self.data["claimID"] = "SYN-ID-DIFFERENT"
+        self.customer.return_value = {"needs_cem": True, "employer_name": "Example Company",
+                                      "claim_id": "SYN-ID-DIFFERENT", "claimant_full": "Example Person"}
+        result = self.run_flow()
+        self.assertEqual((result["status"], result["reason"]), ("stopped", "needs_cem"))
+        self.assertEqual(result["instruction"],
+                         "Employer not found in CMS. Start the CEM app (CEMRequest) with these values.")
+        self.assertEqual(result["cem_handoff"], {"employer_name": "Example Company", "claim_number": "DEMO",
+                                                 "claim_id": "SYN-ID-DIFFERENT",
+                                                 "claimant_full": "Example Person"})
+        self.assertIn("CEMRequest", self.notify.call_args.args[1])
+
+    def test_declined_cem_keeps_backward_compatible_reason(self):
+        for value in (None, "", {"needs_cem": False}):
+            with self.subTest(value=value):
+                self.customer.return_value = value
+                result = self.run_flow()
+                self.assertEqual(result["reason"], "customer_unresolved_or_cem")
+                self.assertNotIn("cem_handoff", result)
+
     def test_tire_customer_open_tcm_stops(self):
         self.data["customer"] = "Goodyear Tire Company"
         self.search.return_value = [{"case_status": "O", "caseType": "TCM"}]
@@ -76,6 +97,42 @@ class FlowTests(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError, "CMS unavailable"):
             self.run_flow()
         self.customer.assert_not_called()
+
+
+class NeedsCemDisplayTests(unittest.TestCase):
+    def test_cli_offline_scenario_prints_instruction_and_handoff(self):
+        import contextlib
+        import io
+        import json
+        import run
+        out, err = io.StringIO(), io.StringIO()
+        with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+            code = run.main(["--scenario", str(run.HERE / "scenarios" / "needs-cem.json")])
+        self.assertEqual(code, 2)
+        result = json.loads(out.getvalue()[out.getvalue().index("{"):])
+        self.assertEqual((result["status"], result["reason"]), ("stopped", "needs_cem"))
+        self.assertEqual(result["cem_handoff"]["claim_number"], "DEMO-005")
+        self.assertEqual(result["cem_handoff"]["claim_id"], "DEMO-ID-5")
+        for text in ("Start the CEM app (CEMRequest)", "Employer Name: Example New Employer",
+                     "Claim Number: DEMO-005", "Claim ID: DEMO-ID-5", "Claimant Full Name: Example Person"):
+            self.assertIn(text, err.getvalue())
+
+    def test_desktop_status_line_shows_instruction_and_handoff(self):
+        import desktop
+        response = desktop.execute_request({"mode": "offline", "stage": "all", "scenario": "needs-cem.json"})
+        self.assertEqual(response["result"]["reason"], "needs_cem")
+        self.assertEqual(response["messages"][-1]["title"], "CEM Required")
+        line = desktop.result_status(response)
+        for text in ("Process stopped.", "CEMRequest", "Employer Name: Example New Employer",
+                     "Claim Number: DEMO-005", "Claim ID: DEMO-ID-5", "Claimant Full Name: Example Person"):
+            self.assertIn(text, line)
+        self.assertEqual(desktop.result_status({"result": {"status": "completed"}}), "Process completed.")
+
+    def test_react_result_summary_lists_instruction_and_handoff(self):
+        source = (ROOT / "Processes/Reopen-Check/Stand-Alone/ui/src/components/ResultOutput.tsx").read_text(encoding="utf-8")
+        for token in ("result.instruction", "handoff.employer_name", "handoff.claim_number",
+                      "handoff.claim_id", "handoff.claimant_full"):
+            self.assertIn(token, source)
 
 
 class IntegrationTests(unittest.TestCase):

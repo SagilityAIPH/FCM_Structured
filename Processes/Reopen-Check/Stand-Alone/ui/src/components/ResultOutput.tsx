@@ -10,11 +10,17 @@ function isTable(value: unknown): value is { title: string; rows: string[][] } {
 export function ResultOutput({ value }: { value: unknown }) {
   const envelope = isRecord(value) ? value : {}
   const result = isRecord(envelope.result) ? envelope.result : {}
+  const handoff = isRecord(result.cem_handoff) ? result.cem_handoff : {}
   const tables = Array.isArray(envelope.extracted_tables) ? envelope.extracted_tables.filter(isTable) : []
   const summary = [
     ["Status", result.status],
     ["Customer", result.customer],
     ["Reason", result.reason],
+    ["Instruction", result.instruction],
+    ["Employer Name", handoff.employer_name],
+    ["Claim Number", handoff.claim_number],
+    ["Claim ID", handoff.claim_id],
+    ["Claimant Full Name", handoff.claimant_full],
     ["Error", envelope.error],
     ["Last stage", envelope.stage],
   ].filter(([, item]) => typeof item === "string" && item.length > 0)

@@ -91,6 +91,13 @@ def main(argv=None):
                                   confirm=prompts.ask_yes_no)
             finally:
                 session.close_shared_driver()
+        if result.get("reason") == "needs_cem":
+            # Operator-facing summary on stderr; stdout stays machine-readable JSON.
+            handoff = result.get("cem_handoff") or {}
+            print(result.get("instruction", ""), file=sys.stderr)
+            for key, label in (("employer_name", "Employer Name"), ("claim_number", "Claim Number"),
+                               ("claim_id", "Claim ID"), ("claimant_full", "Claimant Full Name")):
+                print(f"  {label}: {handoff.get(key, '')}", file=sys.stderr)
         print(json.dumps(result, indent=2, default=str))
         return 0 if result["status"] == "completed" else 2
     except Exception as error:
