@@ -9,6 +9,7 @@ This vault is the FCM_Structured documentation set.
 - [[process-wizard/INVESTIGATION]] — parked Process Wizard findings and design blockers; recall with "JARVIS".
 - [[cms-registration/INVESTIGATION]] — post-Unity CMS Registration findings, boundary, and backlog.
 - [[code/CODE-MAP]] — source-code map: architecture, each process and app, shared AI modules, legacy code, configuration, data contracts, build/release, testing and glossary.
+- [[code/ai-shared-modules|AI PDF Analyzer module]] — `AI/` is the Analyzer's modular process (stand-alone app: AI PDF Reader; also embedded in Final Code), with the extraction rules added 2026-10-30.
 
 ## Conventions
 

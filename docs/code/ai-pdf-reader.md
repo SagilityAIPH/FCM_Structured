@@ -5,7 +5,7 @@ verified_at: b47ced0 (2026-10-28)
 ---
 # AI PDF Reader (FCM Workbench) app
 
-**Summary.** The AI PDF Reader is a narrow desktop window: pywebview on Edge WebView2, with a React + TypeScript + Vite + Tailwind front end. The operator loads a referral PDF/DOCX/TXT, runs Bedrock extraction through the shared `AI/` pipeline ([[code/ai-shared-modules]]), reviews and edits the fields, then saves to the daily workbook and the per-referral JSON. **Final Code reuses the same backend and front end**, in `memory_only` mode with text captured from RRS ([[code/final-code]]).
+**Summary.** The AI PDF Reader is the **stand-alone app of the AI PDF Analyzer module** (`AI/`, see [[code/ai-shared-modules]]). It is a narrow desktop window: pywebview on Edge WebView2, with a React + TypeScript + Vite + Tailwind front end. The operator loads a referral PDF/DOCX/TXT, runs Bedrock extraction through the shared `AI/` pipeline, reviews and edits the fields, then saves to the daily workbook and the per-referral JSON. **Final Code reuses the same backend and front end**, in `memory_only` mode with text captured from RRS ([[code/final-code]]). The field form is built from `FIELD_GROUPS` (`backend.py:449`), so a new schema field such as Referral Number appears without a front-end rebuild.
 
 | | |
 | --- | --- |

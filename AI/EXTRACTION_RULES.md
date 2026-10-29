@@ -97,6 +97,43 @@ changes; build and test both consumers when the workbook schema changes.
   text, plus synthetic regression tests. This is not a fresh Bedrock accuracy
   measurement and does not establish 100% accuracy on future documents.
 
+# October 30 sample review: visit identity, roles, dates and identifiers
+
+- One physical visit has one provider record across Provider Information,
+  Referral Instructions and Special Instructions. Merge complementary evidence
+  for that visit; do not split merely because a phone or time differs. A named
+  organization (such as `Example Occ Med` or `Example Partners`) is a facility,
+  not a doctor's first and last names. `DR SURNAME FACILITY` supplies only a
+  documented surname and the separate facility; never invent a given name.
+  Provider Phone retains the base number without an extension, while attorney
+  phone extensions remain attached to the attorney phone field.
+- Read M/D/YY dates as printed. For the same visit, Special Instructions wins
+  appointment conflicts even when its explicit year is past. Preserve that
+  year and apply the existing past-date review flag; never replace it with the
+  other section's plausible year. Treat the `01/01/2099` appointment placeholder
+  as `Not found` with a non-blocking review flag.
+- Employer contact is the person under `Employer name or contact` or the
+  following `Phone #` line, not the company or instruction prose. Attorney Name
+  is a person; Attorney Information spelling takes priority and a firm must
+  not be glued onto the name. Identifier-shaped Claims Case Manager values are
+  not people. A nurse with only a given name can be completed from an
+  independently matching `first.last` nurse email; do not infer otherwise.
+- Spine levels such as T12, L4-L5 and C5 are not diagnosis codes. Validate
+  extracted diagnosis codes against the bundled public CMS FY2027 ICD-10-CM
+  list; preserve the source code and flag invalid or unchecked codes for
+  review. The owner disabled the separate incomplete-code review flag
+  (`FLAG_INCOMPLETE_ICD10 = False`) pending a later decision.
+- Optional Referral Number comes from the page-one labeled header: the form
+  wins over model output, disagreement is flagged, and a missing label yields
+  `Not found`. It is the last Referrals workbook column (schema v4 with v3
+  migration), appears in Review Flags, and maps to Final Code `referralNumber`.
+- The FIELD_ONLY_PROMPT contains matching guidance for these fields. Offline
+  perfect-model replay and synthetic regressions exercise post-processing;
+  they do not prove a live Opus response follows the new prompt. Whether a
+  clinical-objective-only doctor is a provider, whether CMS Registration uses
+  Referral Number for attachments, live prompt verification, and restoring the
+  incomplete-code flag remain open decisions.
+
 # October 13 RRS classification (Body Part, Injury Type, Injury Cause)
 
 - The AI PDF Reader owns these three RRS dropdown values (`injury_classification.py`).

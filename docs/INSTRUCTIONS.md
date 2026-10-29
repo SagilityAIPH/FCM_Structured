@@ -264,6 +264,14 @@ EXE and packaged synthetic verification. Actual publication is recorded in
 GitHub releases. Read-only live inspection confirmed the selector mismatch,
 but no corrected live flag submission or server persistence was verified.
 
+
+## October 30 sample-review owner decisions
+
+- [ ] **FCM-1.1-120 -- Decide whether a clinical-objective-only doctor is a provider.** Uncovered by FCM-1.1-114: owner must decide whether a doctor named only in the appointment objective, without a provider section, creates a provider record; test distinct and same-visit synthetic examples before changing shared rules.
+- [ ] **FCM-1.1-121 -- Decide whether CMS Registration uses Referral Number for its attachment step.** Uncovered by FCM-1.1-118: determine the authoritative identifier and verify the attachment selection boundary; no portal action or new attachment matching is authorized by extraction alone.
+- [ ] **FCM-1.1-122 -- Verify the revised FIELD_ONLY_PROMPT with live Opus.** Uncovered by FCM-1.1-119: on separately authorized synthetic input, compare actual model response with deterministic parsing and keep results out of Git; offline replay is not live model evidence.
+- [ ] **FCM-1.1-123 -- Decide whether to re-enable the incomplete ICD-10-CM review flag.** Uncovered by FCM-1.1-117: the owner set FLAG_INCOMPLETE_ICD10 to False; approve the intended criteria and false-positive behavior before enabling it and add synthetic checks.
+
 ## Completed
 
 `FCM-1.1-73` is also archived after the owner confirmed first-result selection and the bounded live attempt verified that selection. `FCM-1.1-74` records the rebuilt v1.0.7 artifact, packaged checks and source correspondence; actual publication is recorded in GitHub releases. `FCM-1.1-72` remains active and blocked because the first task's customer does not match the approved workbook row; no task mutation or tracking occurred.

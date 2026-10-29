@@ -16,6 +16,8 @@ verified_at: b47ced0 (2026-10-28)
 | **CMS** | The case management web portal, run in Internet Explorer mode in Edge with IEDriver | No expansion given in the BRD or code |
 | **Unity** | The portal where the referral's task and CMS case are created and completed (Chrome) | Name only |
 | **Bedrock** | AWS Bedrock, hosting the extraction model (default `openai.gpt-oss-120b`) | Confirmed (code) |
+| **AI PDF Analyzer** | The owner's name for the referral-extraction **modular process**, which is the `AI/` folder itself. Its stand-alone app is the AI PDF Reader / FCM Workbench; Final Code embeds it. See [[code/ai-shared-modules]] | Confirmed (owner, 2026-10-30) |
+| **ICD-10-CM** | The US standard diagnosis code set (CDC/NCHS and CMS). The Analyzer checks codes against the FY2027 list. *Invalid* = not in the list; *incomplete* = a real category that isn't billable, flag currently switched off | Confirmed (code) |
 
 ## Business terms
 
