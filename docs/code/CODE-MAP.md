@@ -60,6 +60,7 @@ Shared business rules live in `AI/`. Portal automation that hasn't been migrated
 
 - [[FINAL-CODE-FLOW]] is the detailed walkthrough of the Final Code operator journey and its exits.
 - [[cms-registration/INVESTIGATION]] covers the investigation behind the CMS Registration module.
+- [[cem/INVESTIGATION]] covers the CEM (Employer Request Add) investigation and the planned `Processes/CEM/` module.
 - [[process-wizard/INVESTIGATION]] holds the parked Process Wizard rules (recall word "JARVIS").
 - [[INSTRUCTIONS]] and [[completed]] are the backlog and its archive (IDs `FCM-1.1-NN`).
 

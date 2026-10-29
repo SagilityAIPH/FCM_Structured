@@ -7,11 +7,11 @@ verified_at: b47ced0 (2026-10-28)
 
 **Summary.** All automated tests are **synthetic and offline**: fake drivers, fake desktops, fake databases and made-up referrals. They prove the control flow, the business rules and the packaging. They **don't** prove live RRS, CMS, Unity, Bedrock or database behaviour. Run everything from the repo root with `.venv-bedrock/Scripts/python.exe` (`python3` isn't installed). Never use real referrals, `Samples for AI/` or `Output/` as fixtures.
 
-## Suites and results (run 2026-10-28 at `b47ced0`)
+## Suites and results (re-run 2026-10-30 at `9774a34`; smoke, scenarios and front end last run 2026-10-28 at `b47ced0`)
 
 | Suite | Command (from the repo root) | Result |
 | --- | --- | --- |
-| Main unit (`tests/unit`, 33 files) | `.venv-bedrock/Scripts/python.exe -m pytest tests/unit -q -p no:cacheprovider` | 579 passed, 1 skipped, 82 subtests |
+| Main unit (`tests/unit`, 36 files) | `.venv-bedrock/Scripts/python.exe -m pytest tests/unit -q -p no:cacheprovider` | 663 passed, 1 skipped, 82 subtests |
 | Smoke (`tests/smoke`) | `… -m pytest tests/smoke -q -p no:cacheprovider` | 1 passed |
 | Subject Line Builder standalone | `… -m unittest discover -s Processes/SubjectLineBuilder/Stand-Alone -p "test_*.py"` | 70 OK |
 | CMS Registration core | `… -m unittest discover -s Processes/CMS-Registration/Deploy-Ready -p "test_*.py"` | 39 OK |
@@ -23,7 +23,7 @@ verified_at: b47ced0 (2026-10-28)
 
 ## What the main unit suite covers (`tests/unit`)
 
-The AI pipeline (`test_referral_schema`, `test_source_evidence`, `test_field_review*`, `test_provider_*`, `test_injury_classification`, `test_address_enrichment`, `test_appointment_display`, `test_document_sections`). Persistence (`test_daily_output`, `test_referral_json*`, `test_secret_store`). The Reader (`test_workbench`, `test_bedrock_*`). Final Code (`test_final_code_*`: adapters, app, audit, orchestrator, package). CMS plumbing (`test_cms_*`). Configuration (`test_config_paths`, `test_local_settings`, `test_legacy_loader`). Unity's controller (`test_unity_flow`).
+The AI pipeline (`test_referral_schema`, `test_source_evidence`, `test_field_review*`, `test_provider_*`, `test_injury_classification`, `test_address_enrichment`, `test_appointment_display`, `test_document_sections`). Persistence (`test_daily_output`, `test_referral_json*`, `test_secret_store`). The Reader (`test_workbench`, `test_bedrock_*`). Final Code (`test_final_code_*`: adapters, app, audit, orchestrator, package). CMS plumbing (`test_cms_*`). Configuration (`test_config_paths`, `test_local_settings`, `test_legacy_loader`). Unity's controller (`test_unity_flow`). Added 2026-10-30 from the 50-sample review: `test_sample_provider_regressions`, `test_sample_special_regressions`, `test_icd10_validation`, `test_referral_number` (all synthetic values).
 
 ## Known test-harness issues (observed, not fixed)
 

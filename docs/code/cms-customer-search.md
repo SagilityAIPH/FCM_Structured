@@ -19,7 +19,7 @@ verified_at: b47ced0 (2026-10-28)
 | Goodyear/Cooper Tire with an **open TCM** case | notify the manual instruction → `stopped / tire_customer_open_tcm` | `:20-31` |
 | Open or closed cases found | notify the list → operator confirms; declining gives `stopped / user_declined` | `:34-39` |
 | No cases | notify "No Open or Closed Cases Found in CMS", then continue to the customer check | `:41` |
-| Customer unresolved, or handed off to CEM | `stopped / customer_unresolved_or_cem` | `:46` |
+| Customer unresolved, or handed off to CEM | `stopped / customer_unresolved_or_cem` (see [[cem/INVESTIGATION]]) | `:46` |
 | Otherwise | `completed`, with the resolved `customer` | `:13,49` |
 
 ## Live wiring
@@ -50,4 +50,5 @@ EXE: `dist/CMSCustomerSearch.exe` from `CMSCustomerSearch.spec` + `build.ps1`; t
 ## Open questions
 
 - CEM targets the UAT portal (FCM-1.1-66 in [[INSTRUCTIONS]]).
+- The live customer check runs legacy CEM **inside itself** when the operator answers Yes to "Do you need to complete CEM?" (`legacy_customerchecker.py:743-755`), then stops. Replacing that with a structured handoff to the planned `Processes/CEM/` app is FCM-1.1-127 ([[cem/INVESTIGATION]]).
 - AI-based customer matching and the alternative stop/filter rules from the proposal table are not enabled (`Processes/Reopen-Check/README.md`).

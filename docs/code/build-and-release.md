@@ -7,15 +7,15 @@ verified_at: b47ced0 (2026-10-28)
 
 **Summary.** Every desktop app is a one-file PyInstaller EXE. Each build script compiles its React front end **in place**, runs PyInstaller, self-tests the candidate EXE and writes a SHA-256 sidecar. Output goes to the git-ignored `dist/`. Releases are GitHub releases, one tag family per app. **Build or release only on the owner's signal.**
 
-## Apps, builds and the latest releases (checked 2026-10-28)
+## Apps, builds and the latest releases (checked 2026-10-30)
 
 | App | EXE | Spec + build script | Tag family | Latest | Release assets |
 | --- | --- | --- | --- | --- | --- |
-| AI PDF Reader | `AI-FCM-Workbench.exe` | `AI/workbench/workbench.spec`, `AI/workbench/build.ps1` | `workbench-v*` | v1.1.1 | EXE, `SHA256SUMS.txt` |
-| Final Code | `FinalCode.exe` | `Final Code/final_code.spec`, `Final Code/build.ps1` | `finalcode-v*` | v1.0.9 | EXE, `FinalCode.exe.sha256` |
+| AI PDF Reader | `AI-FCM-Workbench.exe` | `AI/workbench/workbench.spec`, `AI/workbench/build.ps1` | `workbench-v*` | v1.2.0 (GitHub **Latest**) | EXE, `SHA256SUMS.txt` |
+| Final Code | `FinalCode.exe` | `Final Code/final_code.spec`, `Final Code/build.ps1` | `finalcode-v*` | v1.0.10 | EXE, `FinalCode.exe.sha256` |
 | CMS Customer Search | `CMSCustomerSearch.exe` | `Processes/Reopen-Check/Stand-Alone/CMSCustomerSearch.spec`, `build.ps1` | `cmscustomersearch-v*` | v1.1.0 | EXE, portable zip, a `.sha256` for each |
 | Subject Line Builder | `SubjectLineBuilder.exe` | `Processes/SubjectLineBuilder/Stand-Alone/subject_line_builder.spec`, `build.ps1` | `subjectlinebuilder-v*` | v1.1.1 | EXE, `SubjectLineBuilder.sha256`, `SubjectLineBuilder-Input.xlsx` |
-| Unity Assignment | `UnityAssignment.exe` | `Processes/Unity/Stand-Alone/unity_assignment.spec`, `build.ps1` | `unityassignment-v*` | v1.0.13 (GitHub **Latest**) | EXE, `.sha256` |
+| Unity Assignment | `UnityAssignment.exe` | `Processes/Unity/Stand-Alone/unity_assignment.spec`, `build.ps1` | `unityassignment-v*` | v1.0.13 | EXE, `.sha256` |
 | CMS Registration | `CMSRegistration.exe` | `Processes/CMS-Registration/Stand-Alone/cms_registration.spec`, `build.ps1` | `cmsregistration-v*` | v1.0.0 | EXE, `.sha256` |
 | Native Bedrock reader (older) | `AI-FCM-Bedrock-Runtime.exe` | `AI/bedrock.spec` | `bedrock-runtime-v*` | v1.5.6 | EXE, CMSCustomerSearch.exe, `SHA256SUMS.txt` |
 

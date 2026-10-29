@@ -32,7 +32,7 @@ verified_at: b47ced0 (2026-10-28)
 | `legacy_unity.py` | 1,647 | Unity portal automation: `validate_and_complete_task:329`, defined fields, flags | Unity Assignment |
 | `legacy_customerchecker.py` | 972 | CMS customer search and name matching (`SearchCustomerFirstWord:297`) | CMS Customer Search, through `workflows/customer_checker` |
 | `legacy_reopencheck.py` | 640 | CMS re-open case check (`MainReopenCheck:606`, `ValidateCaseNumber:423`) | CMS Customer Search, through `workflows/reopen_check` |
-| `legacy_cem.py` | 420 | CEM employer request (`employerSearch:51`, `custSearch:162`) and the **daily CEM workbook** helpers (`get_excel_path:302`, `get_today_sheet_name:309`, `add_claim_record:385`) | Customer check's CEM branch (`legacy_customerchecker.py:750-754` calls `legacy_cem.main`). It targets **UAT** ([[process-wizard/W1-employer-and-cem]]) |
+| `legacy_cem.py` | 420 | CEM employer request (`employerSearch:51`, `custSearch:162`) and the **daily CEM workbook** helpers (`get_excel_path:302`, `get_today_sheet_name:309`, `add_claim_record:385`) | Customer check's CEM branch (`legacy_customerchecker.py:750-754` calls `legacy_cem.main`). It targets **UAT** ([[process-wizard/W1-employer-and-cem]]). Defects and the planned `Processes/CEM/` module: [[cem/INVESTIGATION]] (FCM-1.1-124 to 130); keep this file unedited |
 | `legacy_googlesearch.py` | 1,067 | Google SERP / knowledge-panel provider lookup with a cache | `legacy_fcm.py:30`; SLB `legacy_steps.py:739` (`find_provider_address`), which Final Code's earlier completeness gate often skips |
 | `legacy_providerresultchecker.py` | 371 | Provider address and phone matching | Imported by `CMS.py:30` and `legacy_fcm.py:27`; duplicated in SLB `provider_match.py` |
 

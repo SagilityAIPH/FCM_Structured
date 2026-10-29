@@ -41,7 +41,7 @@ Final Code launches the **AI PDF Reader front end** in `memory_only` mode: there
 
 ## Build and release
 
-`Final Code/build.ps1` + `final_code.spec` → `dist/FinalCode.exe` plus `FinalCode.exe.sha256`. Tag family `finalcode-v*`; latest is `finalcode-v1.0.9`. The spec bundles the legacy scripts that are loaded at runtime (`legacy_fcm.py` for the SLB runtime) and the SLB `Deploy-Ready` files. See [[code/build-and-release]].
+`Final Code/build.ps1` + `final_code.spec` → `dist/FinalCode.exe` plus `FinalCode.exe.sha256`. Tag family `finalcode-v*`; latest is `finalcode-v1.0.10` (2026-10-30: shared extraction rules, ICD-10-CM checks and `referralNumber`). The spec bundles the legacy scripts that are loaded at runtime (`legacy_fcm.py` for the SLB runtime) and the SLB `Deploy-Ready` files. See [[code/build-and-release]].
 
 ## Boundaries not to cross without the owner
 

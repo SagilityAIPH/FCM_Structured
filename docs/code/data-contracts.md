@@ -49,6 +49,10 @@ One workbook per day under the output folder, with a lock file. The Reader write
 
 Since 2026-10-30 the workbook is **schema version 4**. **Referral Number** is appended as the **last** Referrals column, stored as text, because some code reads the first columns by position. A version-3 workbook is migrated without moving its existing columns. A **Review Flags** sheet records the non-blocking review flags, including ICD-10-CM and 2099-placeholder flags. Downstream readers use header names, so the new column doesn't break them.
 
+## 9. Daily CEM log (legacy `FCM CEM Checher.xlsx`)
+
+Written by `legacy_cem.add_claim_record` (`legacy_cem.py:385-409`) and read by CMS Registration (`CMS.py:1915-1965`, via `cms_steps.py:815-842`). One sheet per day named `MMDDYYYY`, headers **Claimant | Claim ID | Status**. A row means *a CEM request was started*, not that it was submitted or approved: Status is always blank. **Key mismatch:** the writer puts the PDF Claim ID in column B, but the reader compares it with the claim number. Owner decision (2026-10-30) for the planned `Processes/CEM/` module: column B = claim number plus a new Claim ID column, written only after the request is read back from the portal (FCM-1.1-125/126, [[cem/INVESTIGATION]]).
+
 ## Related
 
 [[code/architecture]] · [[code/final-code]] · [[code/cms-registration]] · [[code/unity-assignment]]

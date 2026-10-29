@@ -2,7 +2,7 @@
 tags: [code, ai, shared, module, ai-pdf-analyzer]
 aliases: [AI PDF Analyzer, AI PDF Analyzer module]
 sources: [AI/bedrock_core.py, AI/bedrock_runtime.py, AI/referral_schema.py, AI/source_evidence.py, AI/field_review.py, AI/referral_json.py, AI/daily_output.py, AI/injury_classification.py, AI/referral_number.py, AI/icd10.py, AI/provider_evidence.py, AI/provider_records.py, AI/appointment_rules.py]
-verified_at: b47ced0 (2026-10-28); module identity and the 2026-10-30 rules checked against the uncommitted working tree on 01e94b4
+verified_at: b47ced0 (2026-10-28); module identity and the 2026-10-30 rules checked at 9774a34 (released in workbench-v1.2.0 / finalcode-v1.0.10)
 ---
 # AI PDF Analyzer module (`AI/`)
 
@@ -94,7 +94,7 @@ The owner reviewed 50 Opus extractions of owner-confirmed synthetic samples. Fee
 - **Diagnosis codes.** Spine levels (T12, L4-L5, C5) are never codes. Codes are copied exactly as printed and checked against ICD-10-CM: **invalid** codes and codes that **couldn't be checked** are flagged. The **incomplete** flag (a real but non-billable category, such as M54.5) is switched off for now by owner request; set `FLAG_INCOMPLETE_ICD10 = True` in `AI/field_review.py` to turn it back on. Codes are never changed.
 - **Referral Number.** A new optional field, read straight from the page-1 header. The form value wins over the model, and a model disagreement gets a review flag. With no label on page 1 it's `Not found`, even if the model guesses a number.
 
-Still pending owner decisions: whether a doctor named only in the clinical objective ("please set up an appointment with …") counts as a provider; whether CMS Registration's attachment step should use the Referral Number. None of this reaches users until the Reader and Final Code EXEs are rebuilt. The long-form rule log is `AI/EXTRACTION_RULES.md` (outside the vault).
+Still pending owner decisions: whether a doctor named only in the clinical objective ("please set up an appointment with …") counts as a provider; whether CMS Registration's attachment step should use the Referral Number. Released 2026-10-30 in `workbench-v1.2.0` (AI PDF Reader) and `finalcode-v1.0.10` (Final Code), both built from `9774a34` (FCM-1.1-131). Verified by unit suites and synthetic self-tests only; no live RRS, CMS or Opus run. The long-form rule log is `AI/EXTRACTION_RULES.md` (outside the vault).
 
 ## Related
 

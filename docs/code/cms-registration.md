@@ -25,7 +25,7 @@ verified_at: b47ced0 (2026-10-28)
 | --- | --- |
 | START | Valid claim number, claimant names, referral type `Medical`/`Vocational` → else `stopped / invalid_request` |
 | CASE | CMS search by claim. Keep candidates of the matching type, then require the operator-given case ID (`case_not_confirmed`) or a unique latest assigned date (`no_matching_case`, `case_ambiguous`) |
-| DATA | Stored procedure `RRS_Sagility_Details_Lookup` (via legacy `fetch_case_data_from_db`, `CMS.py:112`). CEM comes from the request, or from the legacy daily CEM checker. If neither is available → `cem_status_unknown` |
+| DATA | Stored procedure `RRS_Sagility_Details_Lookup` (via legacy `fetch_case_data_from_db`, `CMS.py:112`). CEM comes from the request, or from the legacy daily CEM checker. If neither is available → `cem_status_unknown`. Caution: legacy CEM logs the PDF **Claim ID** in column B while this reader matches the **claim number**, so a real request can be missed (FCM-1.1-126, [[cem/INVESTIGATION]]) |
 | REVIEW | Operator approves the case and data; declining → `cancelled / operator_cancelled` |
 | CMS_SETUP | The per-tab steps below. Any `failed` step → `cms_step_failed`, and registration is not attempted |
 | COMPLETE_REG | RRS `btnReg` → option `3` (normal) or `10` (CEM, with an extra operator confirmation) → Case Id typed in and read back. Only then `completed / registered`, otherwise `registration_not_verified` |

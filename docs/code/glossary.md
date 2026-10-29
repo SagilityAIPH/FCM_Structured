@@ -27,7 +27,7 @@ verified_at: b47ced0 (2026-10-28)
 | **SCAH** | Serious Case After Hours. Out of scope for the BOT | Confirmed (BRD 01) |
 | **NCM** | Nurse Case Manager (`NCM`, `Nurse Case Manager E-mail Address` fields); assigned in Unity after approval since v1.0.13 | Confirmed (code) |
 | **FCM** | The repo and product name (FCM Intake). The BRD refers to a requested "field case manager" | Likely Field Case Management/Manager; unconfirmed |
-| **CEM** | The **Employer Request Add** process, run when the employer isn't found in CMS (BRD 11: "Employer Request Add (CEM)"). Code: `legacy_cem.py` plus a daily CEM checker workbook | Process confirmed; acronym not expanded |
+| **CEM** | The **Employer Request Add** process, run when the employer isn't found in CMS (BRD 11: "Employer Request Add (CEM)"). Code: `legacy_cem.py` plus a daily CEM checker workbook. Module plan: [[cem/INVESTIGATION]] | Process confirmed; acronym not expanded |
 | **CMU** | The team or process that completes the employer add after a CEM request (BRD 11, slides 122–123); Complete Registration uses option `10` | Role from the BRD; no expansion given |
 | **C02283** | The Oracle code for the Bill To customer "Liberty Mutual Commercial Market" | Confirmed (BRD 10) |
 | **CPD ERFS** | A letter item on the CMS Letters tab that registration configures; the BRD also asks for an *additional* ERFS | No expansion given |

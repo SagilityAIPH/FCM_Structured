@@ -14,7 +14,7 @@ verified_at: b47ced0 (2026-10-28)
 | Front end | `AI/workbench/frontend/src/` (`App.tsx`; components `FieldForm`, `CmsSection`, `LivePrompt`, `PdfPreview`, `SettingsForm`, `StatusBadge`) |
 | Window | 480 × 900 logical, minimum height 600, fixed width, compact mode (`window_layout.py:3-5`) |
 | Saved secrets | DPAPI-encrypted, opt-in, for the current Windows user only: `%LOCALAPPDATA%/FCM_Structured/credentials` (`secret_store.py:24`). Holds the Bedrock key and model, and CMS sign-in for Final Code |
-| EXE | `dist/AI-FCM-Workbench.exe` from `AI/workbench/build.ps1` + `workbench.spec`; tag family `workbench-v*` (latest `workbench-v1.1.1`) |
+| EXE | `dist/AI-FCM-Workbench.exe` from `AI/workbench/build.ps1` + `workbench.spec`; tag family `workbench-v*` (latest `workbench-v1.2.0`, 2026-10-30, GitHub **Latest**) |
 
 ## Bridge API (`WorkbenchAPI`, `AI/workbench/backend.py`)
 
