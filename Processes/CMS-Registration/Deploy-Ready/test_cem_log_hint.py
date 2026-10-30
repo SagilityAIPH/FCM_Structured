@@ -14,7 +14,7 @@ import sys
 import tempfile
 import types
 import unittest
-from unittest.mock import patch
+from unittest.mock import MagicMock, Mock, patch
 
 from openpyxl import Workbook
 
@@ -99,6 +99,9 @@ class FakeDesktop:
 
 
 class FakeDriver:
+    def set_page_load_timeout(self, timeout):
+        pass
+
     def get(self, url):
         pass
 
@@ -151,14 +154,25 @@ class CemLogHintTests(unittest.TestCase):
         settings = {"cms_db_connection": "synthetic-db", "reference_dir": self.folder.name,
                     "cms_user": "synthetic-user", "cms_password": "synthetic-password",
                     "notify": lambda *args: None, "confirm": confirm, **extra}
-        by = types.ModuleType("selenium.webdriver.common.by")
-        by.By = types.SimpleNamespace(ID="id")
-        modules = {"selenium": types.ModuleType("selenium"),
-                   "selenium.webdriver": types.ModuleType("selenium.webdriver"),
-                   "selenium.webdriver.common": types.ModuleType("selenium.webdriver.common"),
-                   "selenium.webdriver.common.by": by}
+        names = (
+            "selenium", "selenium.common", "selenium.common.exceptions",
+            "selenium.webdriver", "selenium.webdriver.common", "selenium.webdriver.common.by",
+            "fcm_intake", "fcm_intake.cms",
+            "fcm_intake.cms.security_warning", "fcm_intake.cms.session",
+        )
+        modules = {name: types.ModuleType(name) for name in names}
+        modules["selenium.webdriver.common.by"].By = types.SimpleNamespace(ID="id")
+        modules["selenium.common.exceptions"].TimeoutException = type("TimeoutException", (Exception,), {})
+        warning = modules["fcm_intake.cms.security_warning"]
+        warning.snapshot_browser_windows = Mock(return_value={101})
+        warning.new_browser_window = Mock(return_value=types.SimpleNamespace(handle=202))
+        certificate = MagicMock(proceeded=False)
+        certificate.__enter__.return_value = certificate
+        warning.CmsCertificateMonitor = Mock(return_value=certificate)
+        modules["fcm_intake.cms.session"].authenticate_cms = Mock()
         with patch.dict(sys.modules, modules), patch.object(S, "_legacy", return_value=legacy), \
              patch.object(S, "_local_cem_log_path", return_value=local_path), \
+             patch.object(S, "_element", return_value=Mock()), \
              patch.object(S, "_type"), patch.object(S, "_click"):
             live = S.open_live_session(settings)
             try:

@@ -43,12 +43,14 @@ datas += collect_data_files('selenium')
 hiddenimports = ['run', 'backend', 'smoke', 'contract', 'cms_registration_flow', 'cms_steps', 'cms_rules',
                  'selenium', 'pywinauto', 'openpyxl', 'webview',
                  'fcm_intake.config', 'fcm_intake.legacy_loader',
+                 'fcm_intake.cms.security_warning', 'comtypes',
                  'fcm_intake.legacy.CMS', 'fcm_intake.legacy.legacy_fcm', 'fcm_intake.legacy.legacy_unity',
                  'legacy.CMS', 'legacy.legacy_providerresultchecker', 'legacy.legacy_googlesearch',
                  'webview.platforms.edgechromium', 'pyodbc', 'pythoncom', 'edge_auto', 'dotenv',
                  'dateutil.relativedelta', 'titlecase', 'office_matrix', 'rrs_ui', 'provider_match',
-                 'body_part', 'injury_match', 'AI.unity_browser', 'AI.rrs_assignment']
-for package in ('selenium.webdriver', 'pywinauto', 'webview'):
+                 'body_part', 'injury_match', 'AI.unity_browser', 'AI.rrs_assignment',
+                 'AI.cms_registration_excel', 'AI.cms_office_matrix']
+for package in ('selenium.webdriver', 'pywinauto', 'comtypes', 'webview'):
     hiddenimports += collect_submodules(package)
 a = Analysis([str(base / 'launcher.py')],
              pathex=[str(base), str(base.parent / 'Deploy-Ready'), str(repo), str(repo / 'src'), str(repo / 'src/fcm_intake'), str(legacy), str(shared)],

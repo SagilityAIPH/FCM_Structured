@@ -1,6 +1,9 @@
 """Scenario and controller-spec tests; unique module import names."""
 import importlib.util
+import os
 from pathlib import Path
+import subprocess
+import sys
 import unittest
 from unittest.mock import Mock
 
@@ -48,6 +51,16 @@ class ScenarioTests(unittest.TestCase):
         from io import StringIO
         with redirect_stdout(StringIO()):
             self.assertEqual(runner.main(['--all-scenarios']), 0)
+
+    def test_explicit_offline_self_test_runs_outside_repo_without_pythonpath(self):
+        environment = dict(os.environ)
+        environment.pop('PYTHONPATH', None)
+        result = subprocess.run(
+            [sys.executable, str(HERE / 'run.py'), '--self-test'],
+            cwd=HERE, env=environment, capture_output=True, text=True, timeout=30)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn('Scenarios: 14/14 passed', result.stdout)
+        self.assertIn('Smoke: PASS', result.stdout)
 
 
 if __name__ == '__main__':

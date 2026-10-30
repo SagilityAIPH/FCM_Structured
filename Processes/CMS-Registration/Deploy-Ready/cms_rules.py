@@ -1,6 +1,7 @@
 """Pure CMS registration decisions; no database, workbook, or portal imports."""
 from datetime import date
 import re
+from AI.cms_office_matrix import office_lookup, resolve_office
 
 
 def select_case(candidates, request):
@@ -95,27 +96,6 @@ def supervisor_lookup(rows, case_prefix, branch_name=""):
                 if len(row) > 1 and str(row[0] or "").strip().casefold() == key.casefold() and row[1]:
                     return str(row[1]).strip()
     return ""
-
-
-def office_lookup(rows, office_number):
-    """CMS.py:790-891: read already-loaded office row blocks (A/G/H).
-
-    Legacy's primary sheet matches a substring and may overwrite an earlier
-    match; return its last matched block for parity. Caller must verify against
-    the actual CMS address.
-    """
-    physical, mailing, collecting = [], [], False
-    for row in rows:
-        office = str(row[0] or "").strip() if row else ""
-        if office:
-            collecting = bool(office_number) and str(office_number).upper() in office.upper()
-            if collecting:
-                physical, mailing = [], []
-        if collecting:
-            for column, target in ((6, physical), (7, mailing)):
-                if len(row) > column and row[column]:
-                    target.append(str(row[column]).strip())
-    return (" ".join(physical).lower(), " ".join(mailing).lower())
 
 
 def provider_search_plan(provider):

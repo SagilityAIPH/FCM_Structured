@@ -1,7 +1,7 @@
 """Phase 0 shared CMS Registration interface; no portal or database side effects.
 
 Phase 1 implements cms_registration_flow.run_flow(request, *, stages,
-on_stage=None, on_step=None) -> dict and cms_steps.open_live_session(settings)
+on_stage=None, on_step=None, preview_only=False) -> dict and cms_steps.open_live_session(settings)
 -> LiveSession. Phase 2 consumes both in its independent operator app.
 
 The controller result dict always has ``outcome`` (one of OUTCOMES), ``reason``
@@ -12,6 +12,9 @@ dicts), ``steps`` (StepResult dicts), ``registration`` (completion dict or None)
 (a dict containing stage, type and message, or None). Completion is not proven
 merely by invoking a callback: live adapters must verify identities and
 readback before reporting success.
+
+``preview_only=True`` stops with ``stopped / preview_only`` after REVIEW,
+without invoking CMS_SETUP or COMPLETE_REG; it does not fill CMS fields.
 """
 
 from dataclasses import dataclass
@@ -23,7 +26,7 @@ OUTCOMES = ("completed", "stopped", "cancelled", "failed")
 REASONS = (
     "invalid_request", "case_not_confirmed", "no_matching_case", "case_ambiguous",
     "cem_status_unknown", "operator_cancelled", "cms_step_failed",
-    "registration_not_verified", "exception", "registered",
+    "registration_not_verified", "exception", "registered", "preview_only",
 )
 
 

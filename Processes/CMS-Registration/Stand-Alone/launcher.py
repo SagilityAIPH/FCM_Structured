@@ -3,7 +3,7 @@ from pathlib import Path
 import sys
 
 
-def main(*, live=False):
+def main(*, live=True):
     import webview
     from backend import CMSRegistrationAPI
     root = Path(sys._MEIPASS) if getattr(sys, 'frozen', False) else Path(__file__).resolve().parents[3]
@@ -13,6 +13,7 @@ def main(*, live=False):
     api = CMSRegistrationAPI(live=live)
     window = webview.create_window('CMS Registration · FCM Workbench', str(index), js_api=api,
                                    width=640, height=900, min_size=(480, 600), background_color='#f6f8fb')
+    api._window = window
     def closing():
         if api.get_state()['busy']:
             window.create_confirmation_dialog('Registration in progress', 'Finish pending actions before closing.')

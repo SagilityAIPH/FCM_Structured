@@ -23,9 +23,10 @@ def _load_rules():
 select_case = _load_rules().select_case
 
 
-def run_flow(request, *, stages, on_stage=None, on_step=None) -> dict:
+def run_flow(request, *, stages, on_stage=None, on_step=None, preview_only=False) -> dict:
     """Run START→CASE→DATA→REVIEW→CMS_SETUP→COMPLETE_REG, returning all result keys.
 
+    Preview stops after REVIEW, before any setup or registration callback.
     Exception and SystemExit, including callback failures, become structured
     failure at the active stage. KeyboardInterrupt is deliberately not caught.
     """
@@ -42,6 +43,8 @@ def run_flow(request, *, stages, on_stage=None, on_step=None) -> dict:
 
     try:
         begin("START")
+        if type(preview_only) is not bool:
+            raise TypeError("preview_only must be boolean")
         problems = request.validate()
         if problems:
             result.update(outcome="stopped", reason="invalid_request", problems=list(problems))
@@ -76,6 +79,10 @@ def run_flow(request, *, stages, on_stage=None, on_step=None) -> dict:
             result.update(outcome="cancelled", reason="operator_cancelled")
             return result
         finished()
+
+        if preview_only:
+            result.update(outcome="stopped", reason="preview_only")
+            return result
 
         begin("CMS_SETUP")
         def forward(step):
