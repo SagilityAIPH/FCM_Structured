@@ -64,6 +64,78 @@ class RulesTests(unittest.TestCase):
         more = dict(type="facility", name="Another Fake Clinic", phone="5552222")
         self.assertEqual(R.providers_to_add([facility, more, more], [facility]), [more])
 
+    def test_office_matrix_primary_blocks_take_precedence(self):
+        sheets = {
+            "Liberty and Middle Market": [()] * 5 + [
+                ("123", "", "", "", "", "", "10 Synthetic St", "PO Box 42"),
+                ("", "", "", "", "", "", "Synthetic City, TX 75001", "Synthetic City, TX 75001"),
+                ("other", "", "", "", "", "", "Unrelated", "Unrelated")],
+            "LM Physical Address": [(), ("123", "", "", "", "", "Fallback")],
+            "Manual Tracking LM Claim Office": [("123 - Later fallback",)]}
+        self.assertEqual(R.resolve_office(sheets, "123"),
+                         ("10 synthetic st synthetic city, tx 75001",
+                          "po box 42 synthetic city, tx 75001"))
+        # The old pure entry point keeps its last-block behavior for callers;
+        # the conservative resolver rejects duplicates instead.
+        rows = [("123", "", "", "", "", "", "First", "First"),
+                ("123", "", "", "", "", "", "Last", "Last")]
+        self.assertEqual(R.office_lookup(rows, "123"), ("last", "last"))
+        sheets["Liberty and Middle Market"] = [()] * 5 + rows
+        with self.assertRaises(ValueError):
+            R.resolve_office(sheets, "123")
+
+    def test_office_matrix_fallbacks_normalize_and_keep_addresses_identical(self):
+        address = "10 Synthetic St,\r\n Synthetic City, TX 75001"
+        manual = {"Manual Tracking LM Claim Office": [
+            ("Office identifier and address",), (), ("unrelated",),
+            ("999 - 123 Synthetic St, Synthetic City, TX 75001",),
+            ("123 — " + address,)]}
+        for separator in ("-", "–", "—"):
+            manual["Manual Tracking LM Claim Office"][-1] = ("123 " + separator + " " + address,)
+            with self.subTest(separator=separator):
+                self.assertEqual(R.resolve_office(manual, "123"),
+                                 ("10 synthetic st, synthetic city, tx 75001",) * 2)
+        manual["Liberty and Middle Market"] = [()] * 5 + [("999",)]
+        manual["LM Physical Address"] = [(), ("123", "", "", "", "", address)]
+        self.assertEqual(R.resolve_office(manual, 123),
+                         ("10 synthetic st, synthetic city, tx 75001",) * 2)
+        # Only the first dash separates identifier from address.
+        self.assertEqual(R.resolve_office(
+            {"Manual Tracking LM Claim Office": [("123 - 10 Synthetic-St, City, TX 75001",)]}, "123"),
+            ("10 synthetic-st, city, tx 75001",) * 2)
+
+    def test_office_matrix_never_matches_manual_address_digits_or_normalizes_ids(self):
+        sheets = {"Manual Tracking LM Claim Office": [
+            ("999 - 123 Synthetic St, Synthetic City, TX 75001",)]}
+        for identifier in ("123", "00123"):
+            with self.subTest(identifier=identifier), self.assertRaises(ValueError):
+                R.resolve_office(sheets, identifier)
+        sheets["Manual Tracking LM Claim Office"] = [("123 - Synthetic address",)]
+        with self.assertRaises(ValueError):
+            R.resolve_office(sheets, "00123")
+
+    def test_office_matrix_ambiguity_and_malformed_matches_do_not_fall_through(self):
+        lower = {"Manual Tracking LM Claim Office": [("123 - Valid synthetic address",)]}
+        cases = [
+            {"Liberty and Middle Market": [()] * 5 + [("123",), ("123",)]},
+            {"Liberty and Middle Market": [()] * 5 + [("123",)]},
+            {"Liberty and Middle Market": [()] * 5 + [("123", "", "", "", "", "", 42, "Mail")]},
+            {"LM Physical Address": [(), ("123",)]},
+            {"LM Physical Address": [(), ("123", "", "", "", "", " "), ("123",)]},
+            {"LM Physical Address": [(), ("123", "", "", "", "", 42)]},
+            {"LM Physical Address": None},
+            {"Manual Tracking LM Claim Office": [("123",)]},
+            {"Manual Tracking LM Claim Office": [("123 - ",)]},
+            {"Manual Tracking LM Claim Office": [("123 - Same",), ("123 - Same",)]},
+        ]
+        for invalid in cases:
+            with self.subTest(invalid=invalid), self.assertRaises(ValueError) as error:
+                R.resolve_office(dict(lower, **invalid), "123")
+            self.assertNotIn("123", str(error.exception))
+        for missing in ({}, None, {"LM Physical Address": [(), ("999",)]}):
+            with self.subTest(missing=missing), self.assertRaises(ValueError):
+                R.resolve_office(missing, "123")
+
     def test_attachment_option(self):
         subject = R.attachment_subject("Synthetic referral", "SYN-0001")
         self.assertEqual(subject, "Synthetic referral - SYN-0001")

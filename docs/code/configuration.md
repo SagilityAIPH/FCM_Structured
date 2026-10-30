@@ -33,8 +33,8 @@ verified_at: b47ced0 (2026-10-28)
 
 | Name | Purpose | Read at |
 | --- | --- | --- |
-| `FCM_RRS_DB_CONNECTION` | Unity **tracking** INSERT (assignment log) | `config.get_rrs_db_connection:38` |
-| `FCM_CMS_DB_CONNECTION` | CMS Registration **stored procedure** lookup. Deliberately separate from the tracking setting; whether they're the same database is unconfirmed | `Processes/CMS-Registration/Stand-Alone` → `cms_steps` settings |
+| `FCM_RRS_DB_CONNECTION` | Unity **tracking** INSERT; also explicitly authorized for CMS Registration's RRS-mode stored-procedure lookup on 10/29/2026; not required for Excel setup mode | `config.get_rrs_db_connection:38`; Registration `Stand-Alone/backend.py` |
+| `FCM_CMS_DB_CONNECTION` | CMS connection used by other CMS workflows; not the Registration lookup source or fallback | Existing CMS consumers; Registration RRS mode requires the RRS setting; Excel mode uses neither DB setting |
 | `FCM_CMS_REFERENCE_DIR` | The folder holding the Claims Office Matrix and Dedicated Supervisor Mapping for CMS Registration | same |
 | `FCM_LM_MATRIX` | Claims Office Matrix path for the SLB adjuster lookup | `Processes/SubjectLineBuilder/Deploy-Ready/office_matrix.py:258` |
 | `OPENAI_API_KEY` | Bedrock key (OpenAI-compatible endpoint) when none is typed in the app | `AI/bedrock_core.py:28` |
@@ -51,7 +51,7 @@ verified_at: b47ced0 (2026-10-28)
 | Final Code | Attended prompt; optional DPAPI save; a rejected saved pair is erased | as the Reader |
 | CMSCustomerSearch | Form or prompt; env defaults above | — |
 | Unity Assignment | Attended manual sign-in pause for Unity; DB from `FCM_RRS_DB_CONNECTION` | — |
-| CMS Registration | Prompted **every run**, memory only, never in state, logs or reports | — |
+| CMS Registration | UI fields or per-run prompt; optional env prefill, memory only; never in run state/results | — |
 | Legacy app | `BotContext` from the CustomTkinter login fields → `cms/session.set_credentials` | — |
 
 **DPAPI store** (`AI/workbench/secret_store.py:24`): `%LOCALAPPDATA%/FCM_Structured/credentials`, encrypted for the current Windows user. It doesn't protect against other code running as that same user.
@@ -68,4 +68,4 @@ verified_at: b47ced0 (2026-10-28)
 
 ## Open questions
 
-- Is `FCM_CMS_DB_CONNECTION` the same database as `FCM_RRS_DB_CONNECTION`? (FCM-1.1-97, owner or IT.)
+- Registration lookup connection resolved on 10/29/2026 (FCM-1.1-165): read-only metadata found the lookup through RRS, and the owner explicitly authorized that setting for this lookup only. The initial filled form had no matching referral; a later guarded FCM-1.1-168 UI run completed DATA and reached REVIEW. This is not save-enabled end-to-end or RRS completion validation.

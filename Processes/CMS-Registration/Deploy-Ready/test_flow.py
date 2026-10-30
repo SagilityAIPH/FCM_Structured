@@ -3,6 +3,7 @@ import importlib.util
 from pathlib import Path
 import sys
 import unittest
+from unittest.mock import Mock
 
 ROOT = Path(__file__).resolve().parent
 
@@ -32,6 +33,51 @@ def stages(**overrides):
 
 
 class FlowTests(unittest.TestCase):
+    def test_preview_stops_after_review_without_setup_or_registration(self):
+        setup, complete = Mock(), Mock()
+        events = []
+        result = F.run_flow(REQUEST, stages=stages(
+            setup_cms=setup, complete_registration=complete),
+            on_stage=events.append, preview_only=True)
+        self.assertEqual((result["outcome"], result["reason"], result["stage"]),
+                         ("stopped", "preview_only", "REVIEW"))
+        self.assertEqual(result["stages"], ["START", "CASE", "DATA", "REVIEW"])
+        self.assertEqual(events, result["stages"])
+        self.assertEqual(result["steps"], [])
+        self.assertIsNone(result["registration"])
+        setup.assert_not_called()
+        complete.assert_not_called()
+        self.assertIn(result["reason"], C.REASONS)
+
+    def test_explicit_non_preview_preserves_registration(self):
+        setup = Mock(return_value=[])
+        complete = Mock(return_value=dict(option="3", case_id_entered=True, readback=CASE.case_id))
+        result = F.run_flow(REQUEST, stages=stages(
+            setup_cms=setup, complete_registration=complete), preview_only=False)
+        self.assertEqual((result["outcome"], result["reason"]), ("completed", "registered"))
+        setup.assert_called_once()
+        complete.assert_called_once()
+
+    def test_preview_cancel_or_data_failure_does_not_claim_successful_preview(self):
+        def broken(*args):
+            raise ValueError("Synthetic safe DATA failure")
+        for overrides, reason, outcome in (
+                (dict(review=lambda *args: False), "operator_cancelled", "cancelled"),
+                (dict(load_data=broken), "exception", "failed")):
+            setup, complete = Mock(), Mock()
+            result = F.run_flow(REQUEST, preview_only=True, stages=stages(
+                **overrides, setup_cms=setup, complete_registration=complete))
+            self.assertEqual((result["reason"], result["outcome"]), (reason, outcome))
+            setup.assert_not_called()
+            complete.assert_not_called()
+
+    def test_non_boolean_preview_is_rejected_before_case_search(self):
+        find = Mock()
+        result = F.run_flow(REQUEST, stages=stages(find_cases=find), preview_only="false")
+        self.assertEqual((result["outcome"], result["reason"], result["stage"]),
+                         ("failed", "exception", "START"))
+        find.assert_not_called()
+
     def test_success_all_keys_and_callback_order(self):
         events = []
         def setup(r, c, d, cb):

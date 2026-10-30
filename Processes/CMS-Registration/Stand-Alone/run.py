@@ -1,4 +1,4 @@
-"""CMS Registration: offline synthetic runner or attended desktop window."""
+"""CMS Registration: attended desktop window (live by default) or offline synthetic runner."""
 import argparse
 from dataclasses import replace
 import importlib.util
@@ -8,6 +8,8 @@ from pathlib import Path
 import sys
 
 ROOT = Path(sys._MEIPASS) if getattr(sys, 'frozen', False) else Path(__file__).resolve().parents[3]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 HERE = ROOT / 'Processes/CMS-Registration/Stand-Alone'
 CORE = HERE.parent / 'Deploy-Ready'
 
@@ -116,13 +118,18 @@ def main(argv=None):
     parser.add_argument('--self-test', action='store_true')
     parser.add_argument('--report', type=Path)
     parser.add_argument('--desktop', action='store_true')
-    parser.add_argument('--live', action='store_true', help='Attended desktop live mode; never starts on its own.')
+    parser.add_argument('--live', action='store_true', help='Attended desktop live mode (default for --desktop); never starts on its own.')
+    parser.add_argument('--offline', action='store_true', help='Desktop with the synthetic fixture instead of the live portal.')
     args = parser.parse_args(argv)
-    if args.live and not args.desktop:
-        parser.error('--live requires --desktop and an operator Start.')
+    if args.live and args.offline:
+        parser.error('--live and --offline are mutually exclusive.')
+    if not (args.scenario or args.all_scenarios or args.self_test):
+        args.desktop = True
+    if (args.live or args.offline) and not args.desktop:
+        parser.error('--live/--offline require --desktop; scenarios are always offline.')
     if args.desktop:
         from launcher import main as desktop
-        desktop(live=args.live)
+        desktop(live=not args.offline)
         return 0
     if args.self_test or args.all_scenarios:
         try:

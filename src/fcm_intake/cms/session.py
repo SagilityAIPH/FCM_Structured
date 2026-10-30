@@ -8,13 +8,13 @@ import time
 from pathlib import Path
 
 from selenium import webdriver
-from selenium.common.exceptions import WebDriverException, TimeoutException
+from selenium.common.exceptions import WebDriverException, TimeoutException, ElementNotInteractableException
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.ie.options import Options as IeOptions
 from selenium.webdriver.ie.service import Service as IeService
 from selenium.webdriver.support import expected_conditions as EC
-from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support.ui import WebDriverWait, Select
 
 from edge_auto import find_msedge_path
 from fcm_intake.cms.security_warning import snapshot_browser_windows, new_browser_window, CmsCertificateMonitor
@@ -135,8 +135,9 @@ def element_exist(by, value, timeout=10):
         return False
 
 
-def legacy_safe_type(by, sel, text, timeout=20, click_first=True):
-    driver = get_shared_driver()
+def legacy_safe_type(by, sel, text, timeout=20, click_first=True, *, driver=None):
+    if driver is None:
+        driver = get_shared_driver()
     el = WebDriverWait(driver, timeout).until(EC.presence_of_element_located((by, sel)))
     driver.execute_script("arguments[0].scrollIntoView(true);", el)
     if click_first:
@@ -192,8 +193,78 @@ def legacy_safe_type(by, sel, text, timeout=20, click_first=True):
         return False
 
 
-def element_check(el):
-    driver = get_shared_driver()
+def ie_select_by_visible_text(by, locator, text, timeout=20, *, driver):
+    """Select one exact actual option on the owned driver, then read it afresh."""
+    if not isinstance(text, str) or not text.strip():
+        raise ValueError("Invalid selection target")
+
+    def inspect():
+        element = WebDriverWait(driver, timeout).until(
+            EC.presence_of_element_located((by, locator)))
+        select = Select(element)
+        if select.is_multiple or not element.is_enabled() or not element.is_displayed():
+            raise ValueError("Dropdown is not an available single select")
+        options = select.options
+        if any(not isinstance(option.text, str) for option in options):
+            raise ValueError("Unreadable dropdown options")
+        matches = [option for option in options if option.text == text]
+        if len(matches) != 1:
+            raise ValueError("Selection target is not unique")
+        target = matches[0]
+        value = target.get_attribute("value")
+        if not target.is_enabled() or not isinstance(value, str) or not value.strip():
+            raise ValueError("Selection target is not available")
+        return element, select, options, target, value
+
+    element, select, _, _, value = inspect()
+    try:
+        select.select_by_visible_text(text)
+    except ElementNotInteractableException:
+        # IE may reject native option clicks; select only an actual exact option.
+        acknowledged = driver.execute_script(
+            r"""
+            var el = arguments[0], text = arguments[1], value = arguments[2];
+            if (!el || el.tagName.toLowerCase() !== 'select' || el.disabled ||
+                el.multiple || !(el.offsetWidth || el.offsetHeight || el.getClientRects().length)) {
+                return false;
+            }
+            var style = el.currentStyle || window.getComputedStyle(el, null);
+            if (style && (style.visibility === 'hidden' || style.visibility === 'collapse')) {
+                return false;
+            }
+            var index = -1, count = 0;
+            for (var i = 0; i < el.options.length; i++) {
+                if (el.options[i].text === text) { index = i; count++; }
+            }
+            if (count !== 1) { return false; }
+            var option = el.options[index];
+            if (option.disabled || option.value !== value ||
+                (option.parentNode.tagName.toLowerCase() === 'optgroup' && option.parentNode.disabled)) {
+                return false;
+            }
+            el.selectedIndex = index;
+            if (document.createEventObject && el.fireEvent) {
+                return el.fireEvent('onchange', document.createEventObject());
+            }
+            var event = document.createEvent('HTMLEvents');
+            event.initEvent('change', true, false);
+            return el.dispatchEvent(event);
+            """,
+            element, text, value,
+        )
+        if acknowledged is not True:
+            raise ValueError("Selection event not acknowledged")
+    _, select, options, target, readback_value = inspect()
+    selected = [option for option in options if option.is_selected()]
+    if (readback_value != value or len(selected) != 1 or selected[0] != target
+            or select.first_selected_option != target):
+        raise ValueError("Selection readback mismatch")
+    return True
+
+
+def element_check(el, *, driver=None):
+    if driver is None:
+        driver = get_shared_driver()
     return driver.execute_script(
         r"""
         (function(el){
@@ -211,8 +282,9 @@ def element_check(el):
     )
 
 
-def element_click(el):
-    driver = get_shared_driver()
+def element_click(el, *, driver=None):
+    if driver is None:
+        driver = get_shared_driver()
     return driver.execute_script(
         r"""
         (function(el){
@@ -300,6 +372,35 @@ class CmsAuthenticationRejected(RuntimeError):
     """Login remained on the sign-in page; never carry entered values in errors."""
 
 
+def authenticate_cms(driver, username, password, *, status=None):
+    """Submit verified credentials on an already validated, caller-owned page."""
+    user = (username or "").strip()
+    if not user or not password:
+        raise ValueError("CMS username and password are required.")
+    report = status if status is not None else lambda message: None
+    report('CMS login controls found. Entering credentials.')
+    if not legacy_safe_type(By.ID, "ctl00_Body_UserName", user, driver=driver):
+        raise RuntimeError("CMS username entry could not be verified.")
+    time.sleep(0.5)
+    if not legacy_safe_type(By.ID, "ctl00_Body_Password", password, driver=driver):
+        raise RuntimeError("CMS password entry could not be verified.")
+    time.sleep(0.5)
+    i_accept = driver.find_element(By.ID, "ctl00_Body_Accept")
+    element_check(i_accept, driver=driver)
+    driver.execute_script("AcceptChanged();")
+    time.sleep(0.5)
+    login_btn = driver.find_element(By.ID, "ctl00_Body_Login")
+    report('Submitting CMS login.')
+    element_click(login_btn, driver=driver)
+    time.sleep(3)
+    if not _looks_logged_in(driver):
+        try:
+            WebDriverWait(driver, 8).until(_looks_logged_in)
+        except TimeoutException:
+            raise CmsAuthenticationRejected("CMS sign-in was rejected.") from None
+    return driver
+
+
 def init_shared_cms_session(username: str | None = None, password: str | None = None):
     global _logged_in
     with _lock:
@@ -321,27 +422,7 @@ def init_shared_cms_session(username: str | None = None, password: str | None = 
                     raise
             report_status('Waiting for CMS login controls.')
             WebDriverWait(driver, 20).until(EC.presence_of_element_located((By.ID, 'ctl00_Body_UserName')))
-        report_status('CMS login controls found. Entering credentials.')
-        legacy_safe_type(By.ID, "ctl00_Body_UserName", user)
-        time.sleep(0.5)
-        legacy_safe_type(By.ID, "ctl00_Body_Password", pw)
-        time.sleep(0.5)
-        i_accept = driver.find_element(By.ID, "ctl00_Body_Accept")
-        element_check(i_accept)
-        driver.execute_script("AcceptChanged();")
-        time.sleep(0.5)
-        login_btn = driver.find_element(By.ID, "ctl00_Body_Login")
-        report_status('Submitting CMS login.')
-        element_click(login_btn)
-        time.sleep(3)
-        # A rejected password leaves the browser on Login.aspx. Detect this
-        # before any search so a remembered value cannot loop indefinitely.
-        # Only retry a known authentication rejection. Other CMS failures stop.
-        if isinstance(driver.current_url, str) and "Login.aspx" in driver.current_url:
-            try:
-                WebDriverWait(driver, 8).until(_looks_logged_in)
-            except TimeoutException:
-                raise CmsAuthenticationRejected("CMS sign-in was rejected.") from None
+        authenticate_cms(driver, user, pw, status=report_status)
         _logged_in = True
         return driver
 
@@ -356,4 +437,3 @@ def close_shared_driver():
                 pass
         _driver = None
         _logged_in = False
-
